@@ -8,6 +8,11 @@
         "esModuleInterop": true,
         "resolveJsonModule": true,
         "sourceMap": true,
+        "paths": {
+            "@shared/*": [
+                "./src/shared/*"
+            ]
+        },
         "plugins": [
             {
                 "name": "gql.tada/ts-plugin",
