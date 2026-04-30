@@ -1,6 +1,6 @@
 <template>
     <div>
-        <h1>akko</h1>
+        <h1 class="font-semibold text-red-600 text-3xl">akko</h1>
     </div>
 </template>
 
