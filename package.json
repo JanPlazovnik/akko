@@ -52,8 +52,10 @@
     "@tailwindcss/vite": "^4.2.4",
     "better-sqlite3": "^12.9.0",
     "electron-squirrel-startup": "^1.0.1",
+    "pinia": "^3.0.4",
     "tailwindcss": "^4.2.4",
     "vue": "^3.5.33",
+    "vue-router": "^5.0.6",
     "webtorrent": "^2.8.5"
   },
   "lint-staged": {
