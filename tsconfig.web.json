@@ -4,8 +4,14 @@
         "target": "ESNext",
         "module": "ESNext",
         "moduleResolution": "bundler",
-        "lib": ["ESNext", "DOM"],
+        "lib": [
+            "ESNext",
+            "DOM"
+        ],
         "jsx": "preserve"
     },
-    "include": ["src/renderer/**/*", "vite.renderer.config.mts"]
+    "include": [
+        "src/renderer/**/*",
+        "vite.renderer.config.mts"
+    ]
 }
