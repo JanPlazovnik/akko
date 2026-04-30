@@ -11,10 +11,10 @@ async function getClient() {
 }
 
 export async function startTorrent(magnetUri: string) {
-    const wt = await getClient()
+    const wt = await getClient();
     wt.add(magnetUri, { destroyStoreOnDestroy: true }, async (torrent: any) => {
-        console.log(torrent.files.map((f: any) => ({ name: f.name, length: f.length })))
-        const streamUrl = await createStreamServer(torrent)
-        console.log({ streamUrl })
-    })
+        console.log(torrent.files.map((f: any) => ({ name: f.name, length: f.length })));
+        const streamUrl = await createStreamServer(torrent);
+        console.log({ streamUrl });
+    });
 }

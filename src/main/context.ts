@@ -1,9 +1,8 @@
-import { BrowserWindow } from "electron";
+import { BrowserWindow } from 'electron';
 
 interface AppContext {
     window: BrowserWindow;
 }
-
 
 let ctx: AppContext | null = null;
 
@@ -13,7 +12,7 @@ export function initContext(data: AppContext) {
 
 export function getContext(): AppContext {
     if (!ctx) {
-        throw new Error("Context not initialized");
+        throw new Error('Context not initialized');
     }
 
     return ctx;

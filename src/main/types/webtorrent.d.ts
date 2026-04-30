@@ -1,1 +1,1 @@
-declare module 'webtorrent'
+declare module 'webtorrent';
