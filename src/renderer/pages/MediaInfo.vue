@@ -77,8 +77,7 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
 
                     <div class="pb-1 flex-1">
                         <p class="text-[10px] text-white/40 uppercase tracking-widest mb-1">
-                            {{ media.format
-                            }}{{ media.startDate?.year ? ` · ${media.startDate.year}` : '' }}
+                            {{ media.title?.romaji }}
                         </p>
                         <h1 class="text-2xl font-bold text-white leading-tight mb-3">
                             {{ media.title?.userPreferred }}
@@ -86,36 +85,42 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                         <div class="flex items-center gap-1.5 flex-wrap mb-3">
                             <span
                                 v-if="media.episodes"
-                                class="text-xs border border-white/20 text-white/60 px-3 py-1 rounded-full"
+                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
                                 >{{ media.episodes }} EP</span
                             >
                             <span
                                 v-if="media.format"
-                                class="text-xs border border-white/20 text-white/60 px-3 py-1 rounded-full"
+                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
                                 >{{ media.format }}</span
                             >
                             <span
                                 v-if="media.status"
-                                class="text-xs border border-white/20 text-white/60 px-3 py-1 rounded-full"
+                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
                                 >{{ media.status }}</span
                             >
                             <span
-                                v-if="media.averageScore"
-                                class="text-xs bg-white text-black font-bold px-3 py-1 rounded-full"
-                                >{{ media.averageScore }}%</span
+                                v-if="media.season && media.seasonYear"
+                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
+                                >{{ media.season }} {{ media.seasonYear }}</span
                             >
                             <span
-                                v-for="genre in (media.genres ?? []).slice(0, 3)"
-                                :key="genre!"
-                                class="text-xs border border-white/10 text-white/35 px-3 py-1 rounded-full"
-                                >{{ genre }}</span
+                                v-if="media.averageScore"
+                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
+                                >{{ media.averageScore }}%</span
                             >
                         </div>
-                        <p
-                            class="text-white/50 text-xs leading-relaxed max-w-[560px] mb-4 line-clamp-2"
-                        >
+                        <p class="text-white/50 text-xs leading-relaxed mb-2 line-clamp-3">
                             {{ stripHtml(media.description) }}
                         </p>
+                        <div v-if="media.genres?.length" class="flex gap-1.5 flex-wrap mb-4">
+                            <span
+                                v-for="genre in (media.genres ?? []).filter(Boolean).slice(0, 5)"
+                                :key="genre!"
+                                class="text-[11px] border border-white/15 text-white/40 px-2.5 py-0.5 rounded-md"
+                            >
+                                {{ genre }}
+                            </span>
+                        </div>
                         <button
                             class="flex items-center gap-2 bg-white text-black text-xs font-semibold px-4 py-2 rounded-full hover:bg-white/85 transition-opacity cursor-pointer"
                         >

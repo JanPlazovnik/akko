@@ -82,45 +82,49 @@ function stripHtml(s?: string | null) {
                     <div class="flex gap-2 flex-wrap">
                         <span
                             v-if="current.episodes"
-                            class="border border-white/20 px-3 py-1 text-xs rounded-full text-white/60"
+                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
                         >
                             {{ current.episodes }} EP
                         </span>
-
                         <span
                             v-if="current.format"
-                            class="border border-white/20 px-3 py-1 text-xs rounded-full text-white/60"
+                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
                         >
                             {{ current.format }}
                         </span>
-
                         <span
                             v-if="current.status"
-                            class="border border-white/40 px-3 py-1 text-xs rounded-full text-white/80"
+                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
                         >
                             {{ current.status }}
                         </span>
-
+                        <span
+                            v-if="current.season && current.seasonYear"
+                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
+                        >
+                            {{ current.season }} {{ current.seasonYear }}
+                        </span>
                         <span
                             v-if="current.averageScore"
-                            class="bg-white px-3 py-1 text-xs rounded-full text-black font-bold"
+                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
                         >
                             {{ current.averageScore }}%
                         </span>
+                    </div>
 
+                    <p class="text-sm text-white/65 leading-relaxed line-clamp-4 max-w-xl">
+                        {{ stripHtml(current.description) }}
+                    </p>
+
+                    <div v-if="current.genres?.length" class="flex gap-1.5 flex-wrap">
                         <span
-                            v-for="genre in (current.genres ?? []).slice(0, 3)"
+                            v-for="genre in (current.genres ?? []).filter(Boolean).slice(0, 5)"
                             :key="genre!"
-                            class="border border-white/10 px-3 py-1 text-xs rounded-full text-white/40"
+                            class="text-[11px] border border-white/15 text-white/40 px-2.5 py-0.5 rounded-md"
                         >
                             {{ genre }}
                         </span>
                     </div>
-
-                    <!-- better synopsis balance -->
-                    <p class="text-sm text-white/65 leading-relaxed line-clamp-4 max-w-xl">
-                        {{ stripHtml(current.description) }}
-                    </p>
                 </div>
 
                 <!-- actions -->
