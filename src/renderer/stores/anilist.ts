@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { anilistClient } from '../lib/anilist-client';
 import { ResultOf, VariablesOf } from '@shared/graphql/graphql';
-import { DashboardQuery } from '@shared/graphql/queries';
+import { DashboardQuery, GetAnimeQuery } from '@shared/graphql/queries';
 import type { Media } from '@shared/graphql/queries';
 import router from '../router';
 
@@ -42,6 +42,11 @@ export const useAnilistStore = defineStore('anilist', () => {
         }
     }
 
+    async function fetchMedia(id: number): Promise<void> {
+        const { data } = await anilistClient.query(GetAnimeQuery, { id }, `media-${id}`);
+        if (data?.Media) selectedMedia.value = data.Media as Media;
+    }
+
     function viewMedia(item: Media) {
         selectedMedia.value = item;
         router.push(`/media/${item.id}`);
@@ -53,6 +58,7 @@ export const useAnilistStore = defineStore('anilist', () => {
         dashboardError,
         selectedMedia,
         fetchDashboard,
+        fetchMedia,
         viewMedia,
     };
 });

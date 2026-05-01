@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { Play } from '@lucide/vue';
 import { useAnilistStore } from '../stores/anilist';
 import { useAnizipStore } from '../stores/anizip';
 import { useLoadingStore } from '../stores/loading';
 
+const route = useRoute();
 const anilist = useAnilistStore();
 const anizip = useAnizipStore();
 const loadingBar = useLoadingStore();
@@ -12,9 +14,12 @@ const loadingBar = useLoadingStore();
 const media = computed(() => anilist.selectedMedia);
 
 onMounted(async () => {
-    if (!media.value) return;
+    const id = Number(route.params.id);
     loadingBar.start();
-    await anizip.fetchForMedia(media.value.id);
+    await Promise.all([
+        media.value?.id === id ? Promise.resolve() : anilist.fetchMedia(id),
+        anizip.fetchForMedia(id),
+    ]);
     loadingBar.finish();
 });
 
