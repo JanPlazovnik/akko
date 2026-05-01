@@ -22,7 +22,7 @@ watch(
 </script>
 
 <template>
-    <div class="flex flex-col h-screen bg-black text-white">
+    <div class="flex flex-col h-screen bg-black text-white select-none">
         <Header v-if="route.path !== '/player'" />
         <main ref="mainEl" class="flex-1 overflow-auto bg-neutral-900 mx-2 mb-2 rounded-md">
             <RouterView />

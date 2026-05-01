@@ -116,7 +116,10 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                         <p class="text-[10px] text-white/40 uppercase tracking-widest mb-1">
                             {{ media.title?.romaji }}
                         </p>
-                        <h1 ref="titleEl" class="text-2xl font-bold text-white leading-tight mb-3">
+                        <h1
+                            ref="titleEl"
+                            class="text-2xl font-bold text-white leading-tight mb-3 select-text"
+                        >
                             {{ media.title?.userPreferred }}
                         </h1>
                         <div class="flex items-center gap-1.5 flex-wrap mb-3">
@@ -135,7 +138,9 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                             >
                             <Badge v-if="media.averageScore">{{ media.averageScore }}%</Badge>
                         </div>
-                        <p class="text-white/50 text-xs leading-relaxed mb-2 line-clamp-3">
+                        <p
+                            class="text-white/50 text-xs leading-relaxed mb-2 line-clamp-3 select-text"
+                        >
                             {{ stripHtml(media.description) }}
                         </p>
                         <div v-if="media.genres?.length" class="flex gap-1.5 flex-wrap mb-4">
