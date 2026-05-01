@@ -4,6 +4,8 @@ import started from 'electron-squirrel-startup';
 import { initClient } from './torrent/torrent';
 import { initContext } from './context';
 import { registerAllHandlers } from './ipc';
+import { initDb } from './extensions/db';
+import { initExtensions } from './extensions/manager';
 
 if (started) {
     app.quit();
@@ -34,11 +36,13 @@ const createWindow = () => {
 
 app.on('ready', async () => {
     console.log('[DEBUG] App ready, initializing');
+    initDb();
     await initClient();
     console.log('[DEBUG] Creating window');
     const window = createWindow();
     initContext({ window });
     registerAllHandlers();
+    initExtensions().catch((err) => console.error('[extensions] Startup failed:', err));
     console.log('[DEBUG] IPC handlers registered');
 });
 
