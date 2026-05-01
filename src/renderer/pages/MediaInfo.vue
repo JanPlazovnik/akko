@@ -1,14 +1,31 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { Play } from '@lucide/vue';
 import { useAnilistStore } from '../stores/anilist';
+import { useAnizipStore } from '../stores/anizip';
+import { useLoadingStore } from '../stores/loading';
 
 const anilist = useAnilistStore();
+const anizip = useAnizipStore();
+const loadingBar = useLoadingStore();
+
 const media = computed(() => anilist.selectedMedia);
+
+onMounted(async () => {
+    if (!media.value) return;
+    loadingBar.start();
+    await anizip.fetchForMedia(media.value.id);
+    loadingBar.finish();
+});
 
 const stripHtml = (s?: string | null) => s?.replace(/<[^>]*>/g, '') ?? '';
 
-const episodeCount = computed(() => media.value?.episodes ?? 0);
+const episodeTitle = (ep: (typeof anizip.episodes)[number], displayNum: number) => {
+    const t = ep.title;
+    return t['en'] || t['x-jat'] || t['ja'] || `Episode ${displayNum}`;
+};
+
+const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
 </script>
 
 <template>
@@ -88,32 +105,80 @@ const episodeCount = computed(() => media.value?.episodes ?? 0);
                 </div>
 
                 <!-- Episodes -->
-                <div v-if="episodeCount" class="pb-8">
-                    <h2 class="text-sm font-semibold mb-3">Episodes &middot; {{ episodeCount }}</h2>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div
-                            v-for="ep in episodeCount"
-                            :key="ep"
-                            class="flex gap-3 p-2.5 rounded-lg bg-neutral-800/60 hover:bg-neutral-800 transition-colors cursor-pointer"
-                        >
+                <div class="pb-8">
+                    <template v-if="anizip.loading">
+                        <h2 class="text-sm font-semibold mb-3">Episodes</h2>
+                        <div class="grid grid-cols-2 gap-2">
                             <div
-                                class="w-[100px] h-[60px] bg-neutral-700 rounded shrink-0 relative overflow-hidden flex items-center justify-center"
+                                v-for="i in 6"
+                                :key="i"
+                                class="flex gap-3 p-2.5 rounded-lg bg-neutral-800/60 animate-pulse"
                             >
-                                <span class="text-[10px] text-white/30">EP {{ ep }}</span>
+                                <div class="w-[100px] h-[60px] bg-neutral-700 rounded shrink-0" />
+                                <div class="flex-1 py-0.5 space-y-2">
+                                    <div class="h-2.5 bg-neutral-700 rounded w-3/4" />
+                                    <div class="h-2 bg-neutral-700 rounded w-full" />
+                                    <div class="h-2 bg-neutral-700 rounded w-2/3" />
+                                </div>
                             </div>
-                            <div class="flex-1 min-w-0 py-0.5">
-                                <p
-                                    class="text-white text-xs font-medium leading-tight mb-1 truncate"
-                                >
-                                    Episode {{ ep }}
-                                </p>
-                                <p class="text-white/35 text-[10px] leading-relaxed line-clamp-2">
-                                    No synopsis available.
-                                </p>
-                            </div>
-                            <span class="text-[9px] text-white/25 shrink-0 pt-0.5">~24m</span>
                         </div>
-                    </div>
+                    </template>
+
+                    <template v-else-if="anizip.error">
+                        <p class="text-red-400 text-xs">Failed to load episodes.</p>
+                    </template>
+
+                    <template v-else-if="anizip.episodes.length">
+                        <h2 class="text-sm font-semibold mb-3">
+                            Episodes &middot; {{ anizip.episodes.length }}
+                        </h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div
+                                v-for="(ep, i) in anizip.episodes"
+                                :key="ep.episodeNumber"
+                                class="flex gap-3 p-3 rounded-lg bg-neutral-800/60 hover:bg-neutral-800 transition-colors cursor-pointer"
+                            >
+                                <div
+                                    class="w-[140px] h-[84px] bg-neutral-700 rounded shrink-0 relative overflow-hidden"
+                                >
+                                    <img
+                                        v-if="ep.image"
+                                        :src="ep.image"
+                                        class="absolute inset-0 w-full h-full object-cover"
+                                    />
+                                    <span
+                                        class="absolute bottom-1.5 left-2 text-[11px] font-semibold text-white/80 bg-black/70 px-1.5 py-0.5 rounded"
+                                    >
+                                        {{ i + 1 }}
+                                    </span>
+                                </div>
+                                <div class="flex-1 min-w-0 py-0.5 flex flex-col">
+                                    <p
+                                        class="text-white text-sm font-medium leading-tight mb-1.5 truncate"
+                                    >
+                                        {{ episodeTitle(ep, i + 1) }}
+                                    </p>
+                                    <p
+                                        class="text-white/35 text-[11px] leading-relaxed line-clamp-3"
+                                    >
+                                        {{ ep.overview ?? 'No synopsis available.' }}
+                                    </p>
+                                    <p
+                                        v-if="ep.airDate"
+                                        class="text-[10px] text-white/25 mt-auto pt-1"
+                                    >
+                                        {{ ep.airDate }}
+                                    </p>
+                                </div>
+                                <span
+                                    v-if="formatRuntime(ep.runtime)"
+                                    class="text-[10px] text-white/25 shrink-0 pt-0.5"
+                                >
+                                    {{ formatRuntime(ep.runtime) }}
+                                </span>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
         </template>
