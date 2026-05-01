@@ -150,9 +150,7 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                     </template>
 
                     <template v-else-if="episodes.length">
-                        <h2 class="text-sm font-semibold mb-3">
-                            Episodes &middot; {{ episodes.length }}
-                        </h2>
+                        <h2 class="text-sm font-semibold mb-3">Episodes</h2>
                         <div class="grid grid-cols-2 gap-3">
                             <div
                                 v-for="(ep, i) in episodes"
