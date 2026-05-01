@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
+import { toast } from 'vue3-toastify';
 import { useAnilistStore } from '../stores/anilist';
 import { useLoadingStore } from '../stores/loading';
 import HeroBanner from '../components/HeroBanner.vue';
@@ -13,6 +14,11 @@ onMounted(async () => {
     await anilist.fetchDashboard();
     loadingBar.finish();
 });
+
+watch(
+    () => anilist.dashboardError,
+    (err) => err && toast.error(err.message)
+);
 
 const nonNull = <T,>(arr: (T | null)[] | null | undefined) =>
     (arr ?? []).filter((x): x is T => x !== null);
@@ -29,12 +35,6 @@ const popular = computed(() => nonNull(anilist.dashboard?.popular?.media));
             class="flex items-center justify-center h-64 text-white/40 text-sm"
         >
             Loading...
-        </div>
-        <div
-            v-else-if="anilist.dashboardError"
-            class="flex items-center justify-center h-64 text-red-400 text-sm"
-        >
-            {{ anilist.dashboardError.message }}
         </div>
         <template v-else>
             <HeroBanner :items="trending.slice(0, 6)" />

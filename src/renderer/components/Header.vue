@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { Home, Search, Settings, Minus, Square, X } from '@lucide/vue';
+import { Home, Search, Settings, Minus, Square, X, FlaskConical } from '@lucide/vue';
 
 const router = useRouter();
 const { minimizeWindow, maximizeWindow, closeWindow } = window.api;
@@ -27,6 +27,13 @@ const { minimizeWindow, maximizeWindow, closeWindow } = window.api;
             </div>
 
             <div class="no-drag flex items-center gap-2">
+                <button
+                    @click="router.push('/playground')"
+                    class="no-drag p-1.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white"
+                    title="Playground"
+                >
+                    <FlaskConical :size="18" />
+                </button>
                 <button
                     @click="router.push('/settings')"
                     class="no-drag p-1.5 rounded-full hover:bg-white/10 text-white/60 hover:text-white"

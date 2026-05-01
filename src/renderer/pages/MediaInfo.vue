@@ -1,31 +1,46 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import { toast } from 'vue3-toastify';
 import { Play } from '@lucide/vue';
 import { useAnilistStore } from '../stores/anilist';
-import { useAnizipStore } from '../stores/anizip';
 import { useLoadingStore } from '../stores/loading';
+import { fetchEpisodes } from '../lib/anizip-client';
+import type { AniZipEpisode } from '@shared/anizip/types';
 
 const route = useRoute();
 const anilist = useAnilistStore();
-const anizip = useAnizipStore();
 const loadingBar = useLoadingStore();
 
 const media = computed(() => anilist.selectedMedia);
+const episodes = ref<AniZipEpisode[]>([]);
+const episodesLoading = ref(false);
 
 onMounted(async () => {
     const id = Number(route.params.id);
     loadingBar.start();
-    await Promise.all([
-        media.value?.id === id ? Promise.resolve() : anilist.fetchMedia(id),
-        anizip.fetchForMedia(id),
-    ]);
-    loadingBar.finish();
+    episodesLoading.value = true;
+    try {
+        await Promise.all([
+            media.value?.id === id ? Promise.resolve() : anilist.fetchMedia(id),
+            fetchEpisodes(id).then((data) => {
+                episodes.value = Object.entries(data.episodes)
+                    .filter(([key]) => /^\d+$/.test(key))
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([, ep]) => ep);
+            }),
+        ]);
+    } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to load media');
+    } finally {
+        episodesLoading.value = false;
+        loadingBar.finish();
+    }
 });
 
 const stripHtml = (s?: string | null) => s?.replace(/<[^>]*>/g, '') ?? '';
 
-const episodeTitle = (ep: (typeof anizip.episodes)[number], displayNum: number) => {
+const episodeTitle = (ep: AniZipEpisode, displayNum: number) => {
     const t = ep.title;
     return t['en'] || t['x-jat'] || t['ja'] || `Episode ${displayNum}`;
 };
@@ -111,7 +126,7 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
 
                 <!-- Episodes -->
                 <div class="pb-8">
-                    <template v-if="anizip.loading">
+                    <template v-if="episodesLoading">
                         <h2 class="text-sm font-semibold mb-3">Episodes</h2>
                         <div class="grid grid-cols-2 gap-2">
                             <div
@@ -129,17 +144,13 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                         </div>
                     </template>
 
-                    <template v-else-if="anizip.error">
-                        <p class="text-red-400 text-xs">Failed to load episodes.</p>
-                    </template>
-
-                    <template v-else-if="anizip.episodes.length">
+                    <template v-else-if="episodes.length">
                         <h2 class="text-sm font-semibold mb-3">
-                            Episodes &middot; {{ anizip.episodes.length }}
+                            Episodes &middot; {{ episodes.length }}
                         </h2>
                         <div class="grid grid-cols-2 gap-3">
                             <div
-                                v-for="(ep, i) in anizip.episodes"
+                                v-for="(ep, i) in episodes"
                                 :key="ep.episodeNumber"
                                 class="flex gap-3 p-3 rounded-lg bg-neutral-800/60 hover:bg-neutral-800 transition-colors cursor-pointer"
                             >

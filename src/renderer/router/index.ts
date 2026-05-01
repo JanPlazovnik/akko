@@ -11,6 +11,7 @@ const router = createRouter({
         { path: '/media/:id', component: MediaInfo },
         { path: '/player', component: Player },
         { path: '/settings', component: SettingsPage },
+        { path: '/playground', component: () => import('../pages/Playground.vue') },
     ],
 });
 
