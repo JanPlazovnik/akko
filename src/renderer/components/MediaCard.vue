@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, inject, watch } from 'vue';
 import { Play, Heart, Plus, Calendar, Tv } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import { useAnilistStore } from '../stores/anilist';
+
+const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
 
 const props = defineProps<{ item: Media; actionLabel?: string }>();
 const anilist = useAnilistStore();
@@ -48,11 +50,16 @@ function updatePosition() {
     };
 }
 
+watch(isScrolling, (scrolling) => {
+    if (scrolling) onLeave();
+});
+
 function onEnter() {
     hoverTimer = setTimeout(() => {
+        if (isScrolling.value) return;
         hovered.value = true;
         requestAnimationFrame(updatePosition);
-    }, 150);
+    }, 500);
 }
 
 function onLeave() {
