@@ -52,9 +52,11 @@ function stripHtml(s?: string | null) {
         <Transition name="hero-fade" mode="out-in">
             <div v-if="current" :key="heroIndex" class="absolute inset-0">
                 <img
-                    :src="current.bannerImage ?? current.coverImage?.large ?? ''"
+                    v-if="current.bannerImage"
+                    :src="current.bannerImage"
                     class="absolute inset-0 w-full h-full object-cover"
                 />
+                <div v-else class="absolute inset-0 bg-neutral-800" />
                 <div
                     class="absolute inset-0 bg-linear-to-r from-neutral-950 via-neutral-950/70 to-neutral-950/10"
                 />
