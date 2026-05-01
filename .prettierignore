@@ -4,3 +4,4 @@ out
 dist
 package.json
 package-lock.json
+graphql-env.d.ts
