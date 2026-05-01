@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
 import { Play } from '@lucide/vue';
@@ -36,7 +36,26 @@ onMounted(async () => {
         episodesLoading.value = false;
         loadingBar.finish();
     }
+    await nextTick();
+    observeTitle();
 });
+
+const titleEl = ref<HTMLElement | null>(null);
+const stickyVisible = ref(false);
+let observer: IntersectionObserver | null = null;
+
+onUnmounted(() => observer?.disconnect());
+
+function observeTitle() {
+    if (!titleEl.value) return;
+    observer = new IntersectionObserver(
+        ([entry]) => {
+            stickyVisible.value = !entry.isIntersecting;
+        },
+        { threshold: 0 }
+    );
+    observer.observe(titleEl.value);
+}
 
 const stripHtml = (s?: string | null) => s?.replace(/<[^>]*>/g, '') ?? '';
 
@@ -50,6 +69,21 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
 
 <template>
     <div class="min-h-full bg-neutral-900 text-white">
+        <div class="sticky top-0 z-50 h-0 overflow-visible">
+            <Transition name="sticky-fade">
+                <div
+                    v-if="stickyVisible && media"
+                    class="px-8 py-3 bg-neutral-900/90 backdrop-blur-sm border-b border-white/5 flex items-center gap-3"
+                >
+                    <img
+                        v-if="media.coverImage?.large"
+                        :src="media.coverImage.large"
+                        class="w-7 h-10 rounded object-cover shrink-0"
+                    />
+                    <p class="text-sm font-semibold truncate">{{ media.title?.userPreferred }}</p>
+                </div>
+            </Transition>
+        </div>
         <template v-if="media">
             <!-- Banner -->
             <div class="h-[220px] relative overflow-hidden">
@@ -79,7 +113,7 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                         <p class="text-[10px] text-white/40 uppercase tracking-widest mb-1">
                             {{ media.title?.romaji }}
                         </p>
-                        <h1 class="text-2xl font-bold text-white leading-tight mb-3">
+                        <h1 ref="titleEl" class="text-2xl font-bold text-white leading-tight mb-3">
                             {{ media.title?.userPreferred }}
                         </h1>
                         <div class="flex items-center gap-1.5 flex-wrap mb-3">
@@ -203,3 +237,17 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
         </template>
     </div>
 </template>
+
+<style scoped>
+.sticky-fade-enter-active,
+.sticky-fade-leave-active {
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease;
+}
+.sticky-fade-enter-from,
+.sticky-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+</style>
