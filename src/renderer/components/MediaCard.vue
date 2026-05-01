@@ -59,12 +59,22 @@ function onEnter() {
         if (isScrolling.value) return;
         hovered.value = true;
         requestAnimationFrame(updatePosition);
-    }, 500);
+    }, 200);
 }
 
 function onLeave() {
     if (hoverTimer) clearTimeout(hoverTimer);
     hovered.value = false;
+}
+
+function forwardWheel(e: WheelEvent) {
+    onLeave();
+    const scrollEl = triggerRef.value?.closest('main');
+    if (!scrollEl) return;
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 20;
+    else if (e.deltaMode === 2) dy *= (scrollEl as HTMLElement).clientHeight;
+    (scrollEl as HTMLElement).scrollBy({ top: dy });
 }
 
 function navigate() {
@@ -87,6 +97,7 @@ function navigate() {
                     pressing ? 'scale-[0.97]' : 'scale-100',
                 ]"
                 @click="navigate()"
+                @wheel.prevent="forwardWheel"
             >
                 <div class="h-32 relative">
                     <div class="absolute inset-0 bg-neutral-900">
