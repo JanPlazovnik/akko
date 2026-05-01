@@ -4,6 +4,7 @@ import { Play } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import { useAnilistStore } from '../stores/anilist';
 import Badge from './ui/Badge.vue';
+import { STATUS_LABELS, FORMAT_LABELS, SEASON_LABELS } from '../lib/media-labels';
 
 const props = defineProps<{ items: Media[] }>();
 const anilist = useAnilistStore();
@@ -85,15 +86,16 @@ function stripHtml(s?: string | null) {
                     <div class="flex gap-2 flex-wrap">
                         <Badge v-if="current.episodes">{{ current.episodes }} EP</Badge>
                         <Badge v-if="current.format" :query="{ format: current.format! }">{{
-                            current.format
+                            FORMAT_LABELS[current.format!] ?? current.format
                         }}</Badge>
                         <Badge v-if="current.status" :query="{ status: current.status! }">{{
-                            current.status
+                            STATUS_LABELS[current.status!] ?? current.status
                         }}</Badge>
                         <Badge
                             v-if="current.season && current.seasonYear"
                             :query="{ season: current.season!, year: String(current.seasonYear) }"
-                            >{{ current.season }} {{ current.seasonYear }}</Badge
+                            >{{ SEASON_LABELS[current.season!] ?? current.season }}
+                            {{ current.seasonYear }}</Badge
                         >
                         <Badge v-if="current.averageScore">{{ current.averageScore }}%</Badge>
                     </div>

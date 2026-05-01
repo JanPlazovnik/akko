@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
 import { Play } from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
+import { STATUS_LABELS, FORMAT_LABELS, SEASON_LABELS } from '../lib/media-labels';
 import { useAnilistStore } from '../stores/anilist';
 import { useLoadingStore } from '../stores/loading';
 import { fetchEpisodes } from '../lib/anizip-client';
@@ -22,19 +23,20 @@ onMounted(async () => {
     loadingBar.start();
     episodesLoading.value = true;
     try {
-        await Promise.all([
-            media.value?.id === id ? Promise.resolve() : anilist.fetchMedia(id),
-            fetchEpisodes(id).then((data) => {
-                episodes.value = Object.entries(data.episodes)
-                    .filter(([key]) => /^\d+$/.test(key))
-                    .sort(([a], [b]) => Number(a) - Number(b))
-                    .map(([, ep]) => ep);
-            }),
-        ]);
+        if (media.value?.id !== id) await anilist.fetchMedia(id);
+        const notReleased = media.value?.status === 'NOT_YET_RELEASED';
+        if (!notReleased) {
+            const data = await fetchEpisodes(id);
+            episodes.value = Object.entries(data.episodes)
+                .filter(([key]) => /^\d+$/.test(key))
+                .sort(([a], [b]) => Number(a) - Number(b))
+                .map(([, ep]) => ep);
+            episodesLoading.value = false;
+        }
     } catch (err) {
+        episodesLoading.value = false;
         toast.error(err instanceof Error ? err.message : 'Failed to load media');
     } finally {
-        episodesLoading.value = false;
         loadingBar.finish();
     }
     await nextTick();
@@ -120,15 +122,16 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                         <div class="flex items-center gap-1.5 flex-wrap mb-3">
                             <Badge v-if="media.episodes">{{ media.episodes }} EP</Badge>
                             <Badge v-if="media.format" :query="{ format: media.format! }">{{
-                                media.format
+                                FORMAT_LABELS[media.format!] ?? media.format
                             }}</Badge>
                             <Badge v-if="media.status" :query="{ status: media.status! }">{{
-                                media.status
+                                STATUS_LABELS[media.status!] ?? media.status
                             }}</Badge>
                             <Badge
                                 v-if="media.season && media.seasonYear"
                                 :query="{ season: media.season!, year: String(media.seasonYear) }"
-                                >{{ media.season }} {{ media.seasonYear }}</Badge
+                                >{{ SEASON_LABELS[media.season!] ?? media.season }}
+                                {{ media.seasonYear }}</Badge
                             >
                             <Badge v-if="media.averageScore">{{ media.averageScore }}%</Badge>
                         </div>
