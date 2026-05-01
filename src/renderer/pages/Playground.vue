@@ -1,7 +1,26 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { toast } from 'vue3-toastify';
 import { useLoadingStore } from '../stores/loading';
 import { useAnilistStore } from '../stores/anilist';
+import SelectMenu from '../components/ui/SelectMenu.vue';
+import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
+
+const selectVal = ref('');
+const multiVal = ref<string[]>([]);
+const DEMO_OPTIONS = [
+    { value: 'a', label: 'Option A' },
+    { value: 'b', label: 'Option B' },
+    { value: 'c', label: 'Option C' },
+    { value: 'd', label: 'Option D' },
+];
+const DEMO_MULTI = [
+    { value: 'action', label: 'Action' },
+    { value: 'comedy', label: 'Comedy' },
+    { value: 'drama', label: 'Drama' },
+    { value: 'fantasy', label: 'Fantasy' },
+    { value: 'horror', label: 'Horror' },
+];
 
 const loadingBar = useLoadingStore();
 const anilist = useAnilistStore();
@@ -19,6 +38,25 @@ async function testLoadingBar() {
             <p class="text-[10px] uppercase tracking-[0.16em] text-white/30 mb-1">Dev</p>
             <h1 class="text-2xl font-bold">Playground</h1>
         </div>
+
+        <!-- UI Components -->
+        <section class="space-y-3">
+            <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">
+                UI Components
+            </h2>
+            <div class="flex flex-wrap gap-3 items-center">
+                <SelectMenu v-model="selectVal" :options="DEMO_OPTIONS" placeholder="SelectMenu" />
+                <MultiSelectMenu
+                    v-model="multiVal"
+                    :options="DEMO_MULTI"
+                    placeholder="MultiSelectMenu"
+                />
+            </div>
+            <div class="text-xs text-white/30 font-mono space-y-1">
+                <p>SelectMenu: {{ selectVal || 'empty' }}</p>
+                <p>MultiSelectMenu: {{ multiVal.length ? multiVal.join(', ') : 'empty' }}</p>
+            </div>
+        </section>
 
         <!-- Toasts -->
         <section class="space-y-3">
