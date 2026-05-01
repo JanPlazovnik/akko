@@ -1,15 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useAnilistStore } from '../stores/anilist';
+import { useLoadingStore } from '../stores/loading';
 import HeroBanner from '../components/HeroBanner.vue';
 import MediaRow from '../components/MediaRow.vue';
 
 const anilist = useAnilistStore();
-onMounted(() => anilist.fetchDashboard());
+const loadingBar = useLoadingStore();
 
-const trending = computed(() => anilist.dashboard?.trending?.media ?? []);
-const season = computed(() => anilist.dashboard?.season?.media ?? []);
-const popular = computed(() => anilist.dashboard?.popular?.media ?? []);
+onMounted(async () => {
+    loadingBar.start();
+    await anilist.fetchDashboard();
+    loadingBar.finish();
+});
+
+const nonNull = <T,>(arr: (T | null)[] | null | undefined) =>
+    (arr ?? []).filter((x): x is T => x !== null);
+
+const trending = computed(() => nonNull(anilist.dashboard?.trending?.media));
+const season = computed(() => nonNull(anilist.dashboard?.season?.media));
+const popular = computed(() => nonNull(anilist.dashboard?.popular?.media));
 </script>
 
 <template>

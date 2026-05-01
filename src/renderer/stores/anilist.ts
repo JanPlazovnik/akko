@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import { anilistClient } from '../lib/anilist-client';
 import { ResultOf, VariablesOf } from '@shared/graphql/graphql';
 import { DashboardQuery } from '@shared/graphql/queries';
+import type { Media } from '@shared/graphql/queries';
+import router from '../router';
 
 type DashboardData = ResultOf<typeof DashboardQuery>;
 
@@ -19,6 +21,7 @@ export const useAnilistStore = defineStore('anilist', () => {
     const dashboard = ref<DashboardData | null>(null);
     const dashboardLoading = ref(false);
     const dashboardError = ref<Error | null>(null);
+    const selectedMedia = ref<Media | null>(null);
 
     async function fetchDashboard() {
         if (dashboardLoading.value) return;
@@ -39,10 +42,17 @@ export const useAnilistStore = defineStore('anilist', () => {
         }
     }
 
+    function viewMedia(item: Media) {
+        selectedMedia.value = item;
+        router.push(`/media/${item.id}`);
+    }
+
     return {
         dashboard,
         dashboardLoading,
         dashboardError,
+        selectedMedia,
         fetchDashboard,
+        viewMedia,
     };
 });

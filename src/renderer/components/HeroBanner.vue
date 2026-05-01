@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { Play } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
+import { useAnilistStore } from '../stores/anilist';
 
 const props = defineProps<{ items: Media[] }>();
-const router = useRouter();
+const anilist = useAnilistStore();
 
 const heroIndex = ref(0);
 const transitioning = ref(false);
@@ -127,7 +127,7 @@ function stripHtml(s?: string | null) {
                 <div class="flex gap-3 items-center">
                     <button
                         class="bg-white text-black px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2 rounded-full hover:opacity-85 transition-opacity cursor-pointer"
-                        @click="current && router.push(`/media/${current.id}`)"
+                        @click="current && anilist.viewMedia(current)"
                     >
                         <Play :size="14" fill="black" />
                         Watch now

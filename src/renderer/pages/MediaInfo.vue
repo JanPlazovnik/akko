@@ -1,27 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed } from 'vue';
 import { Play } from '@lucide/vue';
-import { anilistClient } from '../lib/anilist-client';
-import { GetAnimeQuery } from '@shared/graphql/queries';
-import type { Anime } from '@shared/graphql/queries';
+import { useAnilistStore } from '../stores/anilist';
 
-const route = useRoute();
-const media = ref<Anime | null>(null);
-const loading = ref(true);
-const error = ref<Error | null>(null);
-
-onMounted(async () => {
-    try {
-        const id = Number(route.params.id);
-        const { data } = await anilistClient.query(GetAnimeQuery, { id });
-        media.value = data?.Media ?? null;
-    } catch (err) {
-        error.value = err as Error;
-    } finally {
-        loading.value = false;
-    }
-});
+const anilist = useAnilistStore();
+const media = computed(() => anilist.selectedMedia);
 
 const stripHtml = (s?: string | null) => s?.replace(/<[^>]*>/g, '') ?? '';
 
@@ -30,14 +13,7 @@ const episodeCount = computed(() => media.value?.episodes ?? 0);
 
 <template>
     <div class="min-h-full bg-neutral-900 text-white">
-        <div v-if="loading" class="flex items-center justify-center h-64 text-white/40 text-sm">
-            Loading...
-        </div>
-        <div v-else-if="error" class="flex items-center justify-center h-64 text-red-400 text-sm">
-            {{ error.message }}
-        </div>
-
-        <template v-else-if="media">
+        <template v-if="media">
             <!-- Banner -->
             <div class="h-[220px] relative overflow-hidden">
                 <img

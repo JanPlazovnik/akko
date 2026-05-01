@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { Play, Heart, Plus, Calendar, Tv } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
+import { useAnilistStore } from '../stores/anilist';
 
 const props = defineProps<{ item: Media; actionLabel?: string }>();
-const router = useRouter();
+const anilist = useAnilistStore();
 
 const title = computed(() => props.item.title?.userPreferred ?? '');
 const coverImage = computed(() => props.item.coverImage?.large ?? null);
@@ -64,7 +64,7 @@ function navigate() {
     pressing.value = true;
     setTimeout(() => {
         pressing.value = false;
-        router.push(`/media/${props.item.id}`);
+        anilist.viewMedia(props.item);
     }, 120);
 }
 </script>

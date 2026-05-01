@@ -3,8 +3,7 @@ import Dashboard from '../pages/Dashboard.vue';
 import MediaInfo from '../pages/MediaInfo.vue';
 import Player from '../pages/Player.vue';
 import SettingsPage from '../pages/Settings.vue';
-
-export default createRouter({
+const router = createRouter({
     history: createWebHashHistory(),
     routes: [
         { path: '/', component: Dashboard },
@@ -14,3 +13,5 @@ export default createRouter({
         { path: '/settings', component: SettingsPage },
     ],
 });
+
+export default router;
