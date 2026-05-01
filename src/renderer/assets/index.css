@@ -35,3 +35,32 @@
 *::-webkit-scrollbar-corner {
     background: transparent;
 }
+
+/* Reka UI dropdown animations */
+[data-reka-popper-content-wrapper] [data-state='open'] {
+    animation: dropdown-in 0.1s ease;
+}
+[data-reka-popper-content-wrapper] [data-state='closed'] {
+    animation: dropdown-out 0.08s ease;
+}
+
+@keyframes dropdown-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+@keyframes dropdown-out {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.97);
+    }
+}
