@@ -21,6 +21,8 @@ export const MediaFragment = graphql(`
         format
         status
         episodes
+        season
+        seasonYear
         averageScore
         startDate {
             year

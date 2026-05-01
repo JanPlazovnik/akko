@@ -37,13 +37,13 @@ export type Anime = ResultOf<typeof GetAnimeQuery>['Media'];
 
 export const DashboardQuery = graphql(
     `
-        query ($season: MediaSeason, $seasonYear: Int, $nextSeason: MediaSeason, $nextYear: Int) {
+        query ($season: MediaSeason, $seasonYear: Int) {
             trending: Page(page: 1, perPage: 6) {
                 media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
                     ...MediaFragment
                 }
             }
-            season: Page(page: 1, perPage: 6) {
+            season: Page(page: 1, perPage: 25) {
                 media(
                     season: $season
                     seasonYear: $seasonYear
@@ -54,23 +54,12 @@ export const DashboardQuery = graphql(
                     ...MediaFragment
                 }
             }
-            nextSeason: Page(page: 1, perPage: 6) {
-                media(
-                    season: $nextSeason
-                    seasonYear: $nextYear
-                    sort: POPULARITY_DESC
-                    type: ANIME
-                    isAdult: false
-                ) {
-                    ...MediaFragment
-                }
-            }
-            popular: Page(page: 1, perPage: 6) {
+            popular: Page(page: 1, perPage: 25) {
                 media(sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
                     ...MediaFragment
                 }
             }
-            top: Page(page: 1, perPage: 10) {
+            top: Page(page: 1, perPage: 25) {
                 media(sort: SCORE_DESC, type: ANIME, isAdult: false) {
                     ...MediaFragment
                 }

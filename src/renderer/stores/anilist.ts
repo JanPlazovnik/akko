@@ -12,8 +12,7 @@ function getCurrentSeason(): VariablesOf<typeof DashboardQuery> {
     const season = month <= 3 ? 'WINTER' : month <= 6 ? 'SPRING' : month <= 9 ? 'SUMMER' : 'FALL';
     const seasons = ['WINTER', 'SPRING', 'SUMMER', 'FALL'] as const;
     const nextSeason = seasons[(seasons.indexOf(season) + 1) % 4];
-    const nextYear = nextSeason === 'WINTER' ? year + 1 : year;
-    return { season, seasonYear: year, nextSeason, nextYear };
+    return { season, seasonYear: year };
 }
 
 export const useAnilistStore = defineStore('anilist', () => {
