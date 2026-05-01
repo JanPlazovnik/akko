@@ -3,7 +3,6 @@ import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Header from './components/Header.vue';
 import BottomBar from './components/BottomBar.vue';
-import LoadingBar from './components/LoadingBar.vue';
 
 const route = useRoute();
 const mainEl = ref<HTMLElement | null>(null);
@@ -24,7 +23,6 @@ watch(
 
 <template>
     <div class="flex flex-col h-screen bg-black text-white">
-        <LoadingBar />
         <Header v-if="route.path !== '/player'" />
         <main ref="mainEl" class="flex-1 overflow-auto bg-neutral-900 mx-2 mb-2 rounded-md">
             <RouterView />

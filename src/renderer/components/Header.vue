@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { Home, Search, Settings, Minus, Square, X, FlaskConical } from '@lucide/vue';
+import LoadingBar from './LoadingBar.vue';
 
 const router = useRouter();
 const { minimizeWindow, maximizeWindow, closeWindow } = window.api;
 </script>
 
 <template>
-    <header class="drag h-14 shrink-0">
-        <div class="h-full flex items-center justify-between pl-4">
+    <header class="drag shrink-0">
+        <div class="h-14 flex items-center justify-between pl-4">
             <div class="no-drag flex items-center gap-4">
                 <button
                     @click="router.push('/')"
@@ -27,6 +28,8 @@ const { minimizeWindow, maximizeWindow, closeWindow } = window.api;
             </div>
 
             <div class="no-drag flex items-center gap-2">
+                <LoadingBar />
+
                 <button
                     @click="router.push('/playground')"
                     class="no-drag p-1.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white"
