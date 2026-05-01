@@ -9,9 +9,7 @@
         "resolveJsonModule": true,
         "sourceMap": true,
         "paths": {
-            "@shared/*": [
-                "./src/shared/*"
-            ]
+            "@shared/*": ["./src/shared/*"]
         },
         "plugins": [
             {

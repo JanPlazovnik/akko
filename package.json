@@ -50,17 +50,18 @@
     "vue-tsc": "^3.2.7"
   },
   "dependencies": {
+    "@lucide/vue": "^1.14.0",
     "@tailwindcss/vite": "^4.2.4",
     "better-sqlite3": "^12.9.0",
     "electron-squirrel-startup": "^1.0.1",
+    "gql.tada": "^1.8.13",
+    "graphql": "^16.11.0",
+    "graphql-request": "^7.2.0",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.2.4",
     "vue": "^3.5.33",
     "vue-router": "^5.0.6",
-    "webtorrent": "^2.8.5",
-    "gql.tada": "^1.8.13",
-    "graphql": "^16.11.0",
-    "graphql-request": "^7.2.0"
+    "webtorrent": "^2.8.5"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,css,html}": "prettier --write"
