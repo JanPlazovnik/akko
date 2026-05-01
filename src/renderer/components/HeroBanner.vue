@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Play } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import { useAnilistStore } from '../stores/anilist';
+import Badge from './ui/Badge.vue';
 
 const props = defineProps<{ items: Media[] }>();
 const anilist = useAnilistStore();
@@ -82,36 +83,19 @@ function stripHtml(s?: string | null) {
 
                     <!-- pills -->
                     <div class="flex gap-2 flex-wrap">
-                        <span
-                            v-if="current.episodes"
-                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
-                        >
-                            {{ current.episodes }} EP
-                        </span>
-                        <span
-                            v-if="current.format"
-                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
-                        >
-                            {{ current.format }}
-                        </span>
-                        <span
-                            v-if="current.status"
-                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
-                        >
-                            {{ current.status }}
-                        </span>
-                        <span
+                        <Badge v-if="current.episodes">{{ current.episodes }} EP</Badge>
+                        <Badge v-if="current.format" :query="{ format: current.format! }">{{
+                            current.format
+                        }}</Badge>
+                        <Badge v-if="current.status" :query="{ status: current.status! }">{{
+                            current.status
+                        }}</Badge>
+                        <Badge
                             v-if="current.season && current.seasonYear"
-                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
+                            :query="{ season: current.season!, year: String(current.seasonYear) }"
+                            >{{ current.season }} {{ current.seasonYear }}</Badge
                         >
-                            {{ current.season }} {{ current.seasonYear }}
-                        </span>
-                        <span
-                            v-if="current.averageScore"
-                            class="bg-white/10 px-3 py-1 text-xs rounded-full text-white/70"
-                        >
-                            {{ current.averageScore }}%
-                        </span>
+                        <Badge v-if="current.averageScore">{{ current.averageScore }}%</Badge>
                     </div>
 
                     <p class="text-sm text-white/65 leading-relaxed line-clamp-4 max-w-xl">
@@ -119,13 +103,13 @@ function stripHtml(s?: string | null) {
                     </p>
 
                     <div v-if="current.genres?.length" class="flex gap-1.5 flex-wrap">
-                        <span
+                        <Badge
                             v-for="genre in (current.genres ?? []).filter(Boolean).slice(0, 5)"
                             :key="genre!"
-                            class="text-[11px] border border-white/15 text-white/40 px-2.5 py-0.5 rounded-md"
+                            variant="tag"
+                            :query="{ genres: genre! }"
+                            >{{ genre }}</Badge
                         >
-                            {{ genre }}
-                        </span>
                     </div>
                 </div>
 

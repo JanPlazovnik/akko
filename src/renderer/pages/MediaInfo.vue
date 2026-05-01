@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
 import { Play } from '@lucide/vue';
+import Badge from '../components/ui/Badge.vue';
 import { useAnilistStore } from '../stores/anilist';
 import { useLoadingStore } from '../stores/loading';
 import { fetchEpisodes } from '../lib/anizip-client';
@@ -117,43 +118,31 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                             {{ media.title?.userPreferred }}
                         </h1>
                         <div class="flex items-center gap-1.5 flex-wrap mb-3">
-                            <span
-                                v-if="media.episodes"
-                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
-                                >{{ media.episodes }} EP</span
-                            >
-                            <span
-                                v-if="media.format"
-                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
-                                >{{ media.format }}</span
-                            >
-                            <span
-                                v-if="media.status"
-                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
-                                >{{ media.status }}</span
-                            >
-                            <span
+                            <Badge v-if="media.episodes">{{ media.episodes }} EP</Badge>
+                            <Badge v-if="media.format" :query="{ format: media.format! }">{{
+                                media.format
+                            }}</Badge>
+                            <Badge v-if="media.status" :query="{ status: media.status! }">{{
+                                media.status
+                            }}</Badge>
+                            <Badge
                                 v-if="media.season && media.seasonYear"
-                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
-                                >{{ media.season }} {{ media.seasonYear }}</span
+                                :query="{ season: media.season!, year: String(media.seasonYear) }"
+                                >{{ media.season }} {{ media.seasonYear }}</Badge
                             >
-                            <span
-                                v-if="media.averageScore"
-                                class="text-xs bg-white/10 text-white/70 px-3 py-1 rounded-full"
-                                >{{ media.averageScore }}%</span
-                            >
+                            <Badge v-if="media.averageScore">{{ media.averageScore }}%</Badge>
                         </div>
                         <p class="text-white/50 text-xs leading-relaxed mb-2 line-clamp-3">
                             {{ stripHtml(media.description) }}
                         </p>
                         <div v-if="media.genres?.length" class="flex gap-1.5 flex-wrap mb-4">
-                            <span
+                            <Badge
                                 v-for="genre in (media.genres ?? []).filter(Boolean).slice(0, 5)"
                                 :key="genre!"
-                                class="text-[11px] border border-white/15 text-white/40 px-2.5 py-0.5 rounded-md"
+                                variant="tag"
+                                :query="{ genres: genre! }"
+                                >{{ genre }}</Badge
                             >
-                                {{ genre }}
-                            </span>
                         </div>
                         <button
                             class="flex items-center gap-2 bg-white text-black text-xs font-semibold px-4 py-2 rounded-full hover:bg-white/85 transition-opacity cursor-pointer"
