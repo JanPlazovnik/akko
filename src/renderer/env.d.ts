@@ -1,6 +1,8 @@
 interface Window {
     api: {
-        startStream: (magnet: string) => Promise<{ torrentId: string; streamUrl: string }>;
+        startStream: (
+            magnet: string
+        ) => Promise<{ torrentId: string; streamUrl: string; mimeType: string }>;
         stopStream: (torrentId: string) => Promise<void>;
         minimizeWindow: () => void;
         maximizeWindow: () => void;

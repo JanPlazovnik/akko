@@ -27,7 +27,7 @@ function closeActiveServer() {
 
 export async function startTorrent(
     magnetUri: string
-): Promise<{ torrentId: string; streamUrl: string }> {
+): Promise<{ torrentId: string; streamUrl: string; mimeType: string }> {
     console.log('[DEBUG] startTorrent called:', magnetUri);
 
     closeActiveServer();
@@ -44,10 +44,10 @@ export async function startTorrent(
             console.log('[DEBUG] Torrent ready, infoHash:', torrent.infoHash);
             try {
                 console.log('[DEBUG] Creating stream server');
-                const { server, streamUrl } = await createStreamServer(torrent);
+                const { server, streamUrl, mimeType } = await createStreamServer(torrent);
                 activeServer = server;
-                console.log('[DEBUG] Stream server ready:', streamUrl);
-                resolve({ torrentId: torrent.infoHash, streamUrl });
+                console.log('[DEBUG] Stream server ready:', streamUrl, mimeType);
+                resolve({ torrentId: torrent.infoHash, streamUrl, mimeType });
             } catch (e) {
                 console.error('[DEBUG] Failed to create stream server:', e);
                 reject(e);

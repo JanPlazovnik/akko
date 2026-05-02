@@ -5,10 +5,27 @@ import path from 'node:path';
 
 export default defineConfig({
     root: 'src/renderer',
-    plugins: [vue(), tailwindcss()],
+
+    plugins: [
+        vue({
+            template: {
+                compilerOptions: {
+                    isCustomElement: (tag) => tag.startsWith('video-'),
+                },
+            },
+        }),
+
+        tailwindcss(),
+    ],
+
     resolve: {
         alias: {
             '@shared': path.resolve(__dirname, 'src/shared'),
+            '@': path.resolve(__dirname, 'src/renderer'),
         },
+    },
+
+    optimizeDeps: {
+        exclude: ['@videojs/html'],
     },
 });
