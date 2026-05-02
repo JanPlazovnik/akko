@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
 import { Play } from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
+import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import { STATUS_LABELS, FORMAT_LABELS, SEASON_LABELS } from '../lib/media-labels';
 import { useAnilistStore } from '../stores/anilist';
 import { useLoadingStore } from '../stores/loading';
@@ -17,6 +18,9 @@ const loadingBar = useLoadingStore();
 const media = computed(() => anilist.selectedMedia);
 const episodes = ref<AniZipEpisode[]>([]);
 const episodesLoading = ref(false);
+const anidbAid = ref<number | null>(null);
+const selectedEpisode = ref<AniZipEpisode | null>(null);
+const dialogOpen = ref(false);
 
 onMounted(async () => {
     const id = Number(route.params.id);
@@ -27,6 +31,7 @@ onMounted(async () => {
         const notReleased = media.value?.status === 'NOT_YET_RELEASED';
         if (!notReleased) {
             const data = await fetchEpisodes(id);
+            anidbAid.value = data.mappings.anidb_id;
             episodes.value = Object.entries(data.episodes)
                 .filter(([key]) => /^\d+$/.test(key))
                 .sort(([a], [b]) => Number(a) - Number(b))
@@ -58,6 +63,11 @@ function observeTitle() {
         { threshold: 0 }
     );
     observer.observe(titleEl.value);
+}
+
+function openDialog(ep: AniZipEpisode) {
+    selectedEpisode.value = ep;
+    dialogOpen.value = true;
 }
 
 const stripHtml = (s?: string | null) => s?.replace(/<[^>]*>/g, '') ?? '';
@@ -187,6 +197,7 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
                                 v-for="(ep, i) in episodes"
                                 :key="ep.episodeNumber"
                                 class="flex gap-3 p-3 rounded-lg bg-neutral-800/60 hover:bg-neutral-800 transition-colors cursor-pointer"
+                                @click="openDialog(ep)"
                             >
                                 <div
                                     class="w-[140px] h-[84px] bg-neutral-700 rounded shrink-0 relative overflow-hidden"
@@ -233,6 +244,16 @@ const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
             </div>
         </template>
     </div>
+
+    <TorrentPickerDialog
+        v-if="selectedEpisode && media"
+        v-model:open="dialogOpen"
+        :episode="selectedEpisode"
+        :anilist-id="media.id"
+        :titles="[media.title?.romaji, media.title?.english].filter((t): t is string => !!t)"
+        :episode-count="media.episodes ?? null"
+        :anidb-aid="anidbAid"
+    />
 </template>
 
 <style scoped>

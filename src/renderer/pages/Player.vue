@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onUnmounted } from 'vue';
 import { usePlayerStore } from '../stores/player';
 
 const player = usePlayerStore();
-const magnetUri = ref(
-    'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent'
-);
 
-const onSubmit = async () => {
-    await player.startStream(magnetUri.value);
-};
+onUnmounted(() => player.stopStream());
 </script>
 
 <template>
-    <div>
-        <input v-model="magnetUri" type="text" placeholder="Magnet" class="border p-2 rounded" />
-        <button @click="onSubmit" class="bg-blue-500 text-white p-2 rounded">Play</button>
-        <video v-if="player.streamUrl" :src="player.streamUrl" controls autoplay />
+    <div class="min-h-screen bg-black flex items-center justify-center">
+        <video
+            v-if="player.streamUrl"
+            :src="player.streamUrl"
+            controls
+            autoplay
+            class="w-full h-screen"
+        />
+        <p v-else class="text-white/30 text-sm">Nothing playing</p>
     </div>
 </template>
