@@ -32,7 +32,19 @@ function handleKeydown(e: KeyboardEvent) {
     }
 }
 
-function handleClick() {
+function handleClick(e: MouseEvent) {
+    const isControl = e
+        .composedPath()
+        .some(
+            (el) =>
+                el instanceof HTMLElement &&
+                (el.tagName === 'BUTTON' ||
+                    el.tagName === 'INPUT' ||
+                    el.tagName === 'SELECT' ||
+                    el.getAttribute('role') === 'button' ||
+                    el.getAttribute('role') === 'slider')
+        );
+    if (isControl) return;
     const video = getVideoEl();
     if (!video) return;
     video.paused ? video.play() : video.pause();
@@ -77,26 +89,48 @@ watch(
     { flush: 'post' }
 );
 
+const blobUrls: string[] = [];
+
+function revokeBlobUrls() {
+    blobUrls.forEach((u) => URL.revokeObjectURL(u));
+    blobUrls.length = 0;
+}
+
 watch(
     () => player.subtitles,
-    (tracks) => {
+    async (tracks) => {
         const video = getVideoEl();
         if (!video) return;
         video.querySelectorAll('track').forEach((t) => t.remove());
+        revokeBlobUrls();
         for (const t of tracks) {
+            let src: string;
+            try {
+                const text = await fetch(t.url).then((r) => r.text());
+                const blob = new Blob([text], { type: 'text/vtt' });
+                src = URL.createObjectURL(blob);
+                blobUrls.push(src);
+            } catch {
+                continue;
+            }
             const track = document.createElement('track');
             track.kind = 'subtitles';
-            track.src = t.url;
+            track.src = src;
             track.srclang = t.lang;
             track.label = t.label;
             track.default = player.activeSubtitle === t.lang;
             video.appendChild(track);
+            if (track.default) {
+                track.track.mode = 'showing';
+            }
         }
-    }
+    },
+    { flush: 'post' }
 );
 
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
+    revokeBlobUrls();
     player.stopStream();
 });
 </script>

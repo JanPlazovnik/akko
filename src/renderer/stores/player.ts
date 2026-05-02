@@ -26,11 +26,20 @@ export const usePlayerStore = defineStore('player', () => {
     });
 
     async function startStream(magnet: string) {
+        window.api.onSubtitles((subs) => {
+            subtitles.value = subs;
+            if (!activeSubtitle.value && subs.length > 0) {
+                activeSubtitle.value = subs[0].lang;
+            }
+        });
+
         const result = await window.api.startStream(magnet);
 
         torrentId.value = result.torrentId;
         streamUrl.value = result.streamUrl;
         mimeType.value = result.mimeType;
+        subtitles.value = result.subtitles ?? [];
+        activeSubtitle.value = result.subtitles?.[0]?.lang ?? null;
 
         currentTime.value = 0;
         duration.value = 0;
@@ -40,6 +49,7 @@ export const usePlayerStore = defineStore('player', () => {
     async function stopStream() {
         if (!torrentId.value) return;
 
+        window.api.offSubtitles();
         await window.api.stopStream(torrentId.value);
 
         torrentId.value = null;
@@ -49,6 +59,8 @@ export const usePlayerStore = defineStore('player', () => {
         isPlaying.value = false;
         currentTime.value = 0;
         duration.value = 0;
+        subtitles.value = [];
+        activeSubtitle.value = null;
     }
 
     function seek(time: number) {

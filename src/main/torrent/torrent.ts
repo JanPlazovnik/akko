@@ -1,6 +1,7 @@
 import { Torrent, WebTorrentOptions } from 'webtorrent';
 import http from 'http';
 import { createStreamServer } from './stream';
+import { sendToRenderer } from '../context';
 
 let client: any = null;
 let activeServer: http.Server | null = null;
@@ -25,9 +26,12 @@ function closeActiveServer() {
     }
 }
 
-export async function startTorrent(
-    magnetUri: string
-): Promise<{ torrentId: string; streamUrl: string; mimeType: string }> {
+export async function startTorrent(magnetUri: string): Promise<{
+    torrentId: string;
+    streamUrl: string;
+    mimeType: string;
+    subtitles: { lang: string; label: string; url: string }[];
+}> {
     console.log('[DEBUG] startTorrent called:', magnetUri);
 
     closeActiveServer();
@@ -44,10 +48,13 @@ export async function startTorrent(
             console.log('[DEBUG] Torrent ready, infoHash:', torrent.infoHash);
             try {
                 console.log('[DEBUG] Creating stream server');
-                const { server, streamUrl, mimeType } = await createStreamServer(torrent);
+                const { server, streamUrl, mimeType, subtitles } = await createStreamServer(
+                    torrent,
+                    (allSubtitles) => sendToRenderer('stream:subtitles', allSubtitles)
+                );
                 activeServer = server;
                 console.log('[DEBUG] Stream server ready:', streamUrl, mimeType);
-                resolve({ torrentId: torrent.infoHash, streamUrl, mimeType });
+                resolve({ torrentId: torrent.infoHash, streamUrl, mimeType, subtitles });
             } catch (e) {
                 console.error('[DEBUG] Failed to create stream server:', e);
                 reject(e);

@@ -1,9 +1,14 @@
 interface Window {
     api: {
-        startStream: (
-            magnet: string
-        ) => Promise<{ torrentId: string; streamUrl: string; mimeType: string }>;
+        startStream: (magnet: string) => Promise<{
+            torrentId: string;
+            streamUrl: string;
+            mimeType: string;
+            subtitles: { lang: string; label: string; url: string }[];
+        }>;
         stopStream: (torrentId: string) => Promise<void>;
+        onSubtitles: (cb: (subs: { lang: string; label: string; url: string }[]) => void) => void;
+        offSubtitles: () => void;
         minimizeWindow: () => void;
         maximizeWindow: () => void;
         closeWindow: () => void;

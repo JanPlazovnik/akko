@@ -4,7 +4,13 @@ import { defineConfig } from 'vite';
 export default defineConfig({
     build: {
         rollupOptions: {
-            external: ['webtorrent', 'better-sqlite3'],
+            external: [
+                'webtorrent',
+                'better-sqlite3',
+                'ffmpeg-static',
+                'ffprobe-static',
+                'fluent-ffmpeg',
+            ],
         },
     },
 });
