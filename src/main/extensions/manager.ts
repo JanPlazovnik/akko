@@ -200,23 +200,29 @@ export async function searchOne(
 ): Promise<TorrentResult[]> {
     const instance = instances.get(id);
     if (!instance) throw new Error(`Extension ${id} not active`);
-    return searchExtension(instance, method, params);
+    console.log(`[extensions] running search() for ${id} with method ${method}`);
+    const results = await searchExtension(instance, method, params);
+    return results.map((r) => ({ ...r, extensionId: id }));
 }
 
 export async function searchAll(
     method: SearchMethod,
     params: SearchParams
 ): Promise<ExtensionSearchResult[]> {
+    console.log(`[extensions] running searchAll() with method ${method}`);
     const results = await Promise.allSettled(
         [...instances.entries()].map(async ([id, instance]) => {
+            console.log(`[extensions] running search() for ${id} with method ${method}`);
             const results = await searchExtension(instance, method, params);
-            return { extensionId: id, results };
+            return { extensionId: id, results: results.map((r) => ({ ...r, extensionId: id })) };
         })
     );
 
+    console.log(`[extensions] searchAll() results:`, results);
     return results.map((r, i) => {
         const id = [...instances.keys()][i];
         if (r.status === 'fulfilled') return r.value;
+        console.warn(`[extensions] ${id} search() failed:`, r.reason);
         return { extensionId: id, results: [], error: String(r.reason) };
     });
 }

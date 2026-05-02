@@ -36,6 +36,7 @@ export interface SearchParams {
 export type SearchMethod = 'single' | 'batch' | 'movie';
 
 export interface TorrentResult {
+    extensionId: string;
     title: string;
     link: string;
     hash: string;

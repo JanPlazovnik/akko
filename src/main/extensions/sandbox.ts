@@ -75,6 +75,7 @@ export async function searchExtension(
 
     let raw: TorrentResult[];
     try {
+        console.log(`[extensions] running ${method}() with params:`, params);
         raw = await Promise.race([fn.call(instance, params), rejectAfter(SEARCH_TIMEOUT_MS)]);
     } catch (e) {
         throw normalizeError(e);
