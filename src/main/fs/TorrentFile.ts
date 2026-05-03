@@ -29,6 +29,10 @@ export class TorrentFile {
         return this.file.name;
     }
 
+    get offset(): number {
+        return this.file.offset ?? 0;
+    }
+
     /**
      * Read [offset, offset+length) from the torrent file.
      * Waits only for the pieces that cover this byte range.
@@ -76,4 +80,89 @@ export class TorrentFile {
     createReadStream(opts?: { start?: number; end?: number }): Readable {
         return this.file.createReadStream(opts);
     }
+
+    prefetch(start: number, length: number): void {
+        this.read(start, length).catch(() => {});
+    }
+
+    prioritizeRanges(ranges: Array<{ start: number; length: number }>, priority = 10): () => void {
+        const torrent = this.file._torrent;
+        const pieceLength = torrent?.pieceLength;
+        if (!torrent || !pieceLength) return () => {};
+
+        const spans = mergePieceSpans(
+            ranges
+                .map((range) => this.rangeToPieceSpan(range.start, range.length, pieceLength))
+                .filter((span): span is { startPiece: number; endPiece: number } => span !== null)
+        );
+
+        spans.forEach((span) => torrent.select(span.startPiece, span.endPiece, priority));
+        return () => {
+            spans.forEach((span) => torrent.deselect(span.startPiece, span.endPiece, priority));
+        };
+    }
+
+    describePieceCoverage(
+        ranges: Array<{ start: number; length: number }>
+    ): { pieceCount: number; estimatedBytes: number } | null {
+        const torrent = this.file._torrent;
+        const pieceLength = torrent?.pieceLength;
+        if (!torrent || !pieceLength) return null;
+
+        const spans = mergePieceSpans(
+            ranges
+                .map((range) => this.rangeToPieceSpan(range.start, range.length, pieceLength))
+                .filter((span): span is { startPiece: number; endPiece: number } => span !== null)
+        );
+
+        const pieceCount = spans.reduce(
+            (sum, span) => sum + (span.endPiece - span.startPiece + 1),
+            0
+        );
+        return {
+            pieceCount,
+            estimatedBytes: pieceCount * pieceLength,
+        };
+    }
+
+    private rangeToPieceSpan(
+        start: number,
+        length: number,
+        pieceLength: number
+    ): { startPiece: number; endPiece: number } | null {
+        if (length <= 0) return null;
+
+        const clampedStart = Math.max(0, start);
+        if (clampedStart >= this.length) return null;
+
+        const clampedEnd = Math.min(clampedStart + length - 1, this.length - 1);
+        const absoluteStart = this.offset + clampedStart;
+        const absoluteEnd = this.offset + clampedEnd;
+
+        return {
+            startPiece: Math.floor(absoluteStart / pieceLength),
+            endPiece: Math.floor(absoluteEnd / pieceLength),
+        };
+    }
+}
+
+function mergePieceSpans(
+    spans: Array<{ startPiece: number; endPiece: number }>
+): Array<{ startPiece: number; endPiece: number }> {
+    if (spans.length === 0) return [];
+
+    const sorted = [...spans].sort((a, b) => a.startPiece - b.startPiece);
+    const merged = [sorted[0]];
+
+    for (let i = 1; i < sorted.length; i += 1) {
+        const current = sorted[i];
+        const last = merged[merged.length - 1];
+        if (current.startPiece <= last.endPiece + 1) {
+            last.endPiece = Math.max(last.endPiece, current.endPiece);
+            continue;
+        }
+        merged.push({ ...current });
+    }
+
+    return merged;
 }

@@ -1,6 +1,12 @@
 import http from 'http';
 import { TorrentFile } from './TorrentFile';
 
+export type FontAttachment = {
+    name: string;
+    mediaType: string;
+    data: Uint8Array;
+};
+
 /**
  * HTTP range server backed by TorrentFile.
  *
@@ -12,11 +18,13 @@ import { TorrentFile } from './TorrentFile';
  * buffering gigabytes in memory.
  */
 const BUFFER_THRESHOLD = 2 * 1024 * 1024; // 2 MB
+const OPEN_ENDED_RANGE_CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB
 
 export function createRangeServer(
     torrentFile: TorrentFile,
-    mimeType: string
-): Promise<{ server: http.Server; url: string }> {
+    mimeType: string,
+    fontAttachments: FontAttachment[] = []
+): Promise<{ server: http.Server; playbackUrl: string; sourceUrl: string; fontBaseUrl: string }> {
     const server = http.createServer(async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Headers', '*');
@@ -30,7 +38,33 @@ export function createRangeServer(
         }
 
         const fileSize = torrentFile.length;
+        const requestUrl = new URL(req.url ?? '/', 'http://127.0.0.1');
+        const fontMatch = requestUrl.pathname.match(/^\/fonts\/(\d+)$/);
+        if (fontMatch) {
+            const font = fontAttachments[Number(fontMatch[1])];
+            if (!font) {
+                res.writeHead(404);
+                res.end();
+                return;
+            }
+
+            res.writeHead(200, {
+                'Content-Type': font.mediaType || 'application/x-truetype-font',
+                'Cache-Control': 'public, max-age=31536000, immutable',
+                'Content-Length': font.data.byteLength,
+            });
+
+            if (req.method === 'HEAD') {
+                res.end();
+                return;
+            }
+
+            res.end(Buffer.from(font.data));
+            return;
+        }
+
         const range = req.headers.range;
+        const isPlaybackRequest = requestUrl.pathname === '/playback';
 
         let start = 0;
         let end = fileSize - 1;
@@ -39,7 +73,24 @@ export function createRangeServer(
         if (range) {
             const match = range.replace(/bytes=/, '').split('-');
             start = parseInt(match[0], 10);
-            end = match[1] ? Math.min(parseInt(match[1], 10), fileSize - 1) : fileSize - 1;
+
+            if (!Number.isFinite(start) || start < 0 || start >= fileSize) {
+                res.writeHead(416, {
+                    'Content-Range': `bytes */${fileSize}`,
+                });
+                res.end();
+                return;
+            }
+
+            if (match[1]) {
+                end = Math.min(parseInt(match[1], 10), fileSize - 1);
+            } else if (isPlaybackRequest) {
+                // Browsers often request `bytes=0-` first. Serving the whole
+                // remaining torrent here turns startup into a long sequential
+                // download and starves random-access subtitle reads.
+                end = Math.min(start + OPEN_ENDED_RANGE_CHUNK_SIZE - 1, fileSize - 1);
+            }
+
             isRange = true;
         }
 
@@ -80,7 +131,12 @@ export function createRangeServer(
     return new Promise((resolve) => {
         server.listen(0, '127.0.0.1', () => {
             const port = (server.address() as any).port;
-            resolve({ server, url: `http://127.0.0.1:${port}/` });
+            resolve({
+                server,
+                playbackUrl: `http://127.0.0.1:${port}/playback`,
+                sourceUrl: `http://127.0.0.1:${port}/source`,
+                fontBaseUrl: `http://127.0.0.1:${port}/fonts`,
+            });
         });
     });
 }

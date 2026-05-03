@@ -1,22 +1,16 @@
 import path from 'path';
 import http from 'http';
-import { PassThrough } from 'stream';
 import { Torrent } from 'webtorrent';
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegPath from 'ffmpeg-static';
-import ffprobePath from 'ffprobe-static';
 import { TorrentFile } from '../fs/TorrentFile';
-import { createRangeServer } from '../fs/httpServer';
-
-ffmpeg.setFfmpegPath(ffmpegPath!);
-ffmpeg.setFfprobePath((ffprobePath as any).path ?? ffprobePath);
+import { createRangeServer, type FontAttachment } from '../fs/httpServer';
+import { bootstrapMatroskaSubtitles } from './matroskaSubtitles';
 
 const VIDEO_EXTS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.mov']);
 const SUBTITLE_EXTS = new Set(['.srt', '.vtt']);
 
 const MIME_FOR_EXT: Record<string, string> = {
     '.mp4': 'video/mp4',
-    '.mkv': 'video/mp4',
+    '.mkv': 'video/x-matroska',
     '.avi': 'video/mp4',
     '.webm': 'video/webm',
     '.mov': 'video/mp4',
@@ -49,7 +43,9 @@ const LANG_MAP: Record<string, string> = {
     pol: 'Polish',
 };
 
-const IMAGE_SUB_CODECS = new Set(['dvd_subtitle', 'hdmv_pgs_subtitle', 'dvbsub', 'xsub', 'pgssub']);
+function logStream(...args: unknown[]) {
+    console.log(`[stream ${new Date().toISOString()}]`, ...args);
+}
 
 function srtToVtt(srt: string): string {
     return (
@@ -69,63 +65,6 @@ function detectLang(filename: string): { lang: string; label: string } {
     return { lang: 'und', label: path.basename(filename, path.extname(filename)) };
 }
 
-function probeSubtitleStreams(
-    fileUrl: string
-): Promise<{ index: number; lang: string; label: string }[]> {
-    return new Promise((resolve) => {
-        ffmpeg.ffprobe(
-            fileUrl,
-            ['-probesize', '10000000', '-analyzeduration', '0'],
-            (err, meta) => {
-                if (err) {
-                    console.error('[stream] ffprobe error:', err.message);
-                    resolve([]);
-                    return;
-                }
-                resolve(
-                    (meta.streams ?? [])
-                        .filter(
-                            (s) =>
-                                s.codec_type === 'subtitle' &&
-                                !IMAGE_SUB_CODECS.has(s.codec_name ?? '')
-                        )
-                        .map((s, i) => {
-                            const tags = (s.tags ?? {}) as Record<string, string>;
-                            const rawLang = tags.language ?? 'und';
-                            return {
-                                index: s.index!,
-                                lang: rawLang.slice(0, 2),
-                                label:
-                                    tags.title ??
-                                    LANG_MAP[rawLang] ??
-                                    LANG_MAP[rawLang.slice(0, 2)] ??
-                                    `Track ${i + 1}`,
-                            };
-                        })
-                );
-            }
-        );
-    });
-}
-
-function extractSubtitleVtt(fileUrl: string, streamIndex: number): Promise<string> {
-    return new Promise((resolve) => {
-        const chunks: Buffer[] = [];
-        const pass = new PassThrough();
-        pass.on('data', (c: Buffer) => chunks.push(c));
-        pass.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-        pass.on('error', () => resolve('WEBVTT\n'));
-        ffmpeg(fileUrl)
-            .addOutputOption(`-map 0:${streamIndex}`)
-            .format('webvtt')
-            .on('error', (err) => {
-                console.error('[stream] ffmpeg subtitle error:', err.message);
-                resolve('WEBVTT\n');
-            })
-            .pipe(pass, { end: true });
-    });
-}
-
 function readSidecarVtt(file: any): Promise<string> {
     return new Promise((resolve) => {
         const ext = path.extname(file.name).toLowerCase();
@@ -140,13 +79,18 @@ function readSidecarVtt(file: any): Promise<string> {
     });
 }
 
-export type SubtitleTrack = { lang: string; label: string; content: string };
+export type SubtitleTrack = {
+    lang: string;
+    label: string;
+    content: string;
+    format?: 'vtt' | 'ass';
+    fonts?: string[];
+};
 
 export async function createMediaSession(
     torrent: Torrent,
     onSubtitlesReady: (subs: SubtitleTrack[]) => void
 ): Promise<{ server: http.Server; streamUrl: string; mimeType: string }> {
-    // Pick the largest video file in the torrent
     const rawFile = torrent.files
         .filter((f: any) => VIDEO_EXTS.has(path.extname(f.name).toLowerCase()))
         .sort((a: any, b: any) => b.length - a.length)[0];
@@ -158,43 +102,75 @@ export async function createMediaSession(
         SUBTITLE_EXTS.has(path.extname(f.name).toLowerCase())
     );
 
-    // Wrap in virtual file with caching + random-access semantics
     const torrentFile = new TorrentFile(rawFile);
+    const fontAttachments: FontAttachment[] = [];
+    const { server, playbackUrl, sourceUrl, fontBaseUrl } = await createRangeServer(
+        torrentFile,
+        mimeType,
+        fontAttachments
+    );
+    logStream('Range server up:', playbackUrl, '-', rawFile.name);
 
-    // HTTP range server backed by TorrentFile - all seeks are served from
-    // cache after first download, so ffmpeg probes/seeks are fast on repeat
-    const { server, url: fileUrl } = await createRangeServer(torrentFile, mimeType);
-    console.log('[stream] Range server up:', fileUrl, '-', rawFile.name);
+    void bootstrapSubtitleSession(
+        torrentFile,
+        mimeType,
+        sourceUrl,
+        fontBaseUrl,
+        sidecarFiles,
+        fontAttachments,
+        onSubtitlesReady
+    );
 
-    // Start subtitle extraction in background immediately - don't block video start
-    extractAllSubtitles(fileUrl, sidecarFiles).then(onSubtitlesReady);
-
-    return { server, streamUrl: fileUrl, mimeType };
+    return { server, streamUrl: playbackUrl, mimeType };
 }
 
-async function extractAllSubtitles(fileUrl: string, sidecarFiles: any[]): Promise<SubtitleTrack[]> {
+async function bootstrapSubtitleSession(
+    torrentFile: TorrentFile,
+    mimeType: string,
+    sourceUrl: string,
+    fontBaseUrl: string,
+    sidecarFiles: any[],
+    fontAttachments: FontAttachment[],
+    onSubtitlesReady: (subs: SubtitleTrack[]) => void
+): Promise<void> {
     const sidecar: SubtitleTrack[] = await Promise.all(
-        sidecarFiles.map(async (f) => ({
-            ...detectLang(f.name),
-            content: await readSidecarVtt(f),
+        sidecarFiles.map(async (file) => ({
+            ...detectLang(file.name),
+            content: await readSidecarVtt(file),
+            format: 'vtt' as const,
         }))
     );
 
-    const streams = await probeSubtitleStreams(fileUrl);
-    console.log('[stream] Embedded subtitle streams found:', streams.length);
+    if (mimeType === 'video/x-matroska') {
+        try {
+            const result = await bootstrapMatroskaSubtitles(torrentFile, fontBaseUrl);
+            if (result) {
+                fontAttachments.splice(0, fontAttachments.length, ...result.fontAttachments);
+                if (result.fontAttachments.length > 0) {
+                    logStream('Font attachments ready:', result.fontAttachments.length);
+                }
+                const tracks = [...sidecar, ...result.tracks];
+                onSubtitlesReady(tracks);
+                logStream(
+                    'Subtitles ready:',
+                    tracks.map((track) => `${track.label}(${track.lang})`)
+                );
+                return;
+            }
+        } catch (error) {
+            console.error(
+                '[stream]',
+                new Date().toISOString(),
+                'MKV subtitle bootstrap failed:',
+                error instanceof Error ? error.message : error
+            );
+        }
+    }
 
-    const embedded: SubtitleTrack[] = await Promise.all(
-        streams.map(async (s) => ({
-            lang: s.lang,
-            label: s.label,
-            content: await extractSubtitleVtt(fileUrl, s.index),
-        }))
+    onSubtitlesReady(sidecar);
+    logStream(
+        'Subtitles ready:',
+        sidecar.map((track) => `${track.label}(${track.lang})`)
     );
-
-    const all = [...sidecar, ...embedded];
-    console.log(
-        '[stream] Subtitles ready:',
-        all.map((t) => `${t.label}(${t.lang})`)
-    );
-    return all;
+    logStream('No embedded subtitle bootstrap available for:', sourceUrl);
 }
