@@ -1,15 +1,78 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch } from 'vue';
+import { Loader2 } from '@lucide/vue';
 import { usePlayerStore } from '../stores/player';
+import JASSUB from 'jassub';
+import jassubWorkerUrl from 'jassub/dist/worker/worker.js?worker&url';
+import jassubWasmUrl from 'jassub/dist/wasm/jassub-worker.wasm?url';
+import jassubModernWasmUrl from 'jassub/dist/wasm/jassub-worker-modern.wasm?url';
 import '@videojs/html/video/player';
 import '@videojs/html/video/minimal-skin';
 
 const player = usePlayerStore();
 
 let videoEl: HTMLVideoElement | null = null;
+let assRenderer: JASSUB | null = null;
+
+const EMPTY_ASS = `[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,54,&H00FFFFFF,&H000000FF,&H00000000,&H78000000,0,0,0,0,100,100,0,0,1,2,1,2,40,40,40,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
+
+function logPlayer(...args: unknown[]) {
+    console.log(`[player ${new Date().toISOString()}]`, ...args);
+}
 
 function getVideo(): HTMLVideoElement | null {
     return videoEl ?? (videoEl = document.querySelector('video-player video'));
+}
+
+async function destroyAssRenderer() {
+    if (!assRenderer) return;
+    logPlayer('Destroying JASSUB renderer');
+    const renderer = assRenderer;
+    assRenderer = null;
+    await renderer.destroy().catch(() => {});
+}
+
+async function ensureAssRenderer() {
+    const video = getVideo();
+    if (!video || assRenderer) return assRenderer;
+
+    logPlayer('Booting JASSUB runtime');
+    assRenderer = new JASSUB({
+        video,
+        subContent: EMPTY_ASS,
+        workerUrl: jassubWorkerUrl,
+        wasmUrl: jassubWasmUrl,
+        modernWasmUrl: jassubModernWasmUrl,
+        debug: true,
+    });
+
+    await assRenderer.ready
+        .then(() => {
+            logPlayer('JASSUB runtime ready');
+        })
+        .catch((error) => {
+            logPlayer('JASSUB runtime failed to initialize', error);
+        });
+
+    return assRenderer;
+}
+
+function syncSubtitleMode() {
+    const v = getVideo();
+    if (!v) return;
+
+    for (const track of Array.from(v.textTracks)) {
+        const isActive = track.language === player.activeSubtitle;
+        track.mode = isActive ? 'showing' : 'disabled';
+    }
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -67,15 +130,20 @@ onMounted(() => {
             player.duration = v.duration;
         });
     }
+    void ensureAssRenderer();
+    if (player.pendingMagnet && !player.torrentId && !player.streamUrl) {
+        void player.startStream(player.pendingMagnet);
+    }
     document.addEventListener('keydown', handleKeydown);
 });
 
 watch(
-    () => player.streamUrl,
-    (url) => {
+    [() => player.streamUrl, () => player.subtitlesReady],
+    ([url, subtitlesReady]) => {
         const v = getVideo();
         if (!v) return;
-        if (url) v.play().catch(() => {});
+        logPlayer('Playback gate changed', { hasUrl: Boolean(url), subtitlesReady });
+        if (url && subtitlesReady) v.play().catch(() => {});
         else v.pause();
     },
     { flush: 'post' }
@@ -83,29 +151,79 @@ watch(
 
 // Subtitles arrive as blob URLs — attach directly, no fetch needed
 watch(
-    () => player.subtitles,
-    (tracks) => {
+    [() => player.subtitles, () => player.activeSubtitle],
+    ([tracks]) => {
         const v = getVideo();
         if (!v) return;
+
+        const activeTrack =
+            tracks.find((track) => track.lang === player.activeSubtitle) ??
+            tracks.find((track) => track.format === 'ass') ??
+            null;
+
+        logPlayer(
+            'Subtitle state changed',
+            tracks.map((track) => ({
+                lang: track.lang,
+                label: track.label,
+                format: track.format,
+                size: track.content.length,
+                fonts: track.fonts?.length ?? 0,
+            })),
+            'active=',
+            activeTrack ? `${activeTrack.label}(${activeTrack.format})` : 'none'
+        );
+
+        if (activeTrack?.format === 'ass') {
+            v.querySelectorAll('track').forEach((t) => t.remove());
+
+            queueMicrotask(async () => {
+                const video = getVideo();
+                if (!video || !activeTrack || activeTrack.format !== 'ass') return;
+                const renderer = await ensureAssRenderer();
+                if (!renderer) return;
+
+                logPlayer('Updating JASSUB track', {
+                    label: activeTrack.label,
+                    contentLength: activeTrack.content.length,
+                    fonts: activeTrack.fonts?.length ?? 0,
+                    dialogueCount: (activeTrack.content.match(/^Dialogue:/gm) ?? []).length,
+                });
+                await renderer.setVideo(video).catch(() => {});
+                if (activeTrack.fonts && activeTrack.fonts.length > 0) {
+                    await renderer.renderer.addFonts([...activeTrack.fonts]).catch((error) => {
+                        logPlayer('JASSUB addFonts failed', error);
+                    });
+                }
+                await renderer.renderer.setTrack(activeTrack.content).catch((error) => {
+                    logPlayer('JASSUB setTrack failed', error);
+                });
+            });
+
+            return;
+        }
+
         v.querySelectorAll('track').forEach((t) => t.remove());
         for (const t of tracks) {
+            if (t.format !== 'vtt' || !t.blobUrl) continue;
             const track = document.createElement('track');
             track.kind = 'subtitles';
             track.src = t.blobUrl;
             track.srclang = t.lang;
             track.label = t.label;
             track.default = player.activeSubtitle === t.lang;
+            track.addEventListener('load', syncSubtitleMode, { once: true });
             v.appendChild(track);
-            if (track.default) {
-                track.track.mode = 'showing';
-            }
         }
+
+        queueMicrotask(syncSubtitleMode);
     },
     { flush: 'post' }
 );
 
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
+    void destroyAssRenderer();
     player.stopStream();
 });
 </script>
@@ -113,10 +231,16 @@ onUnmounted(() => {
 <template>
     <div class="relative w-full h-full overflow-hidden" @click="handleClick">
         <div
-            v-if="!player.streamUrl"
-            class="flex items-center justify-center h-full text-white/30 text-sm"
+            v-if="!player.streamUrl || !player.subtitlesReady"
+            class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-neutral-950 text-white/60 text-sm pointer-events-none"
         >
-            &lt;
+            <Loader2 :size="22" class="animate-spin" />
+            <div class="text-center space-y-1">
+                <p class="font-medium text-white/80">
+                    {{ player.loadingMessage ?? 'Loading player…' }}
+                </p>
+                <p class="text-xs text-white/35">Playback will start when subtitles are ready.</p>
+            </div>
         </div>
 
         <video-player v-show="player.streamUrl" class="vjs-player">

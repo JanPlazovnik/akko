@@ -141,9 +141,9 @@ async function pick(result: TorrentResult) {
     if (selecting.value) return;
     selecting.value = true;
     try {
-        await player.startStream(toMagnet(result.link, result.hash));
+        player.queueStream(toMagnet(result.link, result.hash));
         emit('update:open', false);
-        router.push('/player');
+        await router.push('/player');
     } finally {
         selecting.value = false;
     }

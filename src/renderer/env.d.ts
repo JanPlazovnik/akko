@@ -7,7 +7,15 @@ interface Window {
         }>;
         stopStream: (torrentId: string) => Promise<void>;
         onSubtitles: (
-            cb: (subs: { lang: string; label: string; content: string }[]) => void
+            cb: (
+                subs: {
+                    lang: string;
+                    label: string;
+                    content: string;
+                    format?: 'vtt' | 'ass';
+                    fonts?: string[];
+                }[]
+            ) => void
         ) => void;
         offSubtitles: () => void;
         minimizeWindow: () => void;

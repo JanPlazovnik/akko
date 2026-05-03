@@ -4,7 +4,17 @@ import type { ExtensionManifest, SearchMethod, SearchParams } from '../main/exte
 contextBridge.exposeInMainWorld('api', {
     startStream: (magnet: string) => ipcRenderer.invoke('stream:start', magnet),
     stopStream: (torrentId: string) => ipcRenderer.invoke('stream:stop', torrentId),
-    onSubtitles: (cb: (subs: { lang: string; label: string; content: string }[]) => void) => {
+    onSubtitles: (
+        cb: (
+            subs: {
+                lang: string;
+                label: string;
+                content: string;
+                format?: 'vtt' | 'ass';
+                fonts?: string[];
+            }[]
+        ) => void
+    ) => {
         ipcRenderer.removeAllListeners('stream:subtitles');
         ipcRenderer.on('stream:subtitles', (_event, subs) => cb(subs));
     },

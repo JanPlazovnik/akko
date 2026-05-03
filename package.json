@@ -64,6 +64,7 @@
     "gql.tada": "^1.8.13",
     "graphql": "^16.11.0",
     "graphql-request": "^7.2.0",
+    "jassub": "^2.5.1",
     "pinia": "^3.0.4",
     "reka-ui": "^2.9.6",
     "tailwindcss": "^4.2.4",
