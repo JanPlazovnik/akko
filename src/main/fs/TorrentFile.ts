@@ -33,6 +33,10 @@ export class TorrentFile {
         return this.file.offset ?? 0;
     }
 
+    get pieceLength(): number | null {
+        return this.file._torrent?.pieceLength ?? null;
+    }
+
     /**
      * Read [offset, offset+length) from the torrent file.
      * Waits only for the pieces that cover this byte range.
@@ -102,6 +106,74 @@ export class TorrentFile {
         };
     }
 
+    async waitForRanges(ranges: Array<{ start: number; length: number }>): Promise<void> {
+        const torrent = this.file._torrent;
+        const pieceLength = torrent?.pieceLength;
+        if (!torrent || !pieceLength) return;
+
+        const spans = mergePieceSpans(
+            ranges
+                .map((range) => this.rangeToPieceSpan(range.start, range.length, pieceLength))
+                .filter((span): span is { startPiece: number; endPiece: number } => span !== null)
+        );
+        if (spans.length === 0) return;
+
+        const pending = new Set<number>();
+        for (const span of spans) {
+            for (let piece = span.startPiece; piece <= span.endPiece; piece += 1) {
+                if (!torrent.bitfield?.get(piece)) pending.add(piece);
+            }
+        }
+        if (pending.size === 0) return;
+
+        await new Promise<void>((resolve) => {
+            const onVerified = (piece: number) => {
+                pending.delete(piece);
+                if (pending.size === 0) {
+                    torrent.removeListener('verified', onVerified);
+                    resolve();
+                }
+            };
+            torrent.on('verified', onVerified);
+        });
+    }
+
+    async readFromStore(offset: number, length: number): Promise<Buffer> {
+        const torrent = this.file._torrent;
+        const pieceLength = torrent?.pieceLength;
+        const store = torrent?.store;
+        if (!torrent || !pieceLength || !store?.get) {
+            return this.read(offset, length);
+        }
+
+        const clampedEnd = Math.min(offset + length - 1, this.file.length - 1);
+        const clampedLen = clampedEnd - offset + 1;
+        if (clampedLen <= 0) return Buffer.alloc(0);
+
+        const absoluteStart = this.offset + offset;
+        const absoluteEnd = this.offset + clampedEnd;
+        const startPiece = Math.floor(absoluteStart / pieceLength);
+        const endPiece = Math.floor(absoluteEnd / pieceLength);
+
+        const chunks: Buffer[] = [];
+        for (let piece = startPiece; piece <= endPiece; piece += 1) {
+            const pieceStart = piece * pieceLength;
+            const sliceStart = Math.max(absoluteStart, pieceStart);
+            const sliceEnd = Math.min(
+                absoluteEnd,
+                pieceStart + this.getPieceLength(piece, pieceLength) - 1
+            );
+            const buffer = await this.readStorePiece(
+                piece,
+                sliceStart - pieceStart,
+                sliceEnd - sliceStart + 1
+            );
+            chunks.push(buffer);
+        }
+
+        return Buffer.concat(chunks, clampedLen);
+    }
+
     describePieceCoverage(
         ranges: Array<{ start: number; length: number }>
     ): { pieceCount: number; estimatedBytes: number } | null {
@@ -143,6 +215,24 @@ export class TorrentFile {
             startPiece: Math.floor(absoluteStart / pieceLength),
             endPiece: Math.floor(absoluteEnd / pieceLength),
         };
+    }
+
+    private getPieceLength(piece: number, defaultPieceLength: number): number {
+        const torrent = this.file._torrent;
+        if (torrent && piece === torrent.pieces.length - 1) {
+            return torrent.lastPieceLength ?? defaultPieceLength;
+        }
+        return defaultPieceLength;
+    }
+
+    private readStorePiece(piece: number, offset: number, length: number): Promise<Buffer> {
+        const store = this.file._torrent?.store;
+        return new Promise((resolve, reject) => {
+            store.get(piece, { offset, length }, (err: Error | null, buffer: Buffer) => {
+                if (err) reject(err);
+                else resolve(buffer);
+            });
+        });
     }
 }
 

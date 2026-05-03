@@ -1,9 +1,5 @@
 import path from 'path';
-import http from 'http';
-import { Torrent } from 'webtorrent';
-import { TorrentFile } from '../fs/TorrentFile';
-import { createRangeServer, type FontAttachment } from '../fs/httpServer';
-import { bootstrapMatroskaSubtitles } from './matroskaSubtitles';
+import { AttachmentSession, detectLang } from './attachments';
 
 const VIDEO_EXTS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.mov']);
 const SUBTITLE_EXTS = new Set(['.srt', '.vtt']);
@@ -14,33 +10,6 @@ const MIME_FOR_EXT: Record<string, string> = {
     '.avi': 'video/mp4',
     '.webm': 'video/webm',
     '.mov': 'video/mp4',
-};
-
-const LANG_MAP: Record<string, string> = {
-    en: 'English',
-    eng: 'English',
-    es: 'Spanish',
-    spa: 'Spanish',
-    fr: 'French',
-    fre: 'French',
-    de: 'German',
-    ger: 'German',
-    it: 'Italian',
-    ita: 'Italian',
-    pt: 'Portuguese',
-    por: 'Portuguese',
-    ru: 'Russian',
-    rus: 'Russian',
-    ja: 'Japanese',
-    jpn: 'Japanese',
-    ko: 'Korean',
-    kor: 'Korean',
-    zh: 'Chinese',
-    chi: 'Chinese',
-    nl: 'Dutch',
-    nld: 'Dutch',
-    pl: 'Polish',
-    pol: 'Polish',
 };
 
 function logStream(...args: unknown[]) {
@@ -55,14 +24,6 @@ function srtToVtt(srt: string): string {
             .replace(/^﻿/, '')
             .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
     );
-}
-
-function detectLang(filename: string): { lang: string; label: string } {
-    const base = path.basename(filename, path.extname(filename)).toLowerCase();
-    for (const part of base.split(/[.\-_ \[\]()]/).reverse()) {
-        if (LANG_MAP[part]) return { lang: part.slice(0, 2), label: LANG_MAP[part] };
-    }
-    return { lang: 'und', label: path.basename(filename, path.extname(filename)) };
 }
 
 function readSidecarVtt(file: any): Promise<string> {
@@ -87,10 +48,38 @@ export type SubtitleTrack = {
     fonts?: string[];
 };
 
+type ClosableSession = {
+    close(): Promise<void> | void;
+};
+
+async function ensurePlaybackServer(client: any): Promise<any> {
+    const existing = client._server;
+    if (existing && typeof existing.address === 'function') {
+        const address = existing.address();
+        if (address?.port) return existing;
+    }
+
+    const server = client.createServer({ origin: '*', pathname: '/webtorrent' });
+    await new Promise<void>((resolve) => {
+        server.listen(0, '127.0.0.1', () => resolve());
+    });
+    return server;
+}
+
+function buildStreamUrl(server: any, torrent: any, file: any): string {
+    const address = server.address();
+    const pathname = server.pathname ?? '/webtorrent';
+    const encodedPath = String(file.path)
+        .split(/[\\/]/)
+        .map((part) => encodeURIComponent(part))
+        .join('/');
+    return `http://127.0.0.1:${address.port}${pathname}/${torrent.infoHash}/${encodedPath}`;
+}
+
 export async function createMediaSession(
-    torrent: Torrent,
+    torrent: any,
     onSubtitlesReady: (subs: SubtitleTrack[]) => void
-): Promise<{ server: http.Server; streamUrl: string; mimeType: string }> {
+): Promise<{ server: ClosableSession; streamUrl: string; mimeType: string }> {
     const rawFile = torrent.files
         .filter((f: any) => VIDEO_EXTS.has(path.extname(f.name).toLowerCase()))
         .sort((a: any, b: any) => b.length - a.length)[0];
@@ -101,76 +90,45 @@ export async function createMediaSession(
     const sidecarFiles = torrent.files.filter((f: any) =>
         SUBTITLE_EXTS.has(path.extname(f.name).toLowerCase())
     );
-
-    const torrentFile = new TorrentFile(rawFile);
-    const fontAttachments: FontAttachment[] = [];
-    const { server, playbackUrl, sourceUrl, fontBaseUrl } = await createRangeServer(
-        torrentFile,
-        mimeType,
-        fontAttachments
-    );
-    logStream('Range server up:', playbackUrl, '-', rawFile.name);
-
-    void bootstrapSubtitleSession(
-        torrentFile,
-        mimeType,
-        sourceUrl,
-        fontBaseUrl,
-        sidecarFiles,
-        fontAttachments,
-        onSubtitlesReady
-    );
-
-    return { server, streamUrl: playbackUrl, mimeType };
-}
-
-async function bootstrapSubtitleSession(
-    torrentFile: TorrentFile,
-    mimeType: string,
-    sourceUrl: string,
-    fontBaseUrl: string,
-    sidecarFiles: any[],
-    fontAttachments: FontAttachment[],
-    onSubtitlesReady: (subs: SubtitleTrack[]) => void
-): Promise<void> {
-    const sidecar: SubtitleTrack[] = await Promise.all(
-        sidecarFiles.map(async (file) => ({
+    const sidecarTracks = await Promise.all(
+        sidecarFiles.map(async (file: any) => ({
             ...detectLang(file.name),
             content: await readSidecarVtt(file),
             format: 'vtt' as const,
         }))
     );
 
+    const client = rawFile._client ?? torrent.client ?? torrent._client;
+    if (!client) throw new Error('Unable to access WebTorrent client for playback server');
+
+    const playbackServer = await ensurePlaybackServer(client);
+    const streamUrl = buildStreamUrl(playbackServer, torrent, rawFile);
+    logStream('Playback server up:', streamUrl, '-', rawFile.name);
+
+    let attachmentSession: AttachmentSession | null = null;
     if (mimeType === 'video/x-matroska') {
-        try {
-            const result = await bootstrapMatroskaSubtitles(torrentFile, fontBaseUrl);
-            if (result) {
-                fontAttachments.splice(0, fontAttachments.length, ...result.fontAttachments);
-                if (result.fontAttachments.length > 0) {
-                    logStream('Font attachments ready:', result.fontAttachments.length);
-                }
-                const tracks = [...sidecar, ...result.tracks];
-                onSubtitlesReady(tracks);
-                logStream(
-                    'Subtitles ready:',
-                    tracks.map((track) => `${track.label}(${track.lang})`)
-                );
-                return;
-            }
-        } catch (error) {
-            console.error(
-                '[stream]',
-                new Date().toISOString(),
-                'MKV subtitle bootstrap failed:',
-                error instanceof Error ? error.message : error
-            );
-        }
+        attachmentSession = await AttachmentSession.create(
+            rawFile,
+            torrent.infoHash,
+            torrent.files.indexOf(rawFile),
+            sidecarTracks,
+            onSubtitlesReady
+        );
+    } else {
+        onSubtitlesReady(sidecarTracks);
+        logStream(
+            'Subtitles ready:',
+            sidecarTracks.map((track) => `${track.label}(${track.lang})`)
+        );
     }
 
-    onSubtitlesReady(sidecar);
-    logStream(
-        'Subtitles ready:',
-        sidecar.map((track) => `${track.label}(${track.lang})`)
-    );
-    logStream('No embedded subtitle bootstrap available for:', sourceUrl);
+    return {
+        server: {
+            close: async () => {
+                await attachmentSession?.close();
+            },
+        },
+        streamUrl,
+        mimeType,
+    };
 }

@@ -1,10 +1,9 @@
 import { Torrent, WebTorrentOptions } from 'webtorrent';
-import http from 'http';
 import { createMediaSession, SubtitleTrack } from './stream';
 import { sendToRenderer } from '../context';
 
 let client: any = null;
-let activeServer: http.Server | null = null;
+let activeServer: { close(): Promise<void> | void } | null = null;
 
 export async function initClient(opts?: WebTorrentOptions) {
     const WebTorrent = (await import('webtorrent')).default;
@@ -17,9 +16,9 @@ function getClient() {
     return client;
 }
 
-function closeActiveServer() {
+async function closeActiveServer() {
     if (activeServer) {
-        activeServer.close();
+        await activeServer.close();
         activeServer = null;
     }
 }
@@ -29,7 +28,7 @@ export async function startTorrent(magnetUri: string): Promise<{
     streamUrl: string;
     mimeType: string;
 }> {
-    closeActiveServer();
+    await closeActiveServer();
 
     const existing: Torrent[] = client?.torrents ?? [];
     if (existing.length > 0) {
@@ -53,7 +52,7 @@ export async function startTorrent(magnetUri: string): Promise<{
 }
 
 export async function stopTorrent(torrentId: string): Promise<void> {
-    closeActiveServer();
+    await closeActiveServer();
     return new Promise((resolve, reject) => {
         getClient().remove(torrentId, { destroyStore: true }, (err: any) => {
             if (err) reject(err);

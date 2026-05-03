@@ -1,11 +1,19 @@
 declare module 'webtorrent' {
     import { Readable } from 'stream';
+    import { EventEmitter } from 'events';
 
-    export interface TorrentFile {
+    export interface TorrentFile extends EventEmitter {
         name: string;
         path: string;
         length: number;
+        offset?: number;
+        streamURL: string;
+        _client?: WebTorrent;
         createReadStream(opts?: { start?: number; end?: number }): Readable;
+        [Symbol.asyncIterator](opts?: {
+            start?: number;
+            end?: number;
+        }): AsyncIterableIterator<Uint8Array>;
     }
 
     export interface TorrentOptions {
@@ -26,6 +34,8 @@ declare module 'webtorrent' {
         ratio: number;
         numPeers: number;
         files: TorrentFile[];
+        client?: WebTorrent;
+        _client?: WebTorrent;
         pieces: (boolean | null)[];
         done: boolean;
         on(event: 'ready', cb: () => void): this;
@@ -36,6 +46,13 @@ declare module 'webtorrent' {
         remove(cb?: (err?: Error) => void): void;
         select(start: number, end: number, priority?: number): void;
         deselect(start: number, end: number, priority?: number): void;
+    }
+
+    export interface TorrentServer {
+        pathname: string;
+        address(): { address: string; family: string; port: number };
+        listen(port?: number, hostname?: string, cb?: () => void): void;
+        close(cb?: () => void): void;
     }
 
     export interface WebTorrentOptions {
@@ -59,6 +76,11 @@ declare module 'webtorrent' {
         ratio: number;
         add(magnet: string, cb?: (torrent: Torrent) => void): Torrent;
         add(magnet: string, opts: TorrentOptions, cb?: (torrent: Torrent) => void): Torrent;
+        createServer(opts?: {
+            origin?: string;
+            pathname?: string;
+            hostname?: string;
+        }): TorrentServer;
         remove(
             torrentId: string,
             opts?: { destroyStore?: boolean },

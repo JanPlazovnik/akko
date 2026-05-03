@@ -164,8 +164,13 @@ const LANG_MAP: Record<string, string> = {
 class BufferedTorrentReader {
     private windowStart = 0;
     private window = Buffer.alloc(0);
+    private useStoreBackedReads = false;
 
     constructor(private readonly file: TorrentFile) {}
+
+    preferStoreBackedReads() {
+        this.useStoreBackedReads = true;
+    }
 
     async read(offset: number, length: number): Promise<Buffer> {
         if (length <= 0) return Buffer.alloc(0);
@@ -181,7 +186,7 @@ class BufferedTorrentReader {
         }
 
         if (clampedLength > READER_WINDOW_SIZE) {
-            return this.file.read(offset, clampedLength);
+            return this.readRaw(offset, clampedLength);
         }
 
         const loadLength = Math.min(
@@ -189,8 +194,14 @@ class BufferedTorrentReader {
             this.file.length - offset
         );
         this.windowStart = offset;
-        this.window = Buffer.from(await this.file.read(offset, loadLength));
+        this.window = Buffer.from(await this.readRaw(offset, loadLength));
         return this.window.subarray(0, clampedLength);
+    }
+
+    private readRaw(offset: number, length: number): Promise<Buffer> {
+        return this.useStoreBackedReads
+            ? this.file.readFromStore(offset, length)
+            : this.file.read(offset, length);
     }
 }
 
@@ -708,8 +719,15 @@ async function extractCuesFromIndexedClusters(
     const stopPrioritizing = torrentFile.prioritizeRanges(priorityRanges);
 
     try {
+        const waitStart = Date.now();
+        await torrentFile.waitForRanges(priorityRanges);
+        logStream(
+            'Subtitle bootstrap pieces ready:',
+            `${Math.round((Date.now() - waitStart) / 1000)}s`
+        );
         await runWithConcurrency(clusterGroups, CLUSTER_PARSE_CONCURRENCY, async (group) => {
             const reader = new BufferedTorrentReader(torrentFile);
+            reader.preferStoreBackedReads();
             const clusterHeader = await readElementHeader(reader, torrentFile, group.clusterOffset);
             if (!clusterHeader || clusterHeader.id !== CLUSTER_ID) return;
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { Loader2 } from '@lucide/vue';
 import { usePlayerStore } from '../stores/player';
 import JASSUB from 'jassub';
@@ -10,6 +10,7 @@ import '@videojs/html/video/player';
 import '@videojs/html/video/minimal-skin';
 
 const player = usePlayerStore();
+const playbackSrc = computed(() => (player.subtitlesReady ? player.streamUrl : null));
 
 let videoEl: HTMLVideoElement | null = null;
 let assRenderer: JASSUB | null = null;
@@ -149,7 +150,7 @@ watch(
     { flush: 'post' }
 );
 
-// Subtitles arrive as blob URLs — attach directly, no fetch needed
+// Subtitles arrive as blob URLs - attach directly, no fetch needed
 watch(
     [() => player.subtitles, () => player.activeSubtitle],
     ([tracks]) => {
@@ -245,7 +246,7 @@ onUnmounted(() => {
 
         <video-player v-show="player.streamUrl" class="vjs-player">
             <video-minimal-skin>
-                <video playsinline :src="player.streamUrl!" />
+                <video playsinline :src="playbackSrc ?? undefined" />
             </video-minimal-skin>
         </video-player>
     </div>
@@ -267,5 +268,9 @@ onUnmounted(() => {
 .vjs-player {
     --media-border-radius: 0;
     --media-video-border-radius: 0;
+    --media-border-color: transparent;
+    --media-surface-inner-border-color: transparent;
+    --media-surface-outer-border-color: transparent;
+    --media-surface-shadow-color: transparent;
 }
 </style>
