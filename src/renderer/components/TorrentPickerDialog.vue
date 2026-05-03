@@ -107,14 +107,14 @@ async function triggerSearch() {
             })
             .catch((e) => {
                 const msg = e instanceof Error ? e.message : String(e);
-                console.log(`[picker] ${ext.id}: error — ${msg}`);
+                console.log(`[picker] ${ext.id}: error - ${msg}`);
                 errors.value = [...errors.value, { extensionId: ext.id, error: msg }];
             })
             .finally(() => {
                 remaining--;
                 if (remaining === 0) {
                     loading.value = false;
-                    console.log(`[picker] done — ${results.value.length} total`);
+                    console.log(`[picker] done - ${results.value.length} total`);
                 }
             });
     }

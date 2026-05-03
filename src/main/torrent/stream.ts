@@ -1,23 +1,26 @@
-import http from 'http';
 import path from 'path';
+import http from 'http';
 import { PassThrough } from 'stream';
 import { Torrent } from 'webtorrent';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
 import ffprobePath from 'ffprobe-static';
+import { TorrentFile } from '../fs/TorrentFile';
+import { createRangeServer } from '../fs/httpServer';
 
 ffmpeg.setFfmpegPath(ffmpegPath!);
 ffmpeg.setFfprobePath((ffprobePath as any).path ?? ffprobePath);
 
-const MIME_TYPES: Record<string, string> = {
+const VIDEO_EXTS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.mov']);
+const SUBTITLE_EXTS = new Set(['.srt', '.vtt']);
+
+const MIME_FOR_EXT: Record<string, string> = {
     '.mp4': 'video/mp4',
     '.mkv': 'video/mp4',
     '.avi': 'video/mp4',
     '.webm': 'video/webm',
     '.mov': 'video/mp4',
 };
-
-const SUBTITLE_EXTS = new Set(['.srt', '.vtt']);
 
 const LANG_MAP: Record<string, string> = {
     en: 'English',
@@ -46,22 +49,7 @@ const LANG_MAP: Record<string, string> = {
     pol: 'Polish',
 };
 
-const IMAGE_SUBTITLE_CODECS = new Set([
-    'dvd_subtitle',
-    'hdmv_pgs_subtitle',
-    'dvbsub',
-    'xsub',
-    'pgssub',
-]);
-
-function detectLang(filename: string): { lang: string; label: string } {
-    const base = path.basename(filename, path.extname(filename)).toLowerCase();
-    const parts = base.split(/[.\-_ \[\]()]/);
-    for (const part of [...parts].reverse()) {
-        if (LANG_MAP[part]) return { lang: part.slice(0, 2), label: LANG_MAP[part] };
-    }
-    return { lang: 'und', label: path.basename(filename, path.extname(filename)) };
-}
+const IMAGE_SUB_CODECS = new Set(['dvd_subtitle', 'hdmv_pgs_subtitle', 'dvbsub', 'xsub', 'pgssub']);
 
 function srtToVtt(srt: string): string {
     return (
@@ -73,223 +61,140 @@ function srtToVtt(srt: string): string {
     );
 }
 
-function probeEmbeddedSubtitles(
-    filePath: string
-): Promise<{ streamIndex: number; lang: string; label: string }[]> {
+function detectLang(filename: string): { lang: string; label: string } {
+    const base = path.basename(filename, path.extname(filename)).toLowerCase();
+    for (const part of base.split(/[.\-_ \[\]()]/).reverse()) {
+        if (LANG_MAP[part]) return { lang: part.slice(0, 2), label: LANG_MAP[part] };
+    }
+    return { lang: 'und', label: path.basename(filename, path.extname(filename)) };
+}
+
+function probeSubtitleStreams(
+    fileUrl: string
+): Promise<{ index: number; lang: string; label: string }[]> {
     return new Promise((resolve) => {
         ffmpeg.ffprobe(
-            filePath,
+            fileUrl,
             ['-probesize', '10000000', '-analyzeduration', '0'],
-            (err, metadata) => {
+            (err, meta) => {
                 if (err) {
-                    console.error('[DEBUG] ffprobe error:', err.message);
+                    console.error('[stream] ffprobe error:', err.message);
                     resolve([]);
                     return;
                 }
-                const tracks = (metadata.streams ?? [])
-                    .filter(
-                        (s) =>
-                            s.codec_type === 'subtitle' &&
-                            !IMAGE_SUBTITLE_CODECS.has(s.codec_name ?? '')
-                    )
-                    .map((s, i) => {
-                        const tags = (s.tags ?? {}) as Record<string, string>;
-                        const rawLang = tags.language ?? 'und';
-                        return {
-                            streamIndex: s.index!,
-                            lang: rawLang.slice(0, 2),
-                            label:
-                                tags.title ??
-                                LANG_MAP[rawLang] ??
-                                LANG_MAP[rawLang.slice(0, 2)] ??
-                                `Track ${i + 1}`,
-                        };
-                    });
-                console.log('[DEBUG] Embedded subtitle streams:', tracks);
-                resolve(tracks);
+                resolve(
+                    (meta.streams ?? [])
+                        .filter(
+                            (s) =>
+                                s.codec_type === 'subtitle' &&
+                                !IMAGE_SUB_CODECS.has(s.codec_name ?? '')
+                        )
+                        .map((s, i) => {
+                            const tags = (s.tags ?? {}) as Record<string, string>;
+                            const rawLang = tags.language ?? 'und';
+                            return {
+                                index: s.index!,
+                                lang: rawLang.slice(0, 2),
+                                label:
+                                    tags.title ??
+                                    LANG_MAP[rawLang] ??
+                                    LANG_MAP[rawLang.slice(0, 2)] ??
+                                    `Track ${i + 1}`,
+                            };
+                        })
+                );
             }
         );
     });
 }
 
-function extractSubtitleVtt(filePath: string, streamIndex: number): Promise<string> {
+function extractSubtitleVtt(fileUrl: string, streamIndex: number): Promise<string> {
     return new Promise((resolve) => {
         const chunks: Buffer[] = [];
         const pass = new PassThrough();
         pass.on('data', (c: Buffer) => chunks.push(c));
         pass.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
         pass.on('error', () => resolve('WEBVTT\n'));
-
-        ffmpeg(filePath)
+        ffmpeg(fileUrl)
             .addOutputOption(`-map 0:${streamIndex}`)
             .format('webvtt')
             .on('error', (err) => {
-                console.error('[DEBUG] ffmpeg subtitle extract error:', err.message);
+                console.error('[stream] ffmpeg subtitle error:', err.message);
                 resolve('WEBVTT\n');
             })
             .pipe(pass, { end: true });
     });
 }
 
-type SubtitleTrack = { lang: string; label: string; url: string };
-
-export async function createStreamServer(
-    torrent: Torrent,
-    onSubtitlesReady?: (subtitles: SubtitleTrack[]) => void
-): Promise<{
-    server: http.Server;
-    streamUrl: string;
-    mimeType: string;
-    subtitles: SubtitleTrack[];
-}> {
-    return new Promise((resolve, reject) => {
-        const file = torrent.files
-            .filter((f: any) => Object.keys(MIME_TYPES).some((ext) => f.name.endsWith(ext)))
-            .sort((a: any, b: any) => b.length - a.length)[0];
-
-        if (!file) {
-            reject(new Error('No video file found in torrent'));
-            return;
-        }
-
+function readSidecarVtt(file: any): Promise<string> {
+    return new Promise((resolve) => {
         const ext = path.extname(file.name).toLowerCase();
-        const mimeType = MIME_TYPES[ext] ?? 'video/mp4';
-
-        const sidecarFiles = torrent.files.filter((f: any) =>
-            SUBTITLE_EXTS.has(path.extname(f.name).toLowerCase())
-        );
-
-        console.log('[DEBUG] Selected video file:', file.name, `(${file.length} bytes)`, mimeType);
-        console.log(
-            '[DEBUG] Sidecar subtitle files:',
-            sidecarFiles.map((f: any) => f.name)
-        );
-
-        // Keyed by subtitle index, lazy-extracted on first request
-        const embeddedSubCache = new Map<number, Promise<string>>();
-        let embeddedTracks: { streamIndex: number; lang: string; label: string }[] = [];
-        let serverPort = 0;
-
-        const server = http.createServer(async (req, res) => {
-            const url = req.url ?? '/';
-
-            // Sidecar subtitle files
-            if (url.startsWith('/subtitles/sidecar/')) {
-                const idx = parseInt(url.split('/')[3], 10);
-                const subFile = sidecarFiles[idx];
-                if (!subFile || isNaN(idx)) {
-                    res.writeHead(404);
-                    res.end();
-                    return;
-                }
-
-                const subExt = path.extname(subFile.name).toLowerCase();
-                res.writeHead(200, {
-                    'Content-Type': 'text/vtt; charset=utf-8',
-                    'Access-Control-Allow-Origin': '*',
-                });
-
-                if (subExt === '.vtt') {
-                    subFile.createReadStream().pipe(res);
-                } else {
-                    const chunks: Buffer[] = [];
-                    subFile
-                        .createReadStream()
-                        .on('data', (c: Buffer) => chunks.push(c))
-                        .on('end', () => res.end(srtToVtt(Buffer.concat(chunks).toString('utf-8'))))
-                        .on('error', () => res.end('WEBVTT\n'));
-                }
-                return;
-            }
-
-            // Embedded subtitle tracks (extracted via ffmpeg on demand)
-            if (url.startsWith('/subtitles/embedded/')) {
-                const idx = parseInt(url.split('/')[3], 10);
-                const track = embeddedTracks[idx];
-                if (!track || isNaN(idx)) {
-                    res.writeHead(404);
-                    res.end();
-                    return;
-                }
-
-                if (!embeddedSubCache.has(idx)) {
-                    embeddedSubCache.set(
-                        idx,
-                        extractSubtitleVtt(`http://localhost:${serverPort}/`, track.streamIndex)
-                    );
-                }
-
-                const vtt = await embeddedSubCache.get(idx)!;
-                res.writeHead(200, {
-                    'Content-Type': 'text/vtt; charset=utf-8',
-                    'Access-Control-Allow-Origin': '*',
-                });
-                res.end(vtt);
-                return;
-            }
-
-            // Video stream
-            const fileSize = file.length;
-            const range = req.headers.range;
-            console.log(`[DEBUG] Stream request — range: ${range ?? 'none'}`);
-
-            if (range) {
-                const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
-                const start = parseInt(startStr, 10);
-                const end = Math.min(endStr ? parseInt(endStr, 10) : fileSize - 1, fileSize - 1);
-                console.log(`[DEBUG] Serving range bytes ${start}-${end}/${fileSize}`);
-
-                res.writeHead(206, {
-                    'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-                    'Accept-Ranges': 'bytes',
-                    'Content-Length': end - start + 1,
-                    'Content-Type': mimeType,
-                    'Access-Control-Allow-Origin': '*',
-                });
-                const rangeStream = file.createReadStream({ start, end });
-                res.on('close', () => rangeStream.destroy());
-                rangeStream.on('error', () => {});
-                rangeStream.pipe(res);
-            } else {
-                console.log(`[DEBUG] Serving full file (${fileSize} bytes)`);
-                res.writeHead(200, {
-                    'Content-Length': fileSize,
-                    'Content-Type': mimeType,
-                    'Accept-Ranges': 'bytes',
-                    'Access-Control-Allow-Origin': '*',
-                });
-                const fullStream = file.createReadStream();
-                res.on('close', () => fullStream.destroy());
-                fullStream.on('error', () => {});
-                fullStream.pipe(res);
-            }
-        });
-
-        server.listen(0, '127.0.0.1', async () => {
-            serverPort = (server.address() as any).port;
-            console.log('[DEBUG] Stream server listening on port', serverPort);
-
-            const sidecarSubtitles: SubtitleTrack[] = sidecarFiles.map((f: any, i: number) => ({
-                ...detectLang(f.name),
-                url: `http://localhost:${serverPort}/subtitles/sidecar/${i}`,
-            }));
-
-            resolve({
-                server,
-                streamUrl: `http://localhost:${serverPort}`,
-                mimeType,
-                subtitles: sidecarSubtitles,
-            });
-
-            embeddedTracks = await probeEmbeddedSubtitles(`http://localhost:${serverPort}/`);
-            const embeddedSubtitles: SubtitleTrack[] = embeddedTracks.map((t, i) => ({
-                lang: t.lang,
-                label: t.label,
-                url: `http://localhost:${serverPort}/subtitles/embedded/${i}`,
-            }));
-            const allSubtitles: SubtitleTrack[] = [...sidecarSubtitles, ...embeddedSubtitles];
-            console.log('[DEBUG] All subtitle tracks:', allSubtitles);
-            onSubtitlesReady?.(allSubtitles);
-        });
+        const chunks: Buffer[] = [];
+        file.createReadStream()
+            .on('data', (c: Buffer) => chunks.push(c))
+            .on('end', () => {
+                const text = Buffer.concat(chunks).toString('utf-8');
+                resolve(ext === '.vtt' ? text : srtToVtt(text));
+            })
+            .on('error', () => resolve('WEBVTT\n'));
     });
+}
+
+export type SubtitleTrack = { lang: string; label: string; content: string };
+
+export async function createMediaSession(
+    torrent: Torrent,
+    onSubtitlesReady: (subs: SubtitleTrack[]) => void
+): Promise<{ server: http.Server; streamUrl: string; mimeType: string }> {
+    // Pick the largest video file in the torrent
+    const rawFile = torrent.files
+        .filter((f: any) => VIDEO_EXTS.has(path.extname(f.name).toLowerCase()))
+        .sort((a: any, b: any) => b.length - a.length)[0];
+
+    if (!rawFile) throw new Error('No video file in torrent');
+
+    const mimeType = MIME_FOR_EXT[path.extname(rawFile.name).toLowerCase()] ?? 'video/mp4';
+    const sidecarFiles = torrent.files.filter((f: any) =>
+        SUBTITLE_EXTS.has(path.extname(f.name).toLowerCase())
+    );
+
+    // Wrap in virtual file with caching + random-access semantics
+    const torrentFile = new TorrentFile(rawFile);
+
+    // HTTP range server backed by TorrentFile - all seeks are served from
+    // cache after first download, so ffmpeg probes/seeks are fast on repeat
+    const { server, url: fileUrl } = await createRangeServer(torrentFile, mimeType);
+    console.log('[stream] Range server up:', fileUrl, '-', rawFile.name);
+
+    // Start subtitle extraction in background immediately - don't block video start
+    extractAllSubtitles(fileUrl, sidecarFiles).then(onSubtitlesReady);
+
+    return { server, streamUrl: fileUrl, mimeType };
+}
+
+async function extractAllSubtitles(fileUrl: string, sidecarFiles: any[]): Promise<SubtitleTrack[]> {
+    const sidecar: SubtitleTrack[] = await Promise.all(
+        sidecarFiles.map(async (f) => ({
+            ...detectLang(f.name),
+            content: await readSidecarVtt(f),
+        }))
+    );
+
+    const streams = await probeSubtitleStreams(fileUrl);
+    console.log('[stream] Embedded subtitle streams found:', streams.length);
+
+    const embedded: SubtitleTrack[] = await Promise.all(
+        streams.map(async (s) => ({
+            lang: s.lang,
+            label: s.label,
+            content: await extractSubtitleVtt(fileUrl, s.index),
+        }))
+    );
+
+    const all = [...sidecar, ...embedded];
+    console.log(
+        '[stream] Subtitles ready:',
+        all.map((t) => `${t.label}(${t.lang})`)
+    );
+    return all;
 }
