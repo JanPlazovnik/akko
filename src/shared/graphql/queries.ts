@@ -38,7 +38,7 @@ export type Anime = ResultOf<typeof GetAnimeQuery>['Media'];
 export const DashboardQuery = graphql(
     `
         query ($season: MediaSeason, $seasonYear: Int) {
-            trending: Page(page: 1, perPage: 6) {
+            trending: Page(page: 1, perPage: 25) {
                 media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
                     ...MediaFragment
                 }
