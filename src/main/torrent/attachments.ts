@@ -1,6 +1,9 @@
 import { createServer, type Server } from 'http';
 import path from 'path';
 import Metadata from 'matroska-metadata';
+import { createLogger } from '../logger';
+
+const log = createLogger('stream:attachments');
 
 type IncomingSubtitleTrack = {
     lang: string;
@@ -95,10 +98,6 @@ const LANG_MAP: Record<string, string> = {
     pl: 'Polish',
     pol: 'Polish',
 };
-
-function logStream(...args: unknown[]) {
-    console.log(`[stream ${new Date().toISOString()}]`, ...args);
-}
 
 function normalizeLang(lang?: string): string {
     const value = (lang || 'und').toLowerCase();
@@ -293,7 +292,7 @@ export class AttachmentSession {
         this.file.on('iterator', this.iteratorHandler);
 
         const metadataTracks = (await this.metadata.getTracks()) as MetadataTrack[];
-        logStream('Embedded subtitle streams found:', metadataTracks.length);
+        log.debug('Embedded subtitle streams found:', metadataTracks.length);
 
         const attachments = (await this.metadata.getAttachments()) as MetadataAttachment[];
         const fontUrls = attachments.map(
@@ -307,7 +306,7 @@ export class AttachmentSession {
         }
 
         if (attachments.length > 0) {
-            logStream('Font attachments ready:', attachments.length);
+            log.debug('Font attachments ready:', attachments.length);
         }
 
         this.metadata.on('subtitle', (subtitle: SubtitleEvent, trackNumber: string | number) => {
@@ -347,7 +346,7 @@ export class AttachmentSession {
         this.emitSubtitles(tracks);
         if (!this.emittedInitial) {
             this.emittedInitial = true;
-            logStream(
+            log.debug(
                 'Subtitles ready:',
                 tracks.map((track) => `${track.label}(${track.lang})`)
             );

@@ -1,5 +1,8 @@
 import vm from 'node:vm';
 import type { SearchMethod, SearchParams, TorrentResult } from './types';
+import { createLogger } from '../logger';
+
+const log = createLogger('extensions:sandbox');
 
 const SANDBOX_TIMEOUT_MS = 3000;
 const TEST_TIMEOUT_MS = 10000;
@@ -75,7 +78,7 @@ export async function searchExtension(
 
     let raw: TorrentResult[];
     try {
-        console.log(`[extensions] running ${method}() with params:`, params);
+        log.debug(`running ${method}() with params:`, params);
         raw = await Promise.race([fn.call(instance, params), rejectAfter(SEARCH_TIMEOUT_MS)]);
     } catch (e) {
         throw normalizeError(e);

@@ -1,6 +1,9 @@
 import { Torrent, WebTorrentOptions } from 'webtorrent';
 import { createMediaSession, SubtitleTrack } from './stream';
 import { sendToRenderer } from '../context';
+import { createLogger } from '../logger';
+
+const log = createLogger('torrent');
 
 let client: any = null;
 let activeServer: { close(): Promise<void> | void } | null = null;
@@ -8,7 +11,7 @@ let activeServer: { close(): Promise<void> | void } | null = null;
 export async function initClient(opts?: WebTorrentOptions) {
     const WebTorrent = (await import('webtorrent')).default;
     client = new WebTorrent(opts);
-    console.log('[torrent] Client ready');
+    log.info('Client ready');
 }
 
 function getClient() {

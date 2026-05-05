@@ -1,5 +1,8 @@
 import path from 'path';
 import { AttachmentSession, detectLang } from './attachments';
+import { createLogger } from '../logger';
+
+const log = createLogger('stream');
 
 const VIDEO_EXTS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.mov']);
 const SUBTITLE_EXTS = new Set(['.srt', '.vtt']);
@@ -11,10 +14,6 @@ const MIME_FOR_EXT: Record<string, string> = {
     '.webm': 'video/webm',
     '.mov': 'video/mp4',
 };
-
-function logStream(...args: unknown[]) {
-    console.log(`[stream ${new Date().toISOString()}]`, ...args);
-}
 
 function srtToVtt(srt: string): string {
     return (
@@ -103,7 +102,7 @@ export async function createMediaSession(
 
     const playbackServer = await ensurePlaybackServer(client);
     const streamUrl = buildStreamUrl(playbackServer, torrent, rawFile);
-    logStream('Playback server up:', streamUrl, '-', rawFile.name);
+    log.debug('Playback server up:', streamUrl, '-', rawFile.name);
 
     let attachmentSession: AttachmentSession | null = null;
     if (mimeType === 'video/x-matroska') {
@@ -116,7 +115,7 @@ export async function createMediaSession(
         );
     } else {
         onSubtitlesReady(sidecarTracks);
-        logStream(
+        log.debug(
             'Subtitles ready:',
             sidecarTracks.map((track) => `${track.label}(${track.lang})`)
         );

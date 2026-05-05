@@ -1,5 +1,8 @@
 import { TorrentFile } from '../fs/TorrentFile';
 import type { FontAttachment } from '../fs/httpServer';
+import { createLogger } from '../logger';
+
+const log = createLogger('stream:mkv');
 
 export type MatroskaSubtitleTrack = {
     lang: string;
@@ -213,13 +216,13 @@ export async function bootstrapMatroskaSubtitles(
     const header = await parseHeader(reader, torrentFile);
     if (!header) return null;
 
-    logStream('Embedded subtitle streams found:', header.tracks.length);
+    log.debug('Embedded subtitle streams found:', header.tracks.length);
     if (header.tracks.length === 0) {
         return { tracks: [], fontAttachments: header.attachments };
     }
 
     const startupTracks = selectStartupTracks(header.tracks);
-    logStream(
+    log.debug(
         'Selected startup subtitle tracks:',
         startupTracks.map((track) => `${track.label}(${track.lang})`)
     );
@@ -233,7 +236,7 @@ export async function bootstrapMatroskaSubtitles(
     );
 
     if (cueRefs.length > 0) {
-        logStream('Bootstrapping subtitles from cue-indexed entries:', cueRefs.length);
+        log.debug('Bootstrapping subtitles from cue-indexed entries:', cueRefs.length);
         await extractCuesFromIndexedClusters(torrentFile, header, cueRefs, cuesByTrack);
 
         const tracks = buildTracks(startupTracks, cuesByTrack, header.attachments, fontBaseUrl);
@@ -242,11 +245,11 @@ export async function bootstrapMatroskaSubtitles(
             return { tracks, fontAttachments: header.attachments };
         }
 
-        logStream(
+        log.debug(
             'Cue-indexed subtitle bootstrap returned empty tracks, falling back to cluster scan'
         );
     } else {
-        logStream('No subtitle cue index found, falling back to cluster scan');
+        log.debug('No subtitle cue index found, falling back to cluster scan');
     }
 
     await scanClustersSequentially(reader, torrentFile, header, cuesByTrack);
@@ -710,7 +713,7 @@ async function extractCuesFromIndexedClusters(
     );
     const coverage = torrentFile.describePieceCoverage(priorityRanges);
     if (coverage) {
-        logStream(
+        log.debug(
             'Subtitle bootstrap piece coverage:',
             `pieces=${coverage.pieceCount}`,
             `estimatedBytes=${Math.round(coverage.estimatedBytes / (1024 * 1024))}MiB`
@@ -721,7 +724,7 @@ async function extractCuesFromIndexedClusters(
     try {
         const waitStart = Date.now();
         await torrentFile.waitForRanges(priorityRanges);
-        logStream(
+        log.debug(
             'Subtitle bootstrap pieces ready:',
             `${Math.round((Date.now() - waitStart) / 1000)}s`
         );
@@ -1211,17 +1214,13 @@ function logTrackSummary(tracks: MatroskaSubtitleTrack[]) {
             track.format === 'ass'
                 ? (track.content.match(/^Dialogue:/gm) ?? []).length
                 : (track.content.match(/--> /g) ?? []).length;
-        logStream(
+        log.debug(
             `Track ready: ${track.label}(${track.lang})`,
             `format=${track.format}`,
             `cues=${dialogueCount}`,
             `fonts=${track.fonts?.length ?? 0}`
         );
     });
-}
-
-function logStream(...args: unknown[]) {
-    console.log(`[stream ${new Date().toISOString()}]`, ...args);
 }
 
 async function runWithConcurrency<T>(

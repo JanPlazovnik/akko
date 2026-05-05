@@ -1,4 +1,7 @@
 import { ipcMain } from 'electron';
+import { createLogger } from '../logger';
+
+const log = createLogger('extensions:ipc');
 import {
     fetchRepository,
     listExtensions,
@@ -16,7 +19,7 @@ import type { ExtensionManifest, SearchMethod, SearchParams } from '../extension
 function wrap<T>(fn: () => Promise<T>): Promise<T> {
     return fn().catch((e) => {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error('[extensions] IPC error:', msg);
+        log.error('IPC error:', msg);
         throw new Error(msg);
     });
 }

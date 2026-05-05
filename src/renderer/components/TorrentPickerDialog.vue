@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('picker');
 import { useRouter } from 'vue-router';
 import { Loader2, Users, HardDrive, X } from '@lucide/vue';
 import {
@@ -75,7 +78,7 @@ async function triggerSearch() {
         exclusions: [] as string[],
     };
 
-    console.log('[picker] params:', JSON.stringify(params));
+    log.debug('params:', JSON.stringify(params));
 
     let allExtensions: { id: string; enabled: boolean }[];
     try {
@@ -89,7 +92,7 @@ async function triggerSearch() {
     }
 
     const enabled = allExtensions.filter((e) => e.enabled);
-    console.log(`[picker] searching ${enabled.length} extension(s)`);
+    log.info(`searching ${enabled.length} extension(s)`);
 
     if (enabled.length === 0) {
         loading.value = false;
@@ -102,19 +105,19 @@ async function triggerSearch() {
         window.api.extensions
             .search(ext.id, 'single', params)
             .then((res) => {
-                console.log(`[picker] ${ext.id}: ${res.length} result(s)`);
+                log.info(`${ext.id}: ${res.length} result(s)`);
                 results.value = [...results.value, ...res].sort((a, b) => b.seeders - a.seeders);
             })
             .catch((e) => {
                 const msg = e instanceof Error ? e.message : String(e);
-                console.log(`[picker] ${ext.id}: error - ${msg}`);
+                log.error(`${ext.id}: error - ${msg}`);
                 errors.value = [...errors.value, { extensionId: ext.id, error: msg }];
             })
             .finally(() => {
                 remaining--;
                 if (remaining === 0) {
                     loading.value = false;
-                    console.log(`[picker] done - ${results.value.length} total`);
+                    log.info(`done - ${results.value.length} total`);
                 }
             });
     }

@@ -1,5 +1,8 @@
 import { ClientError, GraphQLClient } from 'graphql-request';
 import { VariablesOf, ResultOf } from '@shared/graphql/graphql';
+import { createLogger } from './logger';
+
+const log = createLogger('anilist');
 
 const DEFAULT_TTL_MS = 1000 * 60 * 10;
 
@@ -73,7 +76,7 @@ export class AnilistClient extends GraphQLClient {
             return { data, fromCache: false, duration };
         } catch (err) {
             const duration = performance.now() - start;
-            console.error('[AnilistClient] Request failed', { err, variables });
+            log.error('Request failed', { err, variables });
 
             if (err instanceof ClientError) {
                 const status = err.response?.status ?? 0;

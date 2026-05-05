@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('player');
 import { Loader2 } from '@lucide/vue';
 import { usePlayerStore } from '../stores/player';
 import JASSUB from 'jassub';
@@ -25,17 +28,13 @@ Style: Default,Arial,54,&H00FFFFFF,&H000000FF,&H00000000,&H78000000,0,0,0,0,100,
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
 
-function logPlayer(...args: unknown[]) {
-    console.log(`[player ${new Date().toISOString()}]`, ...args);
-}
-
 function getVideo(): HTMLVideoElement | null {
     return videoEl ?? (videoEl = document.querySelector('video-player video'));
 }
 
 async function destroyAssRenderer() {
     if (!assRenderer) return;
-    logPlayer('Destroying JASSUB renderer');
+    log.debug('Destroying JASSUB renderer');
     const renderer = assRenderer;
     assRenderer = null;
     await renderer.destroy().catch(() => {});
@@ -45,7 +44,7 @@ async function ensureAssRenderer() {
     const video = getVideo();
     if (!video || assRenderer) return assRenderer;
 
-    logPlayer('Booting JASSUB runtime');
+    log.debug('Booting JASSUB runtime');
     assRenderer = new JASSUB({
         video,
         subContent: EMPTY_ASS,
@@ -57,10 +56,10 @@ async function ensureAssRenderer() {
 
     await assRenderer.ready
         .then(() => {
-            logPlayer('JASSUB runtime ready');
+            log.debug('JASSUB runtime ready');
         })
         .catch((error) => {
-            logPlayer('JASSUB runtime failed to initialize', error);
+            log.debug('JASSUB runtime failed to initialize', error);
         });
 
     return assRenderer;
@@ -146,7 +145,7 @@ watch(
     ([url, subtitlesReady]) => {
         const v = getVideo();
         if (!v) return;
-        logPlayer('Playback gate changed', { hasUrl: Boolean(url), subtitlesReady });
+        log.debug('Playback gate changed', { hasUrl: Boolean(url), subtitlesReady });
         if (url && subtitlesReady) v.play().catch(() => {});
         else v.pause();
     },
@@ -165,7 +164,7 @@ watch(
             tracks.find((track) => track.format === 'ass') ??
             null;
 
-        logPlayer(
+        log.debug(
             'Subtitle state changed',
             tracks.map((track) => ({
                 lang: track.lang,
@@ -187,7 +186,7 @@ watch(
                 const renderer = await ensureAssRenderer();
                 if (!renderer) return;
 
-                logPlayer('Updating JASSUB track', {
+                log.debug('Updating JASSUB track', {
                     label: activeTrack.label,
                     contentLength: activeTrack.content.length,
                     fonts: activeTrack.fonts?.length ?? 0,
@@ -196,11 +195,11 @@ watch(
                 await renderer.setVideo(video).catch(() => {});
                 if (activeTrack.fonts && activeTrack.fonts.length > 0) {
                     await renderer.renderer.addFonts([...activeTrack.fonts]).catch((error) => {
-                        logPlayer('JASSUB addFonts failed', error);
+                        log.debug('JASSUB addFonts failed', error);
                     });
                 }
                 await renderer.renderer.setTrack(activeTrack.content).catch((error) => {
-                    logPlayer('JASSUB setTrack failed', error);
+                    log.debug('JASSUB setTrack failed', error);
                 });
             });
 
