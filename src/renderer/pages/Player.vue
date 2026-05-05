@@ -98,18 +98,21 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function handleClick(e: MouseEvent) {
-    const isControl = e
-        .composedPath()
-        .some(
-            (el) =>
-                el instanceof HTMLElement &&
-                (el.tagName === 'BUTTON' ||
-                    el.tagName === 'INPUT' ||
-                    el.tagName === 'SELECT' ||
-                    el.getAttribute('role') === 'button' ||
-                    el.getAttribute('role') === 'slider')
-        );
+    const path = e.composedPath();
+    const isControl = path.some(
+        (el) =>
+            el instanceof HTMLElement &&
+            (el.tagName === 'BUTTON' ||
+                el.tagName === 'INPUT' ||
+                el.tagName === 'SELECT' ||
+                el.getAttribute('role') === 'button' ||
+                el.getAttribute('role') === 'slider')
+    );
     if (isControl) return;
+
+    const clickedVideoSurface = path.some((el) => el instanceof HTMLVideoElement);
+    if (!clickedVideoSurface) return;
+
     const v = getVideo();
     if (!v) return;
     v.paused ? v.play() : v.pause();
@@ -272,5 +275,9 @@ onUnmounted(() => {
     --media-surface-inner-border-color: transparent;
     --media-surface-outer-border-color: transparent;
     --media-surface-shadow-color: transparent;
+}
+
+.media-minimal-skin--video::after {
+    display: none;
 }
 </style>
