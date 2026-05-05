@@ -32,6 +32,8 @@ const createWindow = () => {
         );
     }
 
+    mainWindow.webContents.openDevTools();
+
     return mainWindow;
 };
 
