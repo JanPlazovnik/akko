@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "rebuild": "electron-rebuild",
     "prepare": "husky",
-    "generate:schema": "gql-tada generate schema https://graphql.anilist.co --output ./src/shared/graphql/schema.graphql"
+    "generate:schema": "gql-tada generate schema https://graphql.anilist.co --output ./src/shared/graphql/schema.graphql",
+    "db:generate": "drizzle-kit generate"
   },
   "keywords": [],
   "author": {
@@ -41,6 +42,7 @@
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-vue": "^6.0.6",
+    "drizzle-kit": "^0.31.10",
     "electron": "41.3.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
@@ -57,6 +59,8 @@
     "@tailwindcss/vite": "^4.2.4",
     "@videojs/html": "^10.0.0-beta.23",
     "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.45.2",
+    "electron-log": "^5.4.3",
     "electron-squirrel-startup": "^1.0.1",
     "ffmpeg-static": "^5.3.0",
     "ffprobe-static": "^3.1.0",

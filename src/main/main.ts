@@ -1,12 +1,17 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
-import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
+import log from 'electron-log/main';
 import { initClient } from './torrent/torrent';
 import { initContext } from './context';
 import { registerAllHandlers } from './ipc';
-import { initDb } from './extensions/db';
+import { initDb, dbGetSettings } from './db';
 import { initExtensions } from './extensions/manager';
+import { createLogger, configureLogger } from './logger';
+import type { LogLevel } from './logger';
+
+log.initialize();
+const logger = createLogger('main');
 
 if (started) {
     app.quit();
@@ -38,15 +43,18 @@ const createWindow = () => {
 };
 
 app.on('ready', async () => {
-    console.log('[DEBUG] App ready, initializing');
     initDb();
+    const settings = dbGetSettings();
+    configureLogger({ level: settings.logLevel as LogLevel, logToFile: settings.logToFile });
+
+    logger.info('App ready, initializing');
     await initClient();
-    console.log('[DEBUG] Creating window');
+    logger.info('Creating window');
     const window = createWindow();
     initContext({ window });
     registerAllHandlers();
-    initExtensions().catch((err) => console.error('[extensions] Startup failed:', err));
-    console.log('[DEBUG] IPC handlers registered');
+    logger.info('IPC handlers registered');
+    initExtensions().catch((err) => logger.error('Startup failed:', err));
 });
 
 app.on('window-all-closed', () => {

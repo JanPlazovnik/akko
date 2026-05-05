@@ -7,7 +7,7 @@ import {
     dbSetEnabled,
     dbUpdateExtensionCode,
     dbExtensionExists,
-} from './db';
+} from '../db';
 import { loadExtension, testExtension, searchExtension } from './sandbox';
 import type {
     ExtensionManifest,
@@ -18,6 +18,9 @@ import type {
     ExtensionSearchResult,
     UpdateInfo,
 } from './types';
+import { createLogger } from '../logger';
+
+const log = createLogger('extensions');
 
 type ExtensionInstance = ReturnType<typeof loadExtension>;
 
@@ -44,17 +47,17 @@ export async function initExtensions() {
                 if (ok) {
                     instances.set(ext.id, instance);
                 } else {
-                    console.warn(`[extensions] ${ext.id} test() returned false - disabling`);
+                    log.warn(`${ext.id} test() returned false - disabling`);
                     dbSetEnabled(ext.id, false);
                 }
             } catch (err) {
-                console.warn(`[extensions] ${ext.id} failed startup test:`, err);
+                log.warn(`${ext.id} failed startup test:`, err);
                 dbSetEnabled(ext.id, false);
             }
         })
     );
 
-    console.log(`[extensions] ${instances.size}/${extensions.length} extensions active`);
+    log.info(`${instances.size}/${extensions.length} extensions active`);
 }
 
 export async function fetchRepository(url: string): Promise<ExtensionManifest[]> {
@@ -76,71 +79,68 @@ export async function installExtension(manifest: ExtensionManifest): Promise<voi
     if (dbExtensionExists(manifest.id))
         throw new Error(`Extension ${manifest.id} already installed`);
 
-    console.log(`[extensions] installing ${manifest.id} v${manifest.version}`);
-    console.log(`[extensions] downloading code from ${manifest.code}`);
+    log.info(`installing ${manifest.id} v${manifest.version}`);
+    log.debug(`downloading code from ${manifest.code}`);
     const res = await fetch(manifest.code);
     if (!res.ok) throw new Error(`Failed to download extension code: ${res.status}`);
     const code = await res.text();
-    console.log(`[extensions] code downloaded (${code.length} chars), loading sandbox`);
+    log.debug(`code downloaded (${code.length} chars), loading sandbox`);
 
     const instance = loadExtension(code);
-    console.log(`[extensions] sandbox loaded, running test()`);
+    log.debug(`sandbox loaded, running test()`);
     const ok = await testExtension(instance);
     if (!ok) throw new Error('Extension test() failed - not installing');
 
-    console.log(`[extensions] test() passed, saving to DB`);
+    log.debug(`test() passed, saving to DB`);
     dbInstallExtension(manifest, code);
     instances.set(manifest.id, instance);
-    console.log(`[extensions] ${manifest.id} installed successfully`);
+    log.info(`${manifest.id} installed successfully`);
 }
 
 export function uninstallExtension(id: string) {
-    console.log(`[extensions] removing ${id}`);
     dbUninstallExtension(id);
     instances.delete(id);
-    console.log(`[extensions] ${id} removed`);
+    log.info(`${id} uninstalled`);
 }
 
 export async function toggleExtension(id: string, enabled: boolean): Promise<void> {
-    console.log(`[extensions] ${enabled ? 'enabling' : 'disabling'} ${id}`);
+    log.info(`${enabled ? 'enabling' : 'disabling'} ${id}`);
     dbSetEnabled(id, enabled);
 
     if (enabled && !instances.has(id)) {
         const code = dbGetExtensionCode(id);
         if (!code) throw new Error('Cached code not found');
 
-        console.log(`[extensions] ${id}: loading sandbox and running test()`);
+        log.debug(`${id}: loading sandbox and running test()`);
         const instance = loadExtension(code);
         const ok = await testExtension(instance);
         if (!ok) {
             dbSetEnabled(id, false);
-            console.warn(`[extensions] ${id}: test() failed, keeping disabled`);
+            log.warn(`${id}: test() failed, keeping disabled`);
             throw new Error('Extension test() failed - kept disabled');
         }
         instances.set(id, instance);
-        console.log(`[extensions] ${id}: enabled`);
     } else if (!enabled) {
         instances.delete(id);
-        console.log(`[extensions] ${id}: disabled, instance unloaded`);
     }
 }
 
 export async function checkUpdates(): Promise<UpdateInfo[]> {
     const installed = dbGetAllExtensions();
-    console.log(`[extensions] checking updates for ${installed.length} extension(s)`);
+    log.info(`checking updates for ${installed.length} extension(s)`);
 
     const updateUrls = [...new Set(installed.map((e) => e.update))];
-    console.log(`[extensions] fetching ${updateUrls.length} update URL(s):`, updateUrls);
+    log.debug(`fetching ${updateUrls.length} update URL(s):`, updateUrls);
 
     const remoteManifests = new Map<string, ExtensionManifest>();
     await Promise.allSettled(
         updateUrls.map(async (url) => {
             try {
                 const manifests = await fetchRepository(url);
-                console.log(`[extensions] ${url} returned ${manifests.length} manifest(s)`);
+                log.debug(`${url} returned ${manifests.length} manifest(s)`);
                 for (const m of manifests) remoteManifests.set(m.id, m);
             } catch (err) {
-                console.warn(`[extensions] failed to fetch update URL ${url}:`, err);
+                log.warn(`failed to fetch update URL ${url}:`, err);
             }
         })
     );
@@ -149,21 +149,19 @@ export async function checkUpdates(): Promise<UpdateInfo[]> {
     for (const ext of installed) {
         const remote = remoteManifests.get(ext.id);
         if (!remote) {
-            console.log(`[extensions] ${ext.id}: not found in remote, skipping`);
+            log.debug(`${ext.id}: not found in remote, skipping`);
             continue;
         }
-        console.log(`[extensions] ${ext.id}: local v${ext.version}, remote v${remote.version}`);
+        log.debug(`${ext.id}: local v${ext.version}, remote v${remote.version}`);
         if (semverGt(remote.version, ext.version)) {
-            console.log(
-                `[extensions] ${ext.id}: update available ${ext.version} -> ${remote.version}`
-            );
+            log.info(`${ext.id}: update available ${ext.version} -> ${remote.version}`);
             updates.push({ id: ext.id, currentVersion: ext.version, newVersion: remote.version });
         } else {
-            console.log(`[extensions] ${ext.id}: up to date`);
+            log.debug(`${ext.id}: up to date`);
         }
     }
 
-    console.log(`[extensions] update check done, ${updates.length} update(s) available`);
+    log.info(`update check done, ${updates.length} update(s) available`);
     return updates;
 }
 
@@ -187,9 +185,9 @@ export async function updateExtension(
 export async function testExtensionById(id: string): Promise<boolean> {
     const instance = instances.get(id);
     if (!instance) throw new Error(`Extension ${id} not active`);
-    console.log(`[extensions] running test() for ${id}`);
+    log.debug(`running test() for ${id}`);
     const ok = await testExtension(instance);
-    console.log(`[extensions] ${id} test(): ${ok}`);
+    log.debug(`${id} test(): ${ok}`);
     return ok;
 }
 
@@ -200,7 +198,7 @@ export async function searchOne(
 ): Promise<TorrentResult[]> {
     const instance = instances.get(id);
     if (!instance) throw new Error(`Extension ${id} not active`);
-    console.log(`[extensions] running search() for ${id} with method ${method}`);
+    log.debug(`running search() for ${id} with method ${method}`);
     const results = await searchExtension(instance, method, params);
     return results.map((r) => ({ ...r, extensionId: id }));
 }
@@ -209,20 +207,20 @@ export async function searchAll(
     method: SearchMethod,
     params: SearchParams
 ): Promise<ExtensionSearchResult[]> {
-    console.log(`[extensions] running searchAll() with method ${method}`);
+    log.debug(`running searchAll() with method ${method}`);
     const results = await Promise.allSettled(
         [...instances.entries()].map(async ([id, instance]) => {
-            console.log(`[extensions] running search() for ${id} with method ${method}`);
+            log.debug(`running search() for ${id} with method ${method}`);
             const results = await searchExtension(instance, method, params);
             return { extensionId: id, results: results.map((r) => ({ ...r, extensionId: id })) };
         })
     );
 
-    console.log(`[extensions] searchAll() results:`, results);
+    log.debug(`searchAll() results:`, results);
     return results.map((r, i) => {
         const id = [...instances.keys()][i];
         if (r.status === 'fulfilled') return r.value;
-        console.warn(`[extensions] ${id} search() failed:`, r.reason);
+        log.warn(`${id} search() failed:`, r.reason);
         return { extensionId: id, results: [], error: String(r.reason) };
     });
 }
