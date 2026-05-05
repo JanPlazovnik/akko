@@ -54,6 +54,7 @@ type RuntimeTrack = {
     header: string;
     content: string;
     cues: string[];
+    cueKeys: Set<string>;
     fonts?: string[];
 };
 
@@ -160,6 +161,7 @@ function createTrackState(track: MetadataTrack, fonts: string[]): RuntimeTrack {
         header,
         content: header,
         cues: [],
+        cueKeys: new Set<string>(),
         fonts: format === 'ass' ? fonts : undefined,
     };
 }
@@ -172,6 +174,22 @@ function materializeTrack(track: RuntimeTrack): IncomingSubtitleTrack {
         content: track.content,
         fonts: track.fonts,
     };
+}
+
+function subtitleEventKey(subtitle: SubtitleEvent): string {
+    return JSON.stringify([
+        subtitle.time,
+        subtitle.duration,
+        subtitle.text || '',
+        subtitle.readOrder || '',
+        subtitle.layer || '',
+        subtitle.style || '',
+        subtitle.name || '',
+        subtitle.marginL || '',
+        subtitle.marginR || '',
+        subtitle.marginV || '',
+        subtitle.effect || '',
+    ]);
 }
 
 async function listen(server: Server): Promise<number> {
@@ -295,6 +313,10 @@ export class AttachmentSession {
         this.metadata.on('subtitle', (subtitle: SubtitleEvent, trackNumber: string | number) => {
             const state = this.tracks.get(String(trackNumber));
             if (!state) return;
+
+            const cueKey = subtitleEventKey(subtitle);
+            if (state.cueKeys.has(cueKey)) return;
+            state.cueKeys.add(cueKey);
 
             const cue = state.format === 'ass' ? buildAssDialogue(subtitle) : buildVttCue(subtitle);
             state.cues.push(cue);
