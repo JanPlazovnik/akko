@@ -1,27 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ExtensionManifest, SearchMethod, SearchParams } from '../main/extensions/types';
+import type { AppApi, StreamSubtitleCue } from '../shared/ipc/api';
 
-contextBridge.exposeInMainWorld('api', {
+const api: AppApi = {
     startStream: (magnet: string) => ipcRenderer.invoke('stream:start', magnet),
     stopStream: (torrentId: string) => ipcRenderer.invoke('stream:stop', torrentId),
-    onSubtitle: (
-        cb: (
-            sub: {
-                text: string;
-                time: number;
-                duration: number;
-                readOrder?: string;
-                layer?: string;
-                style?: string;
-                name?: string;
-                marginL?: string;
-                marginR?: string;
-                marginV?: string;
-                effect?: string;
-            },
-            trackNumber: string
-        ) => void
-    ) => {
+    onSubtitle: (cb: (sub: StreamSubtitleCue, trackNumber: string) => void) => {
         ipcRenderer.removeAllListeners('stream:subtitle');
         ipcRenderer.on('stream:subtitle', (_event, sub, trackNumber) => cb(sub, trackNumber));
     },
@@ -46,4 +30,6 @@ contextBridge.exposeInMainWorld('api', {
         searchAll: (method: SearchMethod, params: SearchParams) =>
             ipcRenderer.invoke('extension:search-all', method, params),
     },
-});
+};
+
+contextBridge.exposeInMainWorld('api', api);
