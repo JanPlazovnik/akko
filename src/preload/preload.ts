@@ -4,21 +4,28 @@ import type { ExtensionManifest, SearchMethod, SearchParams } from '../main/exte
 contextBridge.exposeInMainWorld('api', {
     startStream: (magnet: string) => ipcRenderer.invoke('stream:start', magnet),
     stopStream: (torrentId: string) => ipcRenderer.invoke('stream:stop', torrentId),
-    onSubtitles: (
+    onSubtitle: (
         cb: (
-            subs: {
-                lang: string;
-                label: string;
-                content: string;
-                format?: 'vtt' | 'ass';
-                fonts?: string[];
-            }[]
+            sub: {
+                text: string;
+                time: number;
+                duration: number;
+                readOrder?: string;
+                layer?: string;
+                style?: string;
+                name?: string;
+                marginL?: string;
+                marginR?: string;
+                marginV?: string;
+                effect?: string;
+            },
+            trackNumber: string
         ) => void
     ) => {
-        ipcRenderer.removeAllListeners('stream:subtitles');
-        ipcRenderer.on('stream:subtitles', (_event, subs) => cb(subs));
+        ipcRenderer.removeAllListeners('stream:subtitle');
+        ipcRenderer.on('stream:subtitle', (_event, sub, trackNumber) => cb(sub, trackNumber));
     },
-    offSubtitles: () => ipcRenderer.removeAllListeners('stream:subtitles'),
+    offSubtitle: () => ipcRenderer.removeAllListeners('stream:subtitle'),
     minimizeWindow: () => ipcRenderer.send('window:minimize'),
     maximizeWindow: () => ipcRenderer.send('window:maximize'),
     closeWindow: () => ipcRenderer.send('window:close'),

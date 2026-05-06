@@ -4,20 +4,41 @@ interface Window {
             torrentId: string;
             streamUrl: string;
             mimeType: string;
+            tracks: Array<{
+                trackNumber: string;
+                lang: string;
+                label: string;
+                format: 'vtt' | 'ass';
+                header: string;
+                fonts: string[];
+            }>;
+            sidecarTracks: Array<{
+                lang: string;
+                label: string;
+                format: 'vtt';
+                content: string;
+            }>;
         }>;
         stopStream: (torrentId: string) => Promise<void>;
-        onSubtitles: (
+        onSubtitle: (
             cb: (
-                subs: {
-                    lang: string;
-                    label: string;
-                    content: string;
-                    format?: 'vtt' | 'ass';
-                    fonts?: string[];
-                }[]
+                sub: {
+                    text: string;
+                    time: number;
+                    duration: number;
+                    readOrder?: string;
+                    layer?: string;
+                    style?: string;
+                    name?: string;
+                    marginL?: string;
+                    marginR?: string;
+                    marginV?: string;
+                    effect?: string;
+                },
+                trackNumber: string
             ) => void
         ) => void;
-        offSubtitles: () => void;
+        offSubtitle: () => void;
         minimizeWindow: () => void;
         maximizeWindow: () => void;
         closeWindow: () => void;

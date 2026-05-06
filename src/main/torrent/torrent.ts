@@ -1,5 +1,6 @@
 import { Torrent, WebTorrentOptions } from 'webtorrent';
-import { createMediaSession, SubtitleTrack } from './stream';
+import { createMediaSession } from './stream';
+import type { TrackInfo, SidecarTrack } from './stream';
 import { sendToRenderer } from '../context';
 import { createLogger } from '../logger';
 
@@ -30,6 +31,8 @@ export async function startTorrent(magnetUri: string): Promise<{
     torrentId: string;
     streamUrl: string;
     mimeType: string;
+    tracks: TrackInfo[];
+    sidecarTracks: SidecarTrack[];
 }> {
     await closeActiveServer();
 
@@ -41,12 +44,18 @@ export async function startTorrent(magnetUri: string): Promise<{
     return new Promise((resolve, reject) => {
         getClient().add(magnetUri, {}, async (torrent: Torrent) => {
             try {
-                const { server, streamUrl, mimeType } = await createMediaSession(
-                    torrent,
-                    (subs: SubtitleTrack[]) => sendToRenderer('stream:subtitles', subs)
-                );
+                const { server, streamUrl, mimeType, tracks, sidecarTracks } =
+                    await createMediaSession(torrent, (sub, trackNumber) =>
+                        sendToRenderer('stream:subtitle', sub, trackNumber)
+                    );
                 activeServer = server;
-                resolve({ torrentId: torrent.infoHash, streamUrl, mimeType });
+                resolve({
+                    torrentId: torrent.infoHash,
+                    streamUrl,
+                    mimeType,
+                    tracks,
+                    sidecarTracks,
+                });
             } catch (e) {
                 reject(e);
             }

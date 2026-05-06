@@ -1,6 +1,10 @@
 import path from 'path';
-import { AttachmentSession, detectLang } from './attachments';
+import type { MatroskaSubtitle } from 'matroska-metadata';
+import attachments, { detectLang } from './attachments';
+import type { TrackInfo, SidecarTrack } from './attachments';
 import { createLogger } from '../logger';
+
+export type { TrackInfo, SidecarTrack };
 
 const log = createLogger('stream');
 
@@ -39,14 +43,6 @@ function readSidecarVtt(file: any): Promise<string> {
     });
 }
 
-export type SubtitleTrack = {
-    lang: string;
-    label: string;
-    content: string;
-    format?: 'vtt' | 'ass';
-    fonts?: string[];
-};
-
 type ClosableSession = {
     close(): Promise<void> | void;
 };
@@ -77,8 +73,14 @@ function buildStreamUrl(server: any, torrent: any, file: any): string {
 
 export async function createMediaSession(
     torrent: any,
-    onSubtitlesReady: (subs: SubtitleTrack[]) => void
-): Promise<{ server: ClosableSession; streamUrl: string; mimeType: string }> {
+    sendSubtitle: (sub: MatroskaSubtitle, trackNumber: string) => void
+): Promise<{
+    server: ClosableSession;
+    streamUrl: string;
+    mimeType: string;
+    tracks: TrackInfo[];
+    sidecarTracks: SidecarTrack[];
+}> {
     const rawFile = torrent.files
         .filter((f: any) => VIDEO_EXTS.has(path.extname(f.name).toLowerCase()))
         .sort((a: any, b: any) => b.length - a.length)[0];
@@ -86,10 +88,12 @@ export async function createMediaSession(
     if (!rawFile) throw new Error('No video file in torrent');
 
     const mimeType = MIME_FOR_EXT[path.extname(rawFile.name).toLowerCase()] ?? 'video/mp4';
+    const fileIndex = torrent.files.indexOf(rawFile);
+
     const sidecarFiles = torrent.files.filter((f: any) =>
         SUBTITLE_EXTS.has(path.extname(f.name).toLowerCase())
     );
-    const sidecarTracks = await Promise.all(
+    const sidecarTracks: SidecarTrack[] = await Promise.all(
         sidecarFiles.map(async (file: any) => ({
             ...detectLang(file.name),
             content: await readSidecarVtt(file),
@@ -104,30 +108,22 @@ export async function createMediaSession(
     const streamUrl = buildStreamUrl(playbackServer, torrent, rawFile);
     log.debug('Playback server up:', streamUrl, '-', rawFile.name);
 
-    let attachmentSession: AttachmentSession | null = null;
+    let tracks: TrackInfo[] = [];
     if (mimeType === 'video/x-matroska') {
-        attachmentSession = await AttachmentSession.create(
-            rawFile,
-            torrent.infoHash,
-            torrent.files.indexOf(rawFile),
-            sidecarTracks,
-            onSubtitlesReady
-        );
-    } else {
-        onSubtitlesReady(sidecarTracks);
+        attachments.register(rawFile, torrent.infoHash, fileIndex);
+        tracks = await attachments.tracks(torrent.infoHash, fileIndex);
+        attachments.subtitle(torrent.infoHash, fileIndex, sendSubtitle);
         log.debug(
-            'Subtitles ready:',
-            sidecarTracks.map((track) => `${track.label}(${track.lang})`)
+            'Embedded tracks ready:',
+            tracks.map((t) => `${t.label}(${t.lang},${t.format})`)
         );
     }
 
     return {
-        server: {
-            close: async () => {
-                await attachmentSession?.close();
-            },
-        },
+        server: { close: async () => {} },
         streamUrl,
         mimeType,
+        tracks,
+        sidecarTracks,
     };
 }

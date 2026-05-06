@@ -1,65 +1,11 @@
-import { createServer, type Server } from 'http';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'path';
 import Metadata from 'matroska-metadata';
+import type { MatroskaAttachment, MatroskaSubtitle, MatroskaTrack } from 'matroska-metadata';
 import { createLogger } from '../logger';
 
 const log = createLogger('stream:attachments');
-
-type IncomingSubtitleTrack = {
-    lang: string;
-    label: string;
-    content: string;
-    format?: 'vtt' | 'ass';
-    fonts?: string[];
-};
-
-type SidecarSubtitleTrack = {
-    lang: string;
-    label: string;
-    content: string;
-    format: 'vtt';
-};
-
-type SubtitleEvent = {
-    text: string;
-    time: number;
-    duration: number;
-    readOrder?: string;
-    layer?: string;
-    style?: string;
-    name?: string;
-    marginL?: string;
-    marginR?: string;
-    marginV?: string;
-    effect?: string;
-};
-
-type MetadataTrack = {
-    number: string;
-    language?: string;
-    type: string;
-    name?: string;
-    header?: string;
-};
-
-type MetadataAttachment = {
-    filename: string;
-    mimetype: string;
-    data: Uint8Array;
-};
-
-type RuntimeTrack = {
-    trackNumber: string;
-    lang: string;
-    label: string;
-    type: string;
-    format: 'vtt' | 'ass';
-    header: string;
-    content: string;
-    cues: string[];
-    cueKeys: Set<string>;
-    fonts?: string[];
-};
 
 const ASS_EVENTS_FORMAT =
     'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text';
@@ -72,6 +18,7 @@ Style: Default,Arial,54,&H00FFFFFF,&H000000FF,&H00000000,&H78000000,0,0,0,0,100,
 
 [Events]
 ${ASS_EVENTS_FORMAT}`;
+
 const LANG_MAP: Record<string, string> = {
     en: 'English',
     eng: 'English',
@@ -104,7 +51,7 @@ function normalizeLang(lang?: string): string {
     return value.length >= 2 ? value.slice(0, 2) : 'und';
 }
 
-function trackLabel(track: MetadataTrack): string {
+function trackLabel(track: Pick<MatroskaTrack, 'name' | 'language'>): string {
     if (track.name) return track.name;
     const lang = (track.language || 'und').toLowerCase();
     return LANG_MAP[lang] ?? LANG_MAP[lang.slice(0, 2)] ?? 'Embedded subtitles';
@@ -113,258 +60,27 @@ function trackLabel(track: MetadataTrack): string {
 function buildAssHeader(header?: string): string {
     const normalized = header?.replace(/\r\n/g, '\n').trim();
     if (!normalized) return EMPTY_ASS;
-
     const eventsIndex = normalized.search(/\[Events\]/i);
     const preamble =
         eventsIndex >= 0 ? normalized.slice(0, eventsIndex).trimEnd() : normalized.trimEnd();
     return `${preamble}\n\n[Events]\n${ASS_EVENTS_FORMAT}`;
 }
 
-function assTime(ms: number): string {
-    const totalCs = Math.max(0, Math.round(ms / 10));
-    const hours = Math.floor(totalCs / 360000);
-    const minutes = Math.floor((totalCs % 360000) / 6000);
-    const seconds = Math.floor((totalCs % 6000) / 100);
-    const centiseconds = totalCs % 100;
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
-}
+export type TrackInfo = {
+    trackNumber: string;
+    lang: string;
+    label: string;
+    format: 'vtt' | 'ass';
+    header: string;
+    fonts: string[];
+};
 
-function vttTime(ms: number): string {
-    const totalMs = Math.max(0, Math.round(ms));
-    const hours = Math.floor(totalMs / 3_600_000);
-    const minutes = Math.floor((totalMs % 3_600_000) / 60_000);
-    const seconds = Math.floor((totalMs % 60_000) / 1_000);
-    const milliseconds = totalMs % 1_000;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
-}
-
-function buildAssDialogue(subtitle: SubtitleEvent): string {
-    const end = subtitle.time + subtitle.duration;
-    return `Dialogue: ${subtitle.layer || '0'},${assTime(subtitle.time)},${assTime(end)},${subtitle.style || 'Default'},${subtitle.name || ''},${subtitle.marginL || '0'},${subtitle.marginR || '0'},${subtitle.marginV || '0'},${subtitle.effect || ''},${subtitle.text || ''}`;
-}
-
-function buildVttCue(subtitle: SubtitleEvent): string {
-    const end = subtitle.time + subtitle.duration;
-    return `${vttTime(subtitle.time)} --> ${vttTime(end)}\n${subtitle.text || ''}`;
-}
-
-function createTrackState(track: MetadataTrack, fonts: string[]): RuntimeTrack {
-    const format = track.type === 'ass' || track.type === 'ssa' ? 'ass' : 'vtt';
-    const header = format === 'ass' ? buildAssHeader(track.header) : 'WEBVTT';
-    return {
-        trackNumber: String(track.number),
-        lang: normalizeLang(track.language),
-        label: trackLabel(track),
-        type: track.type,
-        format,
-        header,
-        content: header,
-        cues: [],
-        cueKeys: new Set<string>(),
-        fonts: format === 'ass' ? fonts : undefined,
-    };
-}
-
-function materializeTrack(track: RuntimeTrack): IncomingSubtitleTrack {
-    return {
-        lang: track.lang,
-        label: track.label,
-        format: track.format,
-        content: track.content,
-        fonts: track.fonts,
-    };
-}
-
-function subtitleEventKey(subtitle: SubtitleEvent): string {
-    return JSON.stringify([
-        subtitle.time,
-        subtitle.duration,
-        subtitle.text || '',
-        subtitle.readOrder || '',
-        subtitle.layer || '',
-        subtitle.style || '',
-        subtitle.name || '',
-        subtitle.marginL || '',
-        subtitle.marginR || '',
-        subtitle.marginV || '',
-        subtitle.effect || '',
-    ]);
-}
-
-async function listen(server: Server): Promise<number> {
-    return await new Promise((resolve) => {
-        server.listen(0, '127.0.0.1', () => {
-            resolve((server.address() as { port: number }).port);
-        });
-    });
-}
-
-export class AttachmentSession {
-    private readonly metadata: any;
-    private readonly attachmentServer: Server;
-    private readonly sidecarTracks: SidecarSubtitleTrack[];
-    private readonly tracks = new Map<string, RuntimeTrack>();
-    private readonly trackOrder: string[] = [];
-    private readonly emitSubtitles: (tracks: IncomingSubtitleTrack[]) => void;
-    private readonly file: any;
-    private readonly hash: string;
-    private readonly fileId: number;
-    private readonly iteratorHandler: (
-        event: { iterator: AsyncIterable<Uint8Array> },
-        cb: (iterator: AsyncIterable<Uint8Array>) => void
-    ) => void;
-    private flushTimer: NodeJS.Timeout | null = null;
-    private destroyed = false;
-    private emittedInitial = false;
-
-    private constructor(
-        file: any,
-        hash: string,
-        fileId: number,
-        sidecarTracks: SidecarSubtitleTrack[],
-        emitSubtitles: (tracks: IncomingSubtitleTrack[]) => void
-    ) {
-        this.file = file;
-        this.hash = hash;
-        this.fileId = fileId;
-        this.sidecarTracks = sidecarTracks;
-        this.emitSubtitles = emitSubtitles;
-        this.metadata = new Metadata(file);
-        this.attachmentServer = createServer(async (req, res) => {
-            try {
-                const pathname = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
-                const [hashId, number] = pathname.split('/').slice(1);
-                if (hashId !== `${this.hash}${this.fileId}` || !number) {
-                    res.writeHead(404);
-                    res.end();
-                    return;
-                }
-
-                const attachment = (await this.metadata.getAttachments())[Number(number)] as
-                    | MetadataAttachment
-                    | undefined;
-                if (!attachment) {
-                    res.writeHead(404);
-                    res.end();
-                    return;
-                }
-
-                res.writeHead(200, {
-                    'Content-Type': attachment.mimetype || 'application/x-truetype-font',
-                    'Access-Control-Allow-Origin': '*',
-                    'Cache-Control': 'public, max-age=31536000, immutable',
-                    'Content-Length': attachment.data.byteLength,
-                });
-                res.end(Buffer.from(attachment.data));
-            } catch (error) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(
-                    JSON.stringify({
-                        error: error instanceof Error ? error.message : String(error),
-                    })
-                );
-            }
-        });
-
-        this.iteratorHandler = ({ iterator }, cb) => {
-            if (this.destroyed) {
-                cb(iterator);
-                return;
-            }
-            cb(this.metadata.parseStream(iterator));
-        };
-    }
-
-    static async create(
-        file: any,
-        hash: string,
-        fileId: number,
-        sidecarTracks: SidecarSubtitleTrack[],
-        emitSubtitles: (tracks: IncomingSubtitleTrack[]) => void
-    ): Promise<AttachmentSession> {
-        const session = new AttachmentSession(file, hash, fileId, sidecarTracks, emitSubtitles);
-        await session.initialize();
-        return session;
-    }
-
-    private async initialize(): Promise<void> {
-        const port = await listen(this.attachmentServer);
-        this.file.on('iterator', this.iteratorHandler);
-
-        const metadataTracks = (await this.metadata.getTracks()) as MetadataTrack[];
-        log.debug('Embedded subtitle streams found:', metadataTracks.length);
-
-        const attachments = (await this.metadata.getAttachments()) as MetadataAttachment[];
-        const fontUrls = attachments.map(
-            (_attachment, index) => `http://127.0.0.1:${port}/${this.hash}${this.fileId}/${index}`
-        );
-
-        for (const track of metadataTracks) {
-            const state = createTrackState(track, fontUrls);
-            this.tracks.set(state.trackNumber, state);
-            this.trackOrder.push(state.trackNumber);
-        }
-
-        if (attachments.length > 0) {
-            log.debug('Font attachments ready:', attachments.length);
-        }
-
-        this.metadata.on('subtitle', (subtitle: SubtitleEvent, trackNumber: string | number) => {
-            const state = this.tracks.get(String(trackNumber));
-            if (!state) return;
-
-            const cueKey = subtitleEventKey(subtitle);
-            if (state.cueKeys.has(cueKey)) return;
-            state.cueKeys.add(cueKey);
-
-            const cue = state.format === 'ass' ? buildAssDialogue(subtitle) : buildVttCue(subtitle);
-            state.cues.push(cue);
-            state.content = `${state.header}\n${state.cues.join('\n')}`;
-            this.scheduleFlush();
-        });
-
-        this.flushNow();
-    }
-
-    private scheduleFlush() {
-        if (this.flushTimer) return;
-        this.flushTimer = setTimeout(() => {
-            this.flushTimer = null;
-            this.flushNow();
-        }, 250);
-    }
-
-    private flushNow() {
-        if (this.destroyed) return;
-        const tracks = [
-            ...this.sidecarTracks,
-            ...this.trackOrder
-                .map((trackNumber) => this.tracks.get(trackNumber))
-                .filter((track): track is RuntimeTrack => track !== undefined)
-                .map(materializeTrack),
-        ];
-        this.emitSubtitles(tracks);
-        if (!this.emittedInitial) {
-            this.emittedInitial = true;
-            log.debug(
-                'Subtitles ready:',
-                tracks.map((track) => `${track.label}(${track.lang})`)
-            );
-        }
-    }
-
-    async close(): Promise<void> {
-        this.destroyed = true;
-        if (this.flushTimer) {
-            clearTimeout(this.flushTimer);
-            this.flushTimer = null;
-        }
-        this.metadata.destroy?.();
-        this.metadata.removeAllListeners?.();
-        this.file.off?.('iterator', this.iteratorHandler);
-        await new Promise((resolve) => this.attachmentServer.close(resolve));
-    }
-}
+export type SidecarTrack = {
+    lang: string;
+    label: string;
+    format: 'vtt';
+    content: string;
+};
 
 export function detectLang(filename: string): { lang: string; label: string } {
     const base = path.basename(filename, path.extname(filename)).toLowerCase();
@@ -373,3 +89,132 @@ export function detectLang(filename: string): { lang: string; label: string } {
     }
     return { lang: 'und', label: path.basename(filename, path.extname(filename)) };
 }
+
+const SUBTITLE_TYPES = new Set(['ass', 'ssa', 'vtt', 'srt', 'subrip', 'webvtt']);
+
+class Attachments {
+    private filemap = new Map<string, any>();
+    private metadatamap = new Map<any, Metadata>();
+    private port = 0;
+    private portReady: Promise<void>;
+
+    private server = createServer(async (req, res) => {
+        try {
+            const { pathname } = new URL(req.url!, 'http://localhost');
+            const [hashid, number] = pathname.split('/').slice(1);
+            if (!hashid || !number) throw new Error('Invalid request');
+
+            const file = this.filemap.get(hashid);
+            if (!file) throw new Error('File not found');
+
+            const metadata = this.metadatamap.get(file);
+            if (!metadata) throw new Error('Metadata not found');
+
+            const attachment = (await metadata.getAttachments())[Number(number)] as
+                | MatroskaAttachment
+                | undefined;
+            if (!attachment) throw new Error('Attachment not found');
+
+            res.writeHead(200, {
+                'Content-Type': attachment.mimetype || 'application/x-truetype-font',
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'public, max-age=31536000, immutable',
+                'Content-Length': attachment.data.byteLength,
+            });
+            res.end(Buffer.from(attachment.data));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: (err as Error).message }));
+        }
+    });
+
+    constructor() {
+        this.portReady = new Promise<void>((resolve) => {
+            this.server.listen(0, '127.0.0.1', () => {
+                this.port = (this.server.address() as AddressInfo).port;
+                resolve();
+            });
+        });
+    }
+
+    private _metadata(hash: string, id: number): Metadata | undefined {
+        const file = this.filemap.get(hash + id);
+        if (!file) return undefined;
+        const existing = this.metadatamap.get(file);
+        if (existing) return existing;
+        const metadata = new Metadata(file);
+        this.metadatamap.set(file, metadata);
+        return metadata;
+    }
+
+    register(file: any, hash: string, id: number): void {
+        this.filemap.clear();
+        this.metadatamap.clear();
+        this.filemap.set(hash + id, file);
+        file.on(
+            'iterator',
+            (
+                { iterator }: { iterator: AsyncIterable<Uint8Array> },
+                cb: (it: AsyncIterable<Uint8Array>) => void
+            ) => {
+                const metadata = this._metadata(hash, id);
+                cb(metadata ? metadata.parseStream(iterator) : iterator);
+            }
+        );
+    }
+
+    subtitle(
+        hash: string,
+        id: number,
+        cb: (subtitle: MatroskaSubtitle, trackNumber: string) => void
+    ): void {
+        const metadata = this._metadata(hash, id);
+        if (!metadata) return;
+        metadata.removeAllListeners('subtitle');
+        metadata.on('subtitle', (sub: MatroskaSubtitle, trackNum: string | number) =>
+            cb(sub, String(trackNum))
+        );
+    }
+
+    async tracks(hash: string, id: number): Promise<TrackInfo[]> {
+        await this.portReady;
+        const metadata = this._metadata(hash, id);
+        if (!metadata) return [];
+
+        const [rawTracks, attachments] = await Promise.all([
+            metadata.getTracks(),
+            metadata.getAttachments(),
+        ]);
+
+        const fontUrls = attachments.map(
+            (_: MatroskaAttachment, index: number) =>
+                `http://127.0.0.1:${this.port}/${hash}${id}/${index}`
+        );
+
+        const result = rawTracks
+            .filter((t) => SUBTITLE_TYPES.has(t.type?.toLowerCase()))
+            .map((track) => {
+                const format: 'ass' | 'vtt' =
+                    track.type === 'ass' || track.type === 'ssa' ? 'ass' : 'vtt';
+                return {
+                    trackNumber: String(track.number),
+                    lang: normalizeLang(track.language),
+                    label: trackLabel(track),
+                    format,
+                    header: format === 'ass' ? buildAssHeader(track.header) : 'WEBVTT',
+                    fonts: format === 'ass' ? fontUrls : [],
+                };
+            });
+
+        log.debug('Tracks found:', result.length);
+        return result;
+    }
+
+    async destroy(): Promise<void> {
+        this.filemap.clear();
+        this.metadatamap.clear();
+        await new Promise((resolve) => this.server.close(resolve));
+    }
+}
+
+export default new Attachments();
