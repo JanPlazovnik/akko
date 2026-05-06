@@ -15,8 +15,10 @@ import {
     DialogTitle,
 } from 'reka-ui';
 import { usePlayerStore } from '../stores/player';
+import { useMediaStore } from '../stores/media';
 import SelectMenu from './ui/SelectMenu.vue';
 import type { AniZipEpisode } from '@shared/anizip/types';
+import { episodeToSummary, mediaToSummary } from '@shared/media/types';
 import type { TorrentResult } from '../../main/extensions/types';
 
 const props = defineProps<{
@@ -32,6 +34,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>();
 
 const router = useRouter();
 const player = usePlayerStore();
+const mediaStore = useMediaStore();
 
 const RESOLUTIONS = ['1080', '720', '480'] as const;
 type Resolution = (typeof RESOLUTIONS)[number];
@@ -48,6 +51,11 @@ const episodeName = computed(() => {
     const title = t['en'] || t['x-jat'] || t['ja'] || `Episode ${num}`;
     return `Episode ${num} - ${title}`;
 });
+
+function episodeTitle(): string | null {
+    const t = props.episode.title;
+    return t['en'] || t['x-jat'] || t['ja'] || null;
+}
 
 function formatBytes(bytes: number): string {
     if (!bytes) return '-';
@@ -144,7 +152,26 @@ async function pick(result: TorrentResult) {
     if (selecting.value) return;
     selecting.value = true;
     try {
-        player.queueStream(toMagnet(result.link, result.hash));
+        const magnet = toMagnet(result.link, result.hash);
+        const media = mediaStore.mediaFor(props.anilistId);
+        player.queueStream({
+            media: media
+                ? mediaToSummary(media)
+                : {
+                      anilistId: props.anilistId,
+                      title: props.titles[0] ?? 'Unknown title',
+                      episodeCount: props.episodeCount,
+                  },
+            episode: {
+                ...episodeToSummary(props.episode),
+                title: episodeTitle(),
+            },
+            torrent: {
+                title: result.title,
+                infoHash: result.hash || undefined,
+                magnet,
+            },
+        });
         emit('update:open', false);
         await router.push('/player');
     } finally {

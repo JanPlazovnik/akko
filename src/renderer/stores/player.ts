@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
+import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
 
 type TrackInfo = {
     trackNumber: string;
@@ -69,12 +70,16 @@ function buildVttCue(sub: SubtitleCue): string {
 }
 
 export const usePlayerStore = defineStore('player', () => {
+    const selection = ref<WatchSelection | null>(null);
     const pendingMagnet = ref<string | null>(null);
     const torrentId = ref<string | null>(null);
     const streamUrl = ref<string | null>(null);
     const mimeType = ref<string>('video/mp4');
 
+    const videoEl = shallowRef<HTMLVideoElement | null>(null);
     const isPlaying = ref(false);
+    const isMuted = ref(false);
+    const volume = ref(1);
     const subtitlesReady = ref(false);
     const loadingMessage = ref<string | null>(null);
     const currentTime = ref(0);
@@ -89,6 +94,18 @@ export const usePlayerStore = defineStore('player', () => {
         return currentTime.value / duration.value;
     });
 
+    const activity = computed<PlaybackActivity | null>(() => {
+        if (!selection.value) return null;
+        return {
+            ...selection.value,
+            playback: {
+                currentTime: currentTime.value,
+                duration: duration.value,
+                isPlaying: isPlaying.value,
+            },
+        };
+    });
+
     function makeBlobUrl(content: string): string {
         return URL.createObjectURL(new Blob([content], { type: 'text/vtt' }));
     }
@@ -99,8 +116,9 @@ export const usePlayerStore = defineStore('player', () => {
         });
     }
 
-    function queueStream(magnet: string) {
-        pendingMagnet.value = magnet;
+    function queueStream(nextSelection: WatchSelection) {
+        selection.value = nextSelection;
+        pendingMagnet.value = nextSelection.torrent.magnet;
         loadingMessage.value = 'Episode will load after torrent metadata is received.';
     }
 
@@ -211,14 +229,18 @@ export const usePlayerStore = defineStore('player', () => {
     }
 
     async function stopStream() {
-        if (!torrentId.value) return;
+        const currentTorrentId = torrentId.value;
 
         resetCues = null;
         window.api.offSubtitle();
-        await window.api.stopStream(torrentId.value);
+        if (currentTorrentId) {
+            await window.api.stopStream(currentTorrentId);
+        }
 
         revokeSubtitleBlobUrls();
 
+        selection.value = null;
+        pendingMagnet.value = null;
         trackMeta.value = [];
         torrentId.value = null;
         streamUrl.value = null;
@@ -236,17 +258,53 @@ export const usePlayerStore = defineStore('player', () => {
         activeSubtitle.value = lang;
     }
 
+    function setVideoElement(el: HTMLVideoElement | null) {
+        videoEl.value = el;
+    }
+
+    function play() {
+        void videoEl.value?.play();
+    }
+
+    function pause() {
+        videoEl.value?.pause();
+    }
+
+    function seekTo(time: number) {
+        if (videoEl.value) videoEl.value.currentTime = time;
+    }
+
+    function toggleMute() {
+        if (!videoEl.value) return;
+        videoEl.value.muted = !videoEl.value.muted;
+        isMuted.value = videoEl.value.muted;
+    }
+
+    function setVolume(vol: number) {
+        const clamped = Math.max(0, Math.min(1, vol));
+        volume.value = clamped;
+        if (videoEl.value) {
+            videoEl.value.volume = clamped;
+            videoEl.value.muted = clamped === 0;
+            isMuted.value = videoEl.value.muted;
+        }
+    }
+
     return {
+        selection,
         torrentId,
         pendingMagnet,
         streamUrl,
         mimeType,
         isPlaying,
+        isMuted,
+        volume,
         subtitlesReady,
         loadingMessage,
         currentTime,
         duration,
         progress,
+        activity,
         trackMeta,
         subtitles,
         activeSubtitle,
@@ -255,5 +313,11 @@ export const usePlayerStore = defineStore('player', () => {
         stopStream,
         setActiveSubtitle,
         resetSubtitleCues,
+        setVideoElement,
+        play,
+        pause,
+        seekTo,
+        toggleMute,
+        setVolume,
     };
 });
