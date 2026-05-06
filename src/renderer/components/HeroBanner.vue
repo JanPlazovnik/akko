@@ -2,12 +2,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Play } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
-import { useAnilistStore } from '../stores/anilist';
+import { useMediaStore } from '../stores/media';
 import Badge from './ui/Badge.vue';
 import { STATUS_LABELS, FORMAT_LABELS, SEASON_LABELS } from '../lib/media-labels';
 
 const props = defineProps<{ items: Media[] }>();
-const anilist = useAnilistStore();
+const mediaStore = useMediaStore();
 
 const heroIndex = ref(0);
 const transitioning = ref(false);
@@ -119,7 +119,7 @@ function stripHtml(s?: string | null) {
                 <div class="flex gap-3 items-center">
                     <button
                         class="bg-white text-black px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2 rounded-full hover:opacity-85 transition-opacity cursor-pointer"
-                        @click="current && anilist.viewMedia(current)"
+                        @click="current && mediaStore.viewMedia(current)"
                     >
                         <Play :size="14" fill="black" />
                         Watch now

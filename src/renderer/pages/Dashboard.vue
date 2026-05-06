@@ -1,37 +1,37 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
 import { toast } from 'vue3-toastify';
-import { useAnilistStore } from '../stores/anilist';
+import { useMediaStore } from '../stores/media';
 import { useLoadingStore } from '../stores/loading';
 import HeroBanner from '../components/HeroBanner.vue';
 import MediaRow from '../components/MediaRow.vue';
 
-const anilist = useAnilistStore();
+const mediaStore = useMediaStore();
 const loadingBar = useLoadingStore();
 
 onMounted(async () => {
     loadingBar.start();
-    await anilist.fetchDashboard();
+    await mediaStore.fetchDashboard();
     loadingBar.finish();
 });
 
 watch(
-    () => anilist.dashboardError,
+    () => mediaStore.dashboardError,
     (err) => err && toast.error(err.message)
 );
 
 const nonNull = <T,>(arr: (T | null)[] | null | undefined) =>
     (arr ?? []).filter((x): x is T => x !== null);
 
-const trending = computed(() => nonNull(anilist.dashboard?.trending?.media));
-const season = computed(() => nonNull(anilist.dashboard?.season?.media));
-const popular = computed(() => nonNull(anilist.dashboard?.popular?.media));
+const trending = computed(() => nonNull(mediaStore.dashboard?.trending?.media));
+const season = computed(() => nonNull(mediaStore.dashboard?.season?.media));
+const popular = computed(() => nonNull(mediaStore.dashboard?.popular?.media));
 </script>
 
 <template>
     <div class="min-h-full bg-neutral-900 text-white pb-12">
         <div
-            v-if="anilist.dashboardLoading"
+            v-if="mediaStore.dashboardLoading"
             class="flex items-center justify-center h-64 text-white/40 text-sm"
         >
             Loading...

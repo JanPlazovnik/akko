@@ -2,12 +2,12 @@
 import { ref, computed, inject, watch } from 'vue';
 import { Play, Heart, Plus, Calendar, Tv } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
-import { useAnilistStore } from '../stores/anilist';
+import { useMediaStore } from '../stores/media';
 
 const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
 
 const props = defineProps<{ item: Media; actionLabel?: string }>();
-const anilist = useAnilistStore();
+const mediaStore = useMediaStore();
 
 const title = computed(() => props.item.title?.userPreferred ?? '');
 const coverImage = computed(() => props.item.coverImage?.large ?? null);
@@ -55,6 +55,7 @@ watch(isScrolling, (scrolling) => {
 });
 
 function onEnter() {
+    void mediaStore.preloadMedia(props.item.id).catch(() => undefined);
     hoverTimer = setTimeout(() => {
         if (isScrolling.value) return;
         hovered.value = true;
@@ -81,7 +82,7 @@ function navigate() {
     pressing.value = true;
     setTimeout(() => {
         pressing.value = false;
-        anilist.viewMedia(props.item);
+        mediaStore.viewMedia(props.item);
     }, 120);
 }
 </script>

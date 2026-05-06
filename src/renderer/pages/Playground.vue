@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import { toast } from 'vue3-toastify';
 import { RefreshCw, FlaskConical } from '@lucide/vue';
 import { useLoadingStore } from '../stores/loading';
-import { useAnilistStore } from '../stores/anilist';
+import { useMediaStore } from '../stores/media';
 import { useExtensionStore } from '../stores/extensions';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
@@ -25,7 +25,7 @@ const DEMO_MULTI = [
 ];
 
 const loadingBar = useLoadingStore();
-const anilist = useAnilistStore();
+const mediaStore = useMediaStore();
 const extensions = useExtensionStore();
 
 onMounted(() => extensions.refresh());
@@ -293,16 +293,16 @@ function testTextColor(s: TestStatus): string {
             </h2>
             <div class="grid grid-cols-2 gap-3">
                 <div class="bg-neutral-800 rounded-lg p-4 space-y-1.5 text-xs">
-                    <p class="font-semibold text-white/80">Anilist</p>
-                    <p class="text-white/40">dashboardLoading: {{ anilist.dashboardLoading }}</p>
+                    <p class="font-semibold text-white/80">Media</p>
+                    <p class="text-white/40">dashboardLoading: {{ mediaStore.dashboardLoading }}</p>
                     <p class="text-white/40">
-                        dashboardError: {{ anilist.dashboardError?.message ?? 'null' }}
+                        dashboardError: {{ mediaStore.dashboardError?.message ?? 'null' }}
                     </p>
                     <p class="text-white/40">
-                        selectedMedia: {{ anilist.selectedMedia?.id ?? 'null' }}
+                        selectedMedia: {{ mediaStore.selectedMedia?.id ?? 'null' }}
                     </p>
                     <p class="text-white/40">
-                        trending: {{ anilist.dashboard?.trending?.media?.length ?? 0 }} items
+                        trending: {{ mediaStore.dashboard?.trending?.media?.length ?? 0 }} items
                     </p>
                 </div>
                 <div class="bg-neutral-800 rounded-lg p-4 space-y-1.5 text-xs">

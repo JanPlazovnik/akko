@@ -6,40 +6,33 @@ import { Play } from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
 import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import { STATUS_LABELS, FORMAT_LABELS, SEASON_LABELS } from '../lib/media-labels';
-import { useAnilistStore } from '../stores/anilist';
+import { useMediaStore } from '../stores/media';
 import { useLoadingStore } from '../stores/loading';
-import { fetchEpisodes } from '../lib/anizip-client';
 import type { AniZipEpisode } from '@shared/anizip/types';
 
 const route = useRoute();
-const anilist = useAnilistStore();
+const mediaStore = useMediaStore();
 const loadingBar = useLoadingStore();
 
-const media = computed(() => anilist.selectedMedia);
-const episodes = ref<AniZipEpisode[]>([]);
-const episodesLoading = ref(false);
-const anidbAid = ref<number | null>(null);
+const routeMediaId = computed(() => Number(route.params.id));
+const media = computed(() => mediaStore.mediaFor(routeMediaId.value));
+const episodes = computed(() => mediaStore.episodesFor(routeMediaId.value));
+const episodesLoading = computed(() => mediaStore.episodesLoadingFor(routeMediaId.value));
+const anidbAid = computed(() => mediaStore.anidbAidFor(routeMediaId.value));
 const selectedEpisode = ref<AniZipEpisode | null>(null);
 const dialogOpen = ref(false);
 
 onMounted(async () => {
-    const id = Number(route.params.id);
+    const id = routeMediaId.value;
     loadingBar.start();
-    episodesLoading.value = true;
+    mediaStore.setSelectedMedia(id);
     try {
-        if (media.value?.id !== id) await anilist.fetchMedia(id);
-        const notReleased = media.value?.status === 'NOT_YET_RELEASED';
+        const loadedMedia = media.value ?? (await mediaStore.fetchMedia(id));
+        const notReleased = loadedMedia?.status === 'NOT_YET_RELEASED';
         if (!notReleased) {
-            const data = await fetchEpisodes(id);
-            anidbAid.value = data.mappings.anidb_id;
-            episodes.value = Object.entries(data.episodes)
-                .filter(([key]) => /^\d+$/.test(key))
-                .sort(([a], [b]) => Number(a) - Number(b))
-                .map(([, ep]) => ep);
-            episodesLoading.value = false;
+            await mediaStore.fetchEpisodes(id);
         }
     } catch (err) {
-        episodesLoading.value = false;
         toast.error(err instanceof Error ? err.message : 'Failed to load media');
     } finally {
         loadingBar.finish();

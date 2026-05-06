@@ -3,10 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useRoute, useRouter } from 'vue-router';
 import { X } from '@lucide/vue';
 import { toast } from 'vue3-toastify';
-import { anilistClient } from '../lib/anilist-client';
-import { SearchQuery } from '@shared/graphql/queries';
 import { useLoadingStore } from '../stores/loading';
-import type { Media } from '@shared/graphql/queries';
+import { useMediaStore } from '../stores/media';
 import MediaCard from '../components/MediaCard.vue';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
@@ -14,6 +12,7 @@ import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
 const route = useRoute();
 const router = useRouter();
 const loadingBar = useLoadingStore();
+const mediaStore = useMediaStore();
 
 const q = route.query;
 const filters = reactive({
@@ -105,14 +104,12 @@ function clearFilters() {
     filters.genres = [];
 }
 
-const results = ref<Media[]>([]);
-const page = ref(1);
-const hasNextPage = ref(true);
-const loading = ref(false);
-let reqId = 0;
+const results = computed(() => mediaStore.searchResults);
+const hasNextPage = computed(() => mediaStore.searchHasNextPage);
+const loading = computed(() => mediaStore.searchLoading);
 
 function buildVars() {
-    const v: Record<string, unknown> = { page: page.value, type: 'ANIME', sort: [filters.sort] };
+    const v: Record<string, unknown> = { type: 'ANIME', sort: [filters.sort] };
     if (filters.search) v.search = filters.search;
     if (filters.genres.length) v.genres = [...filters.genres];
     if (filters.year) v.seasonYear = filters.year;
@@ -125,30 +122,13 @@ function buildVars() {
 async function fetchPage(reset = false) {
     if (loading.value && !reset) return;
     if (!hasNextPage.value && !reset) return;
-
-    const id = ++reqId;
-    loading.value = true;
-
-    if (reset) {
-        results.value = [];
-        page.value = 1;
-        hasNextPage.value = true;
-        loadingBar.start();
-    }
+    if (reset) loadingBar.start();
 
     try {
-        const { data } = await anilistClient.query(SearchQuery, buildVars() as any);
-        if (id !== reqId) return;
-        const media = (data?.Page?.media ?? []).filter((m): m is Media => m !== null);
-        results.value = reset ? media : [...results.value, ...media];
-        hasNextPage.value = data?.Page?.pageInfo?.hasNextPage ?? false;
-        page.value++;
+        await mediaStore.searchAnime(buildVars() as any, reset);
     } catch (err) {
-        if (id !== reqId) return;
         toast.error(err instanceof Error ? err.message : 'Search failed');
     } finally {
-        if (id !== reqId) return;
-        loading.value = false;
         if (reset) loadingBar.finish();
     }
 }
