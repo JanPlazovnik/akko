@@ -243,12 +243,4 @@ watch(
 .player-mini.is-dragging {
     transition: none;
 }
-
-media-container canvas {
-    transition: translate 0.3s ease;
-}
-
-media-container:has(media-controls[data-visible]) canvas {
-    translate: 0 -64px;
-}
 </style>
