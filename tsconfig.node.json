@@ -2,8 +2,6 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "target": "ESNext",
-        "module": "CommonJS",
-        "moduleResolution": "node",
         "outDir": "dist"
     },
     "include": [
@@ -11,6 +9,7 @@
         "src/preload/**/*",
         "vite.main.config.ts",
         "vite.preload.config.ts",
-        "forge.config.ts"
+        "forge.config.ts",
+        "forge.env.d.ts"
     ]
 }
