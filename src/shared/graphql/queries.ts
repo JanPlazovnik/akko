@@ -43,7 +43,12 @@ export const DashboardQuery = graphql(
     `
         query ($season: MediaSeason, $seasonYear: Int) {
             trending: Page(page: 1, perPage: 25) {
-                media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
+                media(
+                    sort: TRENDING_DESC
+                    type: ANIME
+                    isAdult: false
+                    status_not: NOT_YET_RELEASED
+                ) {
                     ...MediaFragment
                 }
             }
@@ -54,17 +59,23 @@ export const DashboardQuery = graphql(
                     sort: POPULARITY_DESC
                     type: ANIME
                     isAdult: false
+                    status_not: NOT_YET_RELEASED
                 ) {
                     ...MediaFragment
                 }
             }
             popular: Page(page: 1, perPage: 25) {
-                media(sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
+                media(
+                    sort: POPULARITY_DESC
+                    type: ANIME
+                    isAdult: false
+                    status_not: NOT_YET_RELEASED
+                ) {
                     ...MediaFragment
                 }
             }
             top: Page(page: 1, perPage: 25) {
-                media(sort: SCORE_DESC, type: ANIME, isAdult: false) {
+                media(sort: SCORE_DESC, type: ANIME, isAdult: false, status_not: NOT_YET_RELEASED) {
                     ...MediaFragment
                 }
             }
@@ -122,6 +133,7 @@ export const SearchQuery = graphql(
                     season: $season
                     format_in: $format
                     status: $status
+                    status_not: NOT_YET_RELEASED
                     countryOfOrigin: $countryOfOrigin
                     source: $source
                     search: $search

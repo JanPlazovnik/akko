@@ -53,7 +53,6 @@ const FORMATS = [
 const STATUSES = [
     { value: 'RELEASING', label: 'Airing' },
     { value: 'FINISHED', label: 'Finished' },
-    { value: 'NOT_YET_RELEASED', label: 'Not Yet Aired' },
     { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
