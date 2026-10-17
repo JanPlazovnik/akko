@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { FlaskConical, Search, Settings, X } from '@lucide/vue';
+import { FlaskConical, Home, Search, Settings, X } from '@lucide/vue';
 import LoadingBar from './LoadingBar.vue';
 import WindowControls from './WindowControls.vue';
 import LogoMark from './LogoMark.vue';
@@ -61,14 +61,25 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 
 <template>
     <header class="drag flex h-14 shrink-0 items-center pl-4">
-        <button class="no-drag flex cursor-pointer items-center gap-2" @click="router.push('/')">
+        <div class="flex items-center gap-2">
             <LogoMark class="size-7 text-white" />
             <span class="font-display text-lg font-semibold tracking-tight">akko</span>
-        </button>
+        </div>
+
+        <RouterLink
+            to="/"
+            :class="[
+                'no-drag ml-6 flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+                route.path === '/' ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white',
+            ]"
+        >
+            <Home :size="15" />
+            Home
+        </RouterLink>
 
         <label
             :class="[
-                'no-drag group ml-8 flex h-9 w-80 cursor-text items-center gap-2.5 rounded-full px-4 text-sm ring-1 transition-colors focus-within:bg-white/10 focus-within:ring-white/20',
+                'no-drag group ml-3 flex h-9 w-80 cursor-text items-center gap-2.5 rounded-full px-4 text-sm ring-1 transition-colors focus-within:bg-white/10 focus-within:ring-white/20',
                 onSearchPage()
                     ? 'bg-white/10 ring-white/15'
                     : 'bg-white/5 ring-line hover:bg-white/8',
