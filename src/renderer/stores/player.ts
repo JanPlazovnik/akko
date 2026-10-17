@@ -3,6 +3,7 @@ import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
 import type { StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
+import { errorMessage } from '../lib/format';
 
 type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
 
@@ -36,11 +37,8 @@ export const usePlayerStore = defineStore('player', () => {
 
     const title = computed(() => selection.value?.media.title ?? '');
 
-    const episodeLabel = computed(() => {
-        const episode = selection.value?.episode;
-        if (!episode) return '';
-        return [`Episode ${episode.number}`, episode.title].filter(Boolean).join(' · ');
-    });
+    const episodeNumber = computed(() => selection.value?.episode.number ?? null);
+    const episodeTitle = computed(() => selection.value?.episode.title ?? null);
 
     const activity = computed<PlaybackActivity | null>(() => {
         if (!selection.value) return null;
@@ -132,7 +130,7 @@ export const usePlayerStore = defineStore('player', () => {
             activeTrackId.value = defaultTrackId(result.tracks);
         } catch (err) {
             if (current === generation) {
-                error.value = err instanceof Error ? err.message : String(err);
+                error.value = errorMessage(err);
             }
         } finally {
             if (current === generation) loading.value = false;
@@ -143,7 +141,7 @@ export const usePlayerStore = defineStore('player', () => {
         generation++;
         const id = torrentId.value;
         reset();
-        if (id) await window.api.stopStream(id);
+        await window.api.stopStream(id);
     }
 
     return {
@@ -157,7 +155,8 @@ export const usePlayerStore = defineStore('player', () => {
         currentTime,
         duration,
         title,
-        episodeLabel,
+        episodeNumber,
+        episodeTitle,
         activity,
         tracks,
         activeTrackId,

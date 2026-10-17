@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { AlertTriangle, Loader2 } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
+import EpisodeLabel from './EpisodeLabel.vue';
 import { formatSpeed } from '../../lib/format';
 import { goBack } from '../../lib/navigation';
 import WindowControls from '../WindowControls.vue';
@@ -18,6 +19,18 @@ const backdrop = computed(
         null
 );
 
+function leave() {
+    void player.stopStream();
+    goBack(router);
+}
+
+function onKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && !player.streamUrl) leave();
+}
+
+onMounted(() => document.addEventListener('keydown', onKeydown));
+onUnmounted(() => document.removeEventListener('keydown', onKeydown));
+
 const status = computed(() => {
     if (player.error) return player.error;
     if (player.loading) return 'Connecting to peers and fetching torrent metadata…';
@@ -28,7 +41,7 @@ const status = computed(() => {
 <template>
     <div
         v-if="!player.streamUrl"
-        class="absolute inset-0 z-30 grid place-items-center overflow-hidden bg-base"
+        class="absolute inset-0 z-30 grid place-items-center overflow-hidden bg-canvas"
     >
         <img
             v-if="backdrop"
@@ -46,18 +59,17 @@ const status = computed(() => {
                     {{ player.title }}
                 </p>
                 <h2 class="font-display text-3xl font-semibold text-balance">
-                    {{ player.episodeLabel || 'Nothing playing' }}
+                    <EpisodeLabel fallback="Nothing playing" />
                 </h2>
             </div>
             <p :class="['text-sm', player.error ? 'text-red-300/90' : 'text-white/50']">
                 {{ status }}
             </p>
             <button
-                v-if="!player.loading"
                 class="no-drag cursor-pointer rounded-full bg-white/10 px-5 py-2 text-sm font-medium transition-colors hover:bg-white/20"
-                @click="goBack(router)"
+                @click="leave"
             >
-                Go back
+                {{ player.loading ? 'Cancel' : 'Go back' }}
             </button>
         </div>
     </div>

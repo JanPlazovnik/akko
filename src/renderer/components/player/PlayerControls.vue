@@ -12,6 +12,7 @@ import {
     VolumeX,
 } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
+import EpisodeLabel from './EpisodeLabel.vue';
 import { goBack } from '../../lib/navigation';
 import WindowControls from '../WindowControls.vue';
 import StreamStats from './StreamStats.vue';
@@ -44,7 +45,7 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
             <div class="mt-3 min-w-0">
                 <p class="truncate text-xs font-medium text-white/60">{{ player.title }}</p>
                 <h1 class="truncate font-display text-xl font-semibold">
-                    {{ player.episodeLabel }}
+                    <EpisodeLabel />
                 </h1>
             </div>
             <StreamStats class="no-drag mt-4 ml-auto shrink-0" />

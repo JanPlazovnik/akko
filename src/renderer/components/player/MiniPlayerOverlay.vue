@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { Maximize2, Pause, Play, X } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
+import EpisodeLabel from './EpisodeLabel.vue';
 
 const router = useRouter();
 const player = usePlayerStore();
@@ -17,7 +18,7 @@ const BUTTON =
 
 <template>
     <div
-        class="absolute inset-0 z-20 flex flex-col justify-between bg-linear-to-t from-black/80 via-black/10 to-black/50 opacity-0 transition-opacity duration-200 group-hover/mini:opacity-100"
+        class="absolute inset-0 z-20 flex flex-col justify-between rounded-xl bg-linear-to-t from-black/80 via-black/10 to-black/50 opacity-0 transition-opacity duration-200 group-hover/mini:opacity-100"
     >
         <div class="flex justify-end gap-1.5 p-2">
             <button
@@ -49,11 +50,13 @@ const BUTTON =
 
         <div class="min-w-0 px-3 pb-3">
             <p class="truncate text-xs font-semibold">{{ player.title }}</p>
-            <p class="truncate text-[11px] text-white/60">{{ player.episodeLabel }}</p>
+            <p class="truncate text-[11px] text-white/60"><EpisodeLabel /></p>
         </div>
     </div>
 
-    <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-0.5 bg-white/15">
-        <div class="h-full bg-accent" :style="{ width: progress }" />
+    <div class="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-xl">
+        <div class="absolute inset-x-0 bottom-0 h-0.5 bg-white/15">
+            <div class="h-full bg-accent" :style="{ width: progress }" />
+        </div>
     </div>
 </template>

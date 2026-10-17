@@ -16,7 +16,6 @@ const MINI_W = 320;
 const MINI_H = 180;
 const HEADER_H = 56;
 const MARGIN = 20;
-const CLICK_DELAY_MS = 250;
 const SURFACE_TAGS = new Set(['VIDEO', 'CANVAS', 'MEDIA-CONTROLS']);
 
 const HOTKEYS = [
@@ -98,8 +97,6 @@ function onMiniClick() {
 }
 
 // ─── click to pause, double click for fullscreen ──────────────────────────────
-let clickTimer: ReturnType<typeof setTimeout> | null = null;
-
 function togglePaused() {
     const v = getVideo();
     if (v) v.paused ? void v.play() : v.pause();
@@ -112,18 +109,9 @@ function toggleFullscreen() {
 
 function onSurfaceClick(event: MouseEvent) {
     if (!isPlayerRoute.value || !SURFACE_TAGS.has((event.target as Element).tagName)) return;
-    if (event.detail === 2) {
-        if (clickTimer) clearTimeout(clickTimer);
-        else togglePaused();
-        clickTimer = null;
-        toggleFullscreen();
-        return;
-    }
-    if (event.detail !== 1) return;
-    clickTimer = setTimeout(() => {
-        clickTimer = null;
-        togglePaused();
-    }, CLICK_DELAY_MS);
+    if (event.detail > 2) return;
+    togglePaused();
+    if (event.detail === 2) toggleFullscreen();
 }
 
 // ─── window and keyboard ──────────────────────────────────────────────────────
@@ -191,7 +179,7 @@ watch(
             isPlayerRoute
                 ? 'fixed inset-0 z-40 bg-black'
                 : [
-                      'player-mini group/mini fixed z-50 overflow-hidden rounded-xl bg-black shadow-2xl ring-1 shadow-black/80 ring-white/10',
+                      'player-mini group/mini fixed z-50 rounded-xl bg-black shadow-2xl ring-1 shadow-black/80 ring-white/10',
                       isDragging ? 'cursor-grabbing' : 'cursor-pointer',
                       { 'is-dragging': isDragging },
                   ]
@@ -204,11 +192,17 @@ watch(
                 ref="mediaContainerRef"
                 :class="[
                     'relative block size-full bg-black outline-none',
+                    !isPlayerRoute && 'rounded-xl',
                     isPlayerRoute && '[&:not(:has(media-controls[data-visible]))]:cursor-none',
                 ]"
                 @click="onSurfaceClick"
             >
-                <video ref="videoRef" class="object-contain" playsinline crossorigin="anonymous" />
+                <video
+                    ref="videoRef"
+                    :class="['object-contain', !isPlayerRoute && 'rounded-xl']"
+                    playsinline
+                    crossorigin="anonymous"
+                />
                 <template v-if="isPlayerRoute">
                     <media-hotkey
                         v-for="hotkey in HOTKEYS"
