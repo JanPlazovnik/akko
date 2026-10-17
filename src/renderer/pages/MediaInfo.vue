@@ -26,7 +26,7 @@ const routeMediaId = computed(() => Number(route.params.id));
 const media = computed(() => mediaStore.mediaFor(routeMediaId.value));
 const episodes = computed(() => mediaStore.episodesFor(routeMediaId.value));
 const episodesLoading = computed(() => mediaStore.episodesLoadingFor(routeMediaId.value));
-const anidbAid = computed(() => mediaStore.anidbAidFor(routeMediaId.value));
+const mappings = computed(() => mediaStore.mappingsFor(routeMediaId.value));
 const selectedEpisode = ref<Episode | null>(null);
 const dialogOpen = ref(false);
 const descriptionExpanded = ref(false);
@@ -334,7 +334,7 @@ const formatAirDate = (date: string) =>
         :anilist-id="media.id"
         :titles="[media.title?.romaji, media.title?.english].filter((t): t is string => !!t)"
         :episode-count="media.episodes ?? null"
-        :anidb-aid="anidbAid"
+        :mappings="mappings"
     />
 </template>
 

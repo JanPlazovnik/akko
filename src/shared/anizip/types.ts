@@ -64,6 +64,7 @@ export interface Episode {
     airDate: string | null;
     runtime: number | null;
     anidbEid: number | null;
+    tvdbId: number | null;
 }
 
 const STREAMING_TITLE = /^Episode (\d+)(?:\s*-\s*(.+))?$/i;
@@ -101,6 +102,7 @@ export function normalizeEpisodes(
                 airDate: episode.airDate ?? episode.airdate ?? null,
                 runtime: episode.runtime ?? episode.length ?? null,
                 anidbEid: episode.anidbEid ?? null,
+                tvdbId: episode.tvdbId ?? null,
             };
         })
         .sort((a, b) => a.number - b.number);

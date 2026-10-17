@@ -15,7 +15,7 @@ import { usePlayerStore } from '../stores/player';
 import { useMediaStore } from '../stores/media';
 import { createLogger } from '../lib/logger';
 import { errorMessage, formatBytes, formatRelativeDate } from '../lib/format';
-import type { Episode } from '@shared/anizip/types';
+import type { AniZipMappings, Episode } from '@shared/anizip/types';
 import { episodeToSummary, mediaToSummary } from '@shared/media/types';
 import type { TorrentResult } from '../../main/extensions/types';
 
@@ -34,7 +34,7 @@ const props = defineProps<{
     anilistId: number;
     titles: string[];
     episodeCount: number | null;
-    anidbAid: number | null;
+    mappings: AniZipMappings | null;
 }>();
 
 const emit = defineEmits<{ 'update:open': [value: boolean] }>();
@@ -116,7 +116,11 @@ async function triggerSearch() {
         media: media ? JSON.parse(JSON.stringify(media)) : undefined,
         anilistId: props.anilistId,
         anidbEid: props.episode.anidbEid?.toString() ?? undefined,
-        anidbAid: props.anidbAid?.toString() ?? undefined,
+        anidbAid: props.mappings?.anidb_id?.toString() ?? undefined,
+        tvdbId: props.mappings?.thetvdb_id ?? undefined,
+        tvdbEId: props.episode.tvdbId ?? undefined,
+        tmdbId: props.mappings?.themoviedb_id?.toString() ?? undefined,
+        imdbId: props.mappings?.imdb_id ?? undefined,
         titles: props.titles,
         episode: episodeNumber.value,
         episodeCount: props.episodeCount ?? undefined,
@@ -209,7 +213,7 @@ async function pick(result: TorrentResult) {
                 anilistId: props.anilistId,
                 titles: props.titles,
                 episodeCount: props.episodeCount,
-                anidbAid: props.anidbAid,
+                mappings: props.mappings,
             }
         );
         emit('update:open', false);

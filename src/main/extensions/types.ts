@@ -29,6 +29,10 @@ export interface SearchParams {
     anilistId?: number;
     anidbEid?: string;
     anidbAid?: string;
+    tvdbId?: number;
+    tvdbEId?: number;
+    tmdbId?: string;
+    imdbId?: string;
     resolution?: string;
     exclusions?: string[];
     episodeCount?: number;

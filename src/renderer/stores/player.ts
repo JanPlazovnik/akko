@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
-import type { Episode } from '@shared/anizip/types';
+import type { AniZipMappings, Episode } from '@shared/anizip/types';
 import type { AudioTrack, StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 import { errorMessage } from '../lib/format';
@@ -12,7 +12,7 @@ export type PickerContext = {
     anilistId: number;
     titles: string[];
     episodeCount: number | null;
-    anidbAid: number | null;
+    mappings: AniZipMappings | null;
 };
 
 type CueListener = (trackId: string, events: SubtitleEvent[]) => void;

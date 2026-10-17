@@ -88,8 +88,8 @@ export const useMediaStore = defineStore('media', () => {
         return episodesById.value[id] ?? [];
     }
 
-    function anidbAidFor(id: number) {
-        return anizipById.value[id]?.mappings.anidb_id ?? null;
+    function mappingsFor(id: number) {
+        return anizipById.value[id]?.mappings ?? null;
     }
 
     function episodesLoadingFor(id: number) {
@@ -275,7 +275,7 @@ export const useMediaStore = defineStore('media', () => {
         setSelectedMedia,
         mediaFor,
         episodesFor,
-        anidbAidFor,
+        mappingsFor,
         episodesLoadingFor,
         fetchDashboard,
         fetchMedia,
