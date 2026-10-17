@@ -22,7 +22,7 @@ const config: ForgeConfig = {
     makers: [
         new MakerSquirrel({ setupIcon: 'assets/icon.ico' }),
         new MakerZIP({}, ['darwin']),
-        new MakerRpm({}),
+        new MakerRpm({ options: { icon: 'assets/icon.png' } }),
         new MakerDeb({ options: { icon: 'assets/icon.png' } }),
     ],
     plugins: [
