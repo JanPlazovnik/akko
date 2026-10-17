@@ -8,6 +8,7 @@ import { useExtensionStore } from '../stores/extensions';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
 import LogoMark from '../components/LogoMark.vue';
+import appIcon from '../../../assets/icon.svg?url';
 
 const LOGO_SIZES = [16, 20, 28, 48, 96, 192];
 const LOGO_BACKGROUNDS = [
@@ -138,6 +139,16 @@ function testTextColor(s: TestStatus): string {
                 >
                     <LogoMark :style="{ width: `${size}px`, height: `${size}px` }" />
                     <span class="text-[10px] opacity-50 tabular-nums">{{ size }}px</span>
+                </div>
+            </div>
+            <div class="flex items-end gap-8 rounded-xl bg-neutral-200 p-6 text-neutral-900">
+                <div
+                    v-for="size in LOGO_SIZES"
+                    :key="`icon-${size}`"
+                    class="flex flex-col items-center gap-2"
+                >
+                    <img :src="appIcon" :width="size" :height="size" alt="" />
+                    <span class="text-[10px] opacity-50 tabular-nums">{{ size }}px app icon</span>
                 </div>
             </div>
         </section>
