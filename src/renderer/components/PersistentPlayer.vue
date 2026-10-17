@@ -126,6 +126,10 @@ function onFullscreenChange() {
 
 function onKeydown(event: KeyboardEvent) {
     const target = event.target as HTMLElement | null;
+    if (event.key === 'Escape' && document.fullscreenElement) {
+        void document.exitFullscreen();
+        return;
+    }
     if (!isPlayerRoute.value || target?.closest('input, textarea, [contenteditable]')) return;
     if (event.key.toLowerCase() === 'c' && !event.ctrlKey && !event.metaKey) {
         player.toggleSubtitles();
