@@ -13,6 +13,8 @@ const PING_TIMEOUT_MS = 1000;
 const HOST_SCRIPT = `
 (() => {
     const extensions = new Map();
+    const nativeFetch = globalThis.fetch.bind(globalThis);
+    globalThis.fetch = (input, init) => nativeFetch(input, { cache: 'no-store', ...init });
     const run = async (fn) => {
         try {
             return { value: await fn() };
@@ -33,8 +35,7 @@ const HOST_SCRIPT = `
             if (typeof ext?.[method] !== 'function') {
                 throw new Error('Extension does not support method: ' + method);
             }
-            const fetcher = (...args) => fetch(...args);
-                return JSON.parse(JSON.stringify((await ext[method]({ fetch: fetcher, ...params })) ?? null));
+            return JSON.parse(JSON.stringify((await ext[method]({ fetch: globalThis.fetch, ...params })) ?? null));
         }),
         unload(key) {
             extensions.delete(key);
