@@ -10,6 +10,10 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
     packagerConfig: {
         icon: 'assets/icon',
+        // The Vite plugin only packages .vite/ by default. Externalized runtime dependencies
+        // (webtorrent, better-sqlite3, koffi) also need node_modules; devDependencies are pruned.
+        ignore: (file) =>
+            !!file && !/^[/\\](\.vite|node_modules|package\.json)($|[/\\])/.test(file),
         asar: {
             unpack: '**/*.node',
         },
