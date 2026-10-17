@@ -1,4 +1,27 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/outfit';
+
+@theme {
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Outfit Variable', 'Inter Variable', ui-sans-serif, sans-serif;
+
+    --color-base: #07070a;
+    --color-surface: #0e0e13;
+    --color-raised: #16161d;
+    --color-overlay: #1f1f28;
+    --color-line: rgb(255 255 255 / 0.07);
+    --color-accent: #a78bfa;
+
+    --color-neutral-700: #34343f;
+    --color-neutral-800: #1f1f28;
+    --color-neutral-900: #16161d;
+    --color-neutral-950: #0e0e13;
+}
+
+body {
+    @apply bg-base font-sans text-white antialiased;
+}
 
 @layer utilities {
     .drag {
