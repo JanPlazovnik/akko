@@ -7,6 +7,7 @@ import type { SubtitleTrack } from '@shared/ipc/api';
 import type { SubtitleEvent } from '@shared/subtitles';
 import { usePlayerStore } from '../stores/player';
 import { createLogger } from './logger';
+import { DEFAULT_FAMILY, fallbackFont } from './fallback-fonts';
 
 const log = createLogger('subtitles');
 
@@ -14,6 +15,7 @@ export function useSubtitleRenderer(getVideo: () => HTMLVideoElement | null) {
     const player = usePlayerStore();
     let jassub: JASSUB | null = null;
     let styles = new Map<string, number>();
+    let loadedFallbacks = new Set<string>();
     let queue: Promise<unknown> = Promise.resolve();
 
     function enqueue(task: (renderer: JASSUB) => Promise<unknown>) {
@@ -70,6 +72,16 @@ export function useSubtitleRenderer(getVideo: () => HTMLVideoElement | null) {
         queue = queue.then(() => renderer.destroy()).catch(() => undefined);
     }
 
+    async function useFallbackFont(renderer: JASSUB, lang: string) {
+        const font = await fallbackFont(lang);
+        if (font && !loadedFallbacks.has(font.family)) {
+            loadedFallbacks.add(font.family);
+            await renderer.renderer.addFonts(font.data);
+        }
+        await renderer.renderer.setDefaultFont(font?.family ?? DEFAULT_FAMILY);
+        await repaint(renderer);
+    }
+
     function show(track: SubtitleTrack | null) {
         const video = getVideo();
         if (!track || !video) return destroy();
@@ -80,6 +92,7 @@ export function useSubtitleRenderer(getVideo: () => HTMLVideoElement | null) {
                 await r.renderer.setTrack(content);
                 await loadTrack(r);
             });
+            enqueue((r) => useFallbackFont(r, track.lang));
             return;
         }
 
@@ -91,7 +104,9 @@ export function useSubtitleRenderer(getVideo: () => HTMLVideoElement | null) {
             wasmUrl,
             modernWasmUrl,
         });
+        loadedFallbacks = new Set();
         enqueue(loadTrack);
+        enqueue((r) => useFallbackFont(r, track.lang));
     }
 
     watch(() => player.activeTrack, show, { flush: 'post' });
