@@ -1,4 +1,4 @@
-import type { AniZipEpisode } from '../anizip/types';
+import type { Episode } from '../anizip/types';
 import type { Media } from '../graphql/queries';
 
 export type MediaSummary = {
@@ -54,12 +54,11 @@ export function mediaToSummary(media: Media): MediaSummary {
     };
 }
 
-export function episodeToSummary(episode: AniZipEpisode): EpisodeSummary {
-    const number = episode.absoluteEpisodeNumber ?? episode.episodeNumber;
+export function episodeToSummary(episode: Episode): EpisodeSummary {
     return {
-        key: episode.episode || String(number),
-        number,
-        title: episode.title.en ?? episode.title['x-jat'] ?? episode.title.ja ?? null,
+        key: episode.key,
+        number: episode.absoluteNumber ?? episode.number,
+        title: episode.title,
         thumbnail: episode.image,
         airDate: episode.airDate,
         source: 'anizip',

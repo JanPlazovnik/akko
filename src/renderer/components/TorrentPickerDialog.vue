@@ -15,7 +15,7 @@ import { usePlayerStore } from '../stores/player';
 import { useMediaStore } from '../stores/media';
 import { createLogger } from '../lib/logger';
 import { errorMessage, formatBytes, formatRelativeDate } from '../lib/format';
-import type { AniZipEpisode } from '@shared/anizip/types';
+import type { Episode } from '@shared/anizip/types';
 import { episodeToSummary, mediaToSummary } from '@shared/media/types';
 import type { TorrentResult } from '../../main/extensions/types';
 
@@ -30,7 +30,7 @@ type Source = {
 
 const props = defineProps<{
     open: boolean;
-    episode: AniZipEpisode;
+    episode: Episode;
     anilistId: number;
     titles: string[];
     episodeCount: number | null;
@@ -58,13 +58,8 @@ const resolution = ref<(typeof RESOLUTIONS)[number]>('1080');
 const selecting = ref(false);
 let searchId = 0;
 
-const episodeNumber = computed(
-    () => props.episode.absoluteEpisodeNumber ?? props.episode.episodeNumber
-);
-const episodeTitle = computed(() => {
-    const t = props.episode.title;
-    return t['en'] || t['x-jat'] || t['ja'] || null;
-});
+const episodeNumber = computed(() => props.episode.absoluteNumber ?? props.episode.number);
+const episodeTitle = computed(() => props.episode.title);
 const STATUS_RANK = (s: Source) =>
     s.results.length ? 0 : s.status === 'loading' ? 1 : s.status === 'done' ? 2 : 3;
 const orderedSources = computed(() =>
@@ -202,7 +197,7 @@ async function pick(result: TorrentResult) {
                           title: props.titles[0] ?? 'Unknown title',
                           episodeCount: props.episodeCount,
                       },
-                episode: { ...episodeToSummary(props.episode), title: episodeTitle.value },
+                episode: episodeToSummary(props.episode),
                 torrent: {
                     title: result.title,
                     infoHash: result.hash || undefined,
@@ -246,7 +241,7 @@ async function pick(result: TorrentResult) {
                         <span
                             class="absolute bottom-1.5 left-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[11px] font-semibold"
                         >
-                            EP {{ episode.episodeNumber ?? episodeNumber }}
+                            EP {{ episode.number }}
                         </span>
                     </div>
 
@@ -255,11 +250,9 @@ async function pick(result: TorrentResult) {
                             {{ titles[0] }}
                         </p>
                         <DialogTitle class="truncate pr-8 font-display text-xl font-semibold">
-                            Episode {{ episode.episodeNumber ?? episodeNumber }}
+                            Episode {{ episode.number }}
                             <span
-                                v-if="
-                                    episode.episodeNumber && episode.episodeNumber !== episodeNumber
-                                "
+                                v-if="episode.number !== episodeNumber"
                                 class="ml-1 text-sm font-medium text-white/40"
                             >
                                 #{{ episodeNumber }} overall

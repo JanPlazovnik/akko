@@ -3,7 +3,12 @@ import { computed, ref } from 'vue';
 import { anilistQuery, staleWhileRevalidate } from '../lib/anilist';
 import type { ResultOf, VariablesOf } from '../../shared/graphql/graphql';
 import { DashboardQuery, GetAnimeQuery, SearchQuery } from '../../shared/graphql/queries';
-import type { AniZipEpisode, AniZipResponse } from '../../shared/anizip/types';
+import {
+    normalizeEpisodes,
+    type AniZipResponse,
+    type Episode,
+    type StreamingEpisode,
+} from '../../shared/anizip/types';
 import type { Media } from '../../shared/graphql/queries';
 import router from '../router';
 
@@ -25,13 +30,6 @@ function getCurrentSeason(): VariablesOf<typeof DashboardQuery> {
     return { season, seasonYear: year };
 }
 
-function episodeList(data: Record<string, AniZipEpisode>): AniZipEpisode[] {
-    return Object.entries(data)
-        .filter(([key]) => /^\d+$/.test(key))
-        .sort(([a], [b]) => Number(a) - Number(b))
-        .map(([, episode]) => episode);
-}
-
 export const useMediaStore = defineStore('media', () => {
     const dashboard = ref<DashboardData | null>(null);
     const dashboardLoading = ref(false);
@@ -42,8 +40,8 @@ export const useMediaStore = defineStore('media', () => {
     const mediaLoadingById = ref<Record<number, boolean>>({});
     const mediaErrorById = ref<Record<number, Error | null>>({});
 
-    const episodesByMediaId = ref<Record<number, AniZipEpisode[]>>({});
-    const anidbAidByMediaId = ref<Record<number, number | null>>({});
+    const anizipById = ref<Record<number, AniZipResponse | null>>({});
+    const streamingById = ref<Record<number, StreamingEpisode[]>>({});
     const episodesLoadingByMediaId = ref<Record<number, boolean>>({});
     const episodesErrorByMediaId = ref<Record<number, Error | null>>({});
 
@@ -53,20 +51,20 @@ export const useMediaStore = defineStore('media', () => {
     const searchLoading = ref(false);
     const searchError = ref<Error | null>(null);
     const mediaRequests = new Map<number, Promise<Media | null>>();
-    const episodeRequests = new Map<number, Promise<AniZipEpisode[]>>();
+    const episodeRequests = new Map<number, Promise<Episode[]>>();
     let searchRequestId = 0;
 
     const selectedMedia = computed(() =>
         selectedMediaId.value ? (mediaById.value[selectedMediaId.value] ?? null) : null
     );
 
-    const selectedEpisodes = computed(() =>
-        selectedMediaId.value ? (episodesByMediaId.value[selectedMediaId.value] ?? []) : []
-    );
-
-    const selectedAnidbAid = computed(() =>
-        selectedMediaId.value ? (anidbAidByMediaId.value[selectedMediaId.value] ?? null) : null
-    );
+    const episodesById = computed(() => {
+        const episodes: Record<number, Episode[]> = {};
+        for (const [id, data] of Object.entries(anizipById.value)) {
+            episodes[Number(id)] = normalizeEpisodes(data, streamingById.value[Number(id)]);
+        }
+        return episodes;
+    });
 
     function rememberMedia(item: Media) {
         mediaById.value = { ...mediaById.value, [item.id]: item };
@@ -87,11 +85,11 @@ export const useMediaStore = defineStore('media', () => {
     }
 
     function episodesFor(id: number) {
-        return episodesByMediaId.value[id] ?? [];
+        return episodesById.value[id] ?? [];
     }
 
     function anidbAidFor(id: number) {
-        return anidbAidByMediaId.value[id] ?? null;
+        return anizipById.value[id]?.mappings.anidb_id ?? null;
     }
 
     function episodesLoadingFor(id: number) {
@@ -136,7 +134,7 @@ export const useMediaStore = defineStore('media', () => {
                 await staleWhileRevalidate(
                     (maxAge) => anilistQuery(GetAnimeQuery, { id }, maxAge),
                     MAX_AGE.media,
-                    (data) => data?.Media && rememberMedia(data.Media as Media)
+                    (data) => data?.Media && applyMedia(id, data.Media)
                 );
                 return mediaFor(id);
             } catch (err) {
@@ -151,25 +149,26 @@ export const useMediaStore = defineStore('media', () => {
         return request;
     }
 
-    function applyEpisodes(id: number, data: AniZipResponse | null) {
-        episodesByMediaId.value = {
-            ...episodesByMediaId.value,
-            [id]: data ? episodeList(data.episodes) : [],
-        };
-        anidbAidByMediaId.value = {
-            ...anidbAidByMediaId.value,
-            [id]: data?.mappings.anidb_id ?? null,
+    function applyMedia(id: number, media: NonNullable<ResultOf<typeof GetAnimeQuery>['Media']>) {
+        rememberMedia(media as Media);
+        streamingById.value = {
+            ...streamingById.value,
+            [id]: (media.streamingEpisodes ?? []).flatMap((e) => (e ? [e] : [])),
         };
     }
 
-    async function fetchEpisodes(id: number): Promise<AniZipEpisode[]> {
+    function applyEpisodes(id: number, data: AniZipResponse | null) {
+        anizipById.value = { ...anizipById.value, [id]: data };
+    }
+
+    async function fetchEpisodes(id: number): Promise<Episode[]> {
         const inFlight = episodeRequests.get(id);
         if (inFlight) return inFlight;
 
         const request = (async () => {
             episodesLoadingByMediaId.value = {
                 ...episodesLoadingByMediaId.value,
-                [id]: !episodesByMediaId.value[id],
+                [id]: !(id in anizipById.value),
             };
             episodesErrorByMediaId.value = { ...episodesErrorByMediaId.value, [id]: null };
 
@@ -262,13 +261,9 @@ export const useMediaStore = defineStore('media', () => {
         dashboardError,
         selectedMediaId,
         selectedMedia,
-        selectedEpisodes,
-        selectedAnidbAid,
         mediaById,
         mediaLoadingById,
         mediaErrorById,
-        episodesByMediaId,
-        anidbAidByMediaId,
         episodesLoadingByMediaId,
         episodesErrorByMediaId,
         searchResults,

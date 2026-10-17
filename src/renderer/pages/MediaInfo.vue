@@ -9,7 +9,7 @@ import { STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
 import { useMediaStore } from '../stores/media';
 import { useLoadingStore } from '../stores/loading';
-import type { AniZipEpisode } from '@shared/anizip/types';
+import type { Episode } from '@shared/anizip/types';
 
 const STATUS_DOT: Record<string, string> = {
     RELEASING: 'bg-emerald-400',
@@ -27,11 +27,14 @@ const media = computed(() => mediaStore.mediaFor(routeMediaId.value));
 const episodes = computed(() => mediaStore.episodesFor(routeMediaId.value));
 const episodesLoading = computed(() => mediaStore.episodesLoadingFor(routeMediaId.value));
 const anidbAid = computed(() => mediaStore.anidbAidFor(routeMediaId.value));
-const selectedEpisode = ref<AniZipEpisode | null>(null);
+const selectedEpisode = ref<Episode | null>(null);
 const dialogOpen = ref(false);
 const descriptionExpanded = ref(false);
 
 const description = computed(() => stripHtml(media.value?.description));
+const fallbackThumbnail = computed(
+    () => media.value?.bannerImage ?? media.value?.coverImage?.large ?? null
+);
 const firstEpisode = computed(() => episodes.value.find((ep) => !isUnaired(ep)) ?? null);
 
 onMounted(async () => {
@@ -69,20 +72,15 @@ function observeTitle() {
     observer.observe(titleEl.value);
 }
 
-function openDialog(ep: AniZipEpisode) {
+function openDialog(ep: Episode) {
     selectedEpisode.value = ep;
     dialogOpen.value = true;
 }
 
-const namedTitle = (ep: AniZipEpisode) =>
-    ep.title?.['en'] || ep.title?.['x-jat'] || ep.title?.['ja'];
-
-function isUnaired(ep: AniZipEpisode) {
-    if (!ep.airDate) return !namedTitle(ep);
+function isUnaired(ep: Episode) {
+    if (!ep.airDate) return !ep.title;
     return Date.parse(ep.airDate) > Date.now();
 }
-
-const episodeNumber = (ep: AniZipEpisode, index: number) => ep.episodeNumber ?? index + 1;
 
 const formatAirDate = (date: string) =>
     new Date(date).toLocaleDateString(undefined, {
@@ -208,7 +206,7 @@ const formatAirDate = (date: string) =>
                             <Play :size="15" fill="currentColor" />
                             {{
                                 firstEpisode
-                                    ? `Watch episode ${firstEpisode.episodeNumber}`
+                                    ? `Watch episode ${firstEpisode.number}`
                                     : 'Not available yet'
                             }}
                         </button>
@@ -271,6 +269,11 @@ const formatAirDate = (date: string) =>
                                 :src="ep.image"
                                 class="absolute inset-0 size-full object-cover transition duration-300 group-enabled:group-hover:scale-105"
                             />
+                            <img
+                                v-else-if="fallbackThumbnail"
+                                :src="fallbackThumbnail"
+                                class="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-[2px]"
+                            />
                             <div
                                 class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent"
                             />
@@ -286,7 +289,7 @@ const formatAirDate = (date: string) =>
                             <span
                                 class="absolute bottom-2 left-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold"
                             >
-                                EP {{ episodeNumber(ep, index) }}
+                                EP {{ ep.number }}
                             </span>
                             <span
                                 v-if="ep.runtime"
@@ -296,7 +299,7 @@ const formatAirDate = (date: string) =>
                             </span>
                         </div>
                         <p class="mt-2.5 truncate text-sm font-medium">
-                            {{ namedTitle(ep) || `Episode ${episodeNumber(ep, index)}` }}
+                            {{ ep.title || `Episode ${ep.number}` }}
                         </p>
                         <p
                             v-if="ep.overview"

@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia';
 import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
-import type { AniZipEpisode } from '@shared/anizip/types';
+import type { Episode } from '@shared/anizip/types';
 import type { AudioTrack, StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 import { errorMessage } from '../lib/format';
 import { useSettingsStore } from './settings';
 
 export type PickerContext = {
-    episode: AniZipEpisode;
+    episode: Episode;
     anilistId: number;
     titles: string[];
     episodeCount: number | null;

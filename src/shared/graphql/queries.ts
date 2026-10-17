@@ -16,6 +16,10 @@ export const GetAnimeQuery = graphql(
                     id
                     site
                 }
+                streamingEpisodes {
+                    title
+                    thumbnail
+                }
                 studios {
                     edges {
                         id

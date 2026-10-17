@@ -1,23 +1,23 @@
+// Episodes with TVDB data carry the camelCase fields; AniDB-only episodes only have episode,
+// anidbEid, length, airdate, rating and title. Use normalizeEpisodes rather than reading these.
 export interface AniZipEpisode {
-    tvdbShowId: number | null;
-    tvdbId: number | null;
-    seasonNumber: number;
-    episodeNumber: number;
-    absoluteEpisodeNumber: number | null;
-    title: Record<string, string | null>;
-    airDate: string | null;
-    airDateUtc: string | null;
-    runtime: number | null;
-    overview: string | null;
-    summary: string | null | undefined;
-    image: string | null;
-    rating: string | null;
-    length: number | null;
     episode: string;
-    anidbEid: number | null;
-    filename: string | null | undefined;
-    isSpecial: boolean;
-    specialType: string | null | undefined;
+    anidbEid?: number | null;
+    title?: Record<string, string | null>;
+    tvdbShowId?: number | null;
+    tvdbId?: number | null;
+    seasonNumber?: number;
+    episodeNumber?: number;
+    absoluteEpisodeNumber?: number | null;
+    airDate?: string | null;
+    airdate?: string | null;
+    airDateUtc?: string | null;
+    runtime?: number | null;
+    length?: number | null;
+    overview?: string | null;
+    summary?: string | null;
+    image?: string | null;
+    rating?: string | null;
 }
 
 export interface AniZipMappings {
@@ -47,4 +47,61 @@ export interface AniZipResponse {
     specialCount: number;
     images: AniZipImage[];
     mappings: AniZipMappings;
+}
+
+export interface StreamingEpisode {
+    title?: string | null;
+    thumbnail?: string | null;
+}
+
+export interface Episode {
+    key: string;
+    number: number;
+    absoluteNumber: number | null;
+    title: string | null;
+    overview: string | null;
+    image: string | null;
+    airDate: string | null;
+    runtime: number | null;
+    anidbEid: number | null;
+}
+
+const STREAMING_TITLE = /^Episode (\d+)(?:\s*-\s*(.+))?$/i;
+
+export function normalizeEpisodes(
+    data: AniZipResponse | null,
+    streaming: StreamingEpisode[] = []
+): Episode[] {
+    if (!data) return [];
+
+    const fromStreaming = new Map<number, { title: string | null; thumbnail: string | null }>();
+    for (const item of streaming) {
+        const match = item.title?.match(STREAMING_TITLE);
+        if (match) {
+            fromStreaming.set(Number(match[1]), {
+                title: match[2] ?? null,
+                thumbnail: item.thumbnail ?? null,
+            });
+        }
+    }
+
+    return Object.entries(data.episodes)
+        .filter(([key]) => /^\d+$/.test(key))
+        .map(([key, episode]) => {
+            const number = episode.episodeNumber ?? Number(episode.episode || key);
+            const streamed = fromStreaming.get(number);
+            const title = episode.title;
+            return {
+                key,
+                number,
+                absoluteNumber: episode.absoluteEpisodeNumber ?? null,
+                title: title?.en || title?.['x-jat'] || title?.ja || streamed?.title || null,
+                overview: episode.overview ?? episode.summary ?? null,
+                image: episode.image ?? streamed?.thumbnail ?? null,
+                airDate: episode.airDate ?? episode.airdate ?? null,
+                runtime: episode.runtime ?? episode.length ?? null,
+                anidbEid: episode.anidbEid ?? null,
+            };
+        })
+        .sort((a, b) => a.number - b.number);
 }
