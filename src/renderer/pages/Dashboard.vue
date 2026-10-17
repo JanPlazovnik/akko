@@ -29,18 +29,25 @@ const popular = computed(() => nonNull(mediaStore.dashboard?.popular?.media));
 </script>
 
 <template>
-    <div class="min-h-full bg-neutral-900 text-white pb-12">
-        <div
-            v-if="mediaStore.dashboardLoading"
-            class="flex items-center justify-center h-64 text-white/40 text-sm"
-        >
-            Loading...
-        </div>
+    <div class="min-h-full pb-16">
+        <template v-if="mediaStore.dashboardLoading && !trending.length">
+            <div class="h-[min(68vh,620px)] min-h-[440px] animate-pulse bg-raised/60" />
+            <div v-for="row in 2" :key="row" class="px-8 pt-8">
+                <div class="mb-3 h-5 w-36 animate-pulse rounded bg-raised" />
+                <div class="flex gap-4 overflow-hidden">
+                    <div
+                        v-for="i in 8"
+                        :key="i"
+                        class="aspect-2/3 w-[168px] shrink-0 animate-pulse rounded-xl bg-raised"
+                    />
+                </div>
+            </div>
+        </template>
         <template v-else>
             <HeroBanner :items="trending.slice(0, 6)" />
-            <MediaRow title="Trending" :items="trending" />
-            <MediaRow title="This Season" :items="season" />
-            <MediaRow title="Popular" :items="popular" />
+            <MediaRow title="Trending now" :items="trending" />
+            <MediaRow title="Airing this season" :items="season" />
+            <MediaRow title="All-time popular" :items="popular" />
         </template>
     </div>
 </template>

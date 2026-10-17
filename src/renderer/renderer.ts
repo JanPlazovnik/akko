@@ -13,5 +13,6 @@ app.use(Vue3Toastify, {
     autoClose: 4000,
     theme: 'dark',
     position: 'bottom-right',
+    transition: 'slide',
 } satisfies ToastContainerOptions);
 app.mount('#app');

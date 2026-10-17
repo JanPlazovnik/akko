@@ -2,13 +2,21 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
-import { Play } from '@lucide/vue';
+import { Play, Star } from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
 import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
-import { STATUS_LABELS, FORMAT_LABELS, SEASON_LABELS } from '../lib/media-labels';
+import { STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
+import { accentStyle } from '../lib/accent';
 import { useMediaStore } from '../stores/media';
 import { useLoadingStore } from '../stores/loading';
 import type { AniZipEpisode } from '@shared/anizip/types';
+
+const STATUS_DOT: Record<string, string> = {
+    RELEASING: 'bg-emerald-400',
+    NOT_YET_RELEASED: 'bg-amber-400',
+    CANCELLED: 'bg-red-400',
+    HIATUS: 'bg-red-400',
+};
 
 const route = useRoute();
 const mediaStore = useMediaStore();
@@ -21,6 +29,10 @@ const episodesLoading = computed(() => mediaStore.episodesLoadingFor(routeMediaI
 const anidbAid = computed(() => mediaStore.anidbAidFor(routeMediaId.value));
 const selectedEpisode = ref<AniZipEpisode | null>(null);
 const dialogOpen = ref(false);
+const descriptionExpanded = ref(false);
+
+const description = computed(() => stripHtml(media.value?.description));
+const firstEpisode = computed(() => episodes.value.find((ep) => !isUnaired(ep)) ?? null);
 
 onMounted(async () => {
     const id = routeMediaId.value;
@@ -28,8 +40,7 @@ onMounted(async () => {
     mediaStore.setSelectedMedia(id);
     try {
         const loadedMedia = media.value ?? (await mediaStore.fetchMedia(id));
-        const notReleased = loadedMedia?.status === 'NOT_YET_RELEASED';
-        if (!notReleased) {
+        if (loadedMedia?.status !== 'NOT_YET_RELEASED') {
             await mediaStore.fetchEpisodes(id);
         }
     } catch (err) {
@@ -63,177 +74,252 @@ function openDialog(ep: AniZipEpisode) {
     dialogOpen.value = true;
 }
 
-const stripHtml = (s?: string | null) => s?.replace(/<[^>]*>/g, '') ?? '';
+const namedTitle = (ep: AniZipEpisode) =>
+    ep.title?.['en'] || ep.title?.['x-jat'] || ep.title?.['ja'];
 
-const episodeTitle = (ep: AniZipEpisode, displayNum: number) => {
-    const t = ep.title;
-    return t['en'] || t['x-jat'] || t['ja'] || `Episode ${displayNum}`;
-};
+function isUnaired(ep: AniZipEpisode) {
+    if (!ep.airDate) return !namedTitle(ep);
+    return Date.parse(ep.airDate) > Date.now();
+}
 
-const formatRuntime = (mins: number | null) => (mins ? `${mins}m` : null);
+const episodeNumber = (ep: AniZipEpisode, index: number) => ep.episodeNumber ?? index + 1;
+
+const formatAirDate = (date: string) =>
+    new Date(date).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
 </script>
 
 <template>
-    <div class="min-h-full bg-neutral-900 text-white">
+    <div class="min-h-full pb-16" :style="accentStyle(media?.coverImage?.color)">
         <div class="sticky top-0 z-50 h-0 overflow-visible">
             <Transition name="sticky-fade">
                 <div
                     v-if="stickyVisible && media"
-                    class="px-8 py-3 bg-neutral-900/90 backdrop-blur-sm border-b border-white/5 flex items-center gap-3"
+                    class="flex items-center gap-3 border-b border-line bg-surface/85 px-8 py-3 backdrop-blur-md"
                 >
                     <img
                         v-if="media.coverImage?.large"
                         :src="media.coverImage.large"
-                        class="w-7 h-10 rounded object-cover shrink-0"
+                        class="h-10 w-7 shrink-0 rounded object-cover"
                     />
-                    <p class="text-sm font-semibold truncate">{{ media.title?.userPreferred }}</p>
+                    <p class="truncate font-display font-semibold">
+                        {{ media.title?.userPreferred }}
+                    </p>
+                    <button
+                        v-if="firstEpisode"
+                        class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-white/85"
+                        @click="openDialog(firstEpisode)"
+                    >
+                        <Play :size="12" fill="currentColor" /> Watch
+                    </button>
                 </div>
             </Transition>
         </div>
+
         <template v-if="media">
-            <!-- Banner -->
-            <div class="h-[220px] relative overflow-hidden">
+            <section class="relative h-[340px] overflow-hidden">
                 <img
                     v-if="media.bannerImage"
                     :src="media.bannerImage"
-                    class="absolute inset-0 w-full h-full object-cover"
+                    class="absolute inset-0 size-full object-cover"
                 />
-                <div v-else class="absolute inset-0 bg-neutral-800" />
-                <div class="absolute inset-0 bg-linear-to-b from-transparent to-neutral-900" />
-            </div>
+                <img
+                    v-else-if="media.coverImage?.large"
+                    :src="media.coverImage.large"
+                    class="absolute inset-0 size-full scale-110 object-cover opacity-50 blur-2xl"
+                />
+                <div
+                    class="absolute inset-0 bg-linear-to-t from-surface via-surface/40 to-transparent"
+                />
+                <div
+                    class="absolute inset-0 bg-linear-to-r from-surface/70 via-transparent to-transparent"
+                />
+            </section>
 
-            <div class="-mt-16 px-8 relative">
-                <!-- Poster + info -->
-                <div class="flex gap-6 items-end mb-6">
-                    <div
-                        class="w-[140px] h-[210px] rounded-lg overflow-hidden bg-neutral-800 shrink-0 shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
+            <div class="relative -mt-40 flex gap-8 px-10">
+                <div
+                    class="aspect-2/3 w-[190px] shrink-0 self-start overflow-hidden rounded-xl bg-raised shadow-2xl shadow-black/70 ring-1 ring-white/10"
+                >
+                    <img
+                        v-if="media.coverImage?.large"
+                        :src="media.coverImage.large"
+                        class="size-full object-cover"
+                    />
+                </div>
+
+                <div class="flex min-w-0 flex-1 flex-col justify-end pt-28">
+                    <p
+                        class="truncate text-xs font-semibold tracking-wider text-white/45 uppercase"
                     >
-                        <img
-                            v-if="media.coverImage?.large"
-                            :src="media.coverImage.large"
-                            class="w-full h-full object-cover"
-                        />
+                        {{ media.title?.romaji }}
+                    </p>
+                    <h1
+                        ref="titleEl"
+                        class="mt-1 font-display text-4xl leading-tight font-bold tracking-tight text-balance select-text"
+                    >
+                        {{ media.title?.userPreferred }}
+                    </h1>
+
+                    <div
+                        class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/65"
+                    >
+                        <span
+                            v-if="media.averageScore"
+                            class="flex items-center gap-1 font-semibold text-white"
+                        >
+                            <Star :size="14" class="fill-accent text-accent" />
+                            {{ media.averageScore }}%
+                        </span>
+                        <span v-if="media.status" class="flex items-center gap-1.5">
+                            <span
+                                :class="[
+                                    'size-1.5 rounded-full',
+                                    STATUS_DOT[media.status] ?? 'bg-white/40',
+                                ]"
+                            />
+                            {{ STATUS_LABELS[media.status] ?? media.status }}
+                        </span>
+                        <template v-for="part in mediaMeta(media)" :key="part">
+                            <span class="text-white/25">•</span>
+                            <span>{{ part }}</span>
+                        </template>
                     </div>
 
-                    <div class="pb-1 flex-1">
-                        <p class="text-[10px] text-white/40 uppercase tracking-widest mb-1">
-                            {{ media.title?.romaji }}
-                        </p>
-                        <h1
-                            ref="titleEl"
-                            class="text-2xl font-bold text-white leading-tight mb-3 select-text"
+                    <div v-if="media.genres?.length" class="mt-3 flex flex-wrap gap-1.5">
+                        <Badge
+                            v-for="genre in media.genres.filter(Boolean)"
+                            :key="genre!"
+                            variant="tag"
+                            :query="{ genres: genre! }"
                         >
-                            {{ media.title?.userPreferred }}
-                        </h1>
-                        <div class="flex items-center gap-1.5 flex-wrap mb-3">
-                            <Badge v-if="media.episodes">{{ media.episodes }} EP</Badge>
-                            <Badge v-if="media.format" :query="{ format: media.format! }">{{
-                                FORMAT_LABELS[media.format!] ?? media.format
-                            }}</Badge>
-                            <Badge v-if="media.status" :query="{ status: media.status! }">{{
-                                STATUS_LABELS[media.status!] ?? media.status
-                            }}</Badge>
-                            <Badge
-                                v-if="media.season && media.seasonYear"
-                                :query="{ season: media.season!, year: String(media.seasonYear) }"
-                                >{{ SEASON_LABELS[media.season!] ?? media.season }}
-                                {{ media.seasonYear }}</Badge
-                            >
-                            <Badge v-if="media.averageScore">{{ media.averageScore }}%</Badge>
-                        </div>
-                        <p
-                            class="text-white/50 text-xs leading-relaxed mb-2 line-clamp-3 select-text"
-                        >
-                            {{ stripHtml(media.description) }}
-                        </p>
-                        <div v-if="media.genres?.length" class="flex gap-1.5 flex-wrap mb-4">
-                            <Badge
-                                v-for="genre in (media.genres ?? []).filter(Boolean).slice(0, 5)"
-                                :key="genre!"
-                                variant="tag"
-                                :query="{ genres: genre! }"
-                                >{{ genre }}</Badge
-                            >
-                        </div>
+                            {{ genre }}
+                        </Badge>
+                    </div>
+
+                    <div class="mt-5 flex items-center gap-3">
                         <button
-                            class="flex items-center gap-2 bg-white text-black text-xs font-semibold px-4 py-2 rounded-full hover:bg-white/85 transition-opacity cursor-pointer"
+                            class="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:bg-white/85 active:scale-[0.97] disabled:cursor-default disabled:opacity-40"
+                            :disabled="!firstEpisode"
+                            @click="firstEpisode && openDialog(firstEpisode)"
                         >
-                            <Play :size="11" fill="black" /> Watch now
+                            <Play :size="15" fill="currentColor" />
+                            {{
+                                firstEpisode
+                                    ? `Watch episode ${firstEpisode.episodeNumber}`
+                                    : 'Not available yet'
+                            }}
                         </button>
                     </div>
                 </div>
+            </div>
 
-                <!-- Episodes -->
-                <div class="pb-8">
+            <div v-if="description" class="mt-8 max-w-4xl px-10">
+                <p
+                    :class="[
+                        'text-sm leading-relaxed text-white/60 select-text',
+                        !descriptionExpanded && 'line-clamp-3',
+                    ]"
+                >
+                    {{ description }}
+                </p>
+                <button
+                    v-if="description.length > 320"
+                    class="mt-1.5 cursor-pointer text-xs font-semibold text-accent hover:underline"
+                    @click="descriptionExpanded = !descriptionExpanded"
+                >
+                    {{ descriptionExpanded ? 'Show less' : 'Show more' }}
+                </button>
+            </div>
+
+            <section v-if="episodesLoading || episodes.length" class="mt-10 px-10">
+                <div class="mb-4 flex items-baseline gap-3">
+                    <h2 class="font-display text-2xl font-semibold tracking-tight">Episodes</h2>
+                    <span v-if="episodes.length" class="text-sm text-white/40">
+                        {{ episodes.length }}
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-5 gap-y-7">
                     <template v-if="episodesLoading">
-                        <h2 class="text-sm font-semibold mb-3">Episodes</h2>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div
-                                v-for="i in 6"
-                                :key="i"
-                                class="flex gap-3 p-2.5 rounded-lg bg-neutral-800/60 animate-pulse"
-                            >
-                                <div class="w-[100px] h-[60px] bg-neutral-700 rounded shrink-0" />
-                                <div class="flex-1 py-0.5 space-y-2">
-                                    <div class="h-2.5 bg-neutral-700 rounded w-3/4" />
-                                    <div class="h-2 bg-neutral-700 rounded w-full" />
-                                    <div class="h-2 bg-neutral-700 rounded w-2/3" />
-                                </div>
-                            </div>
+                        <div v-for="i in 8" :key="i" class="animate-pulse">
+                            <div class="aspect-video rounded-xl bg-raised" />
+                            <div class="mt-3 h-3 w-3/4 rounded bg-raised" />
+                            <div class="mt-2 h-2.5 w-1/2 rounded bg-raised" />
                         </div>
                     </template>
 
-                    <template v-else-if="episodes.length">
-                        <h2 class="text-sm font-semibold mb-3">Episodes</h2>
-                        <div class="grid grid-cols-2 gap-3">
+                    <button
+                        v-for="(ep, index) in episodes"
+                        v-else
+                        :key="index"
+                        data-episode
+                        class="group cursor-pointer self-start text-left disabled:cursor-default"
+                        :disabled="isUnaired(ep)"
+                        @click="openDialog(ep)"
+                    >
+                        <div
+                            :class="[
+                                'relative aspect-video overflow-hidden rounded-xl bg-raised ring-1 ring-white/5 transition group-enabled:group-hover:ring-accent/60',
+                                isUnaired(ep) && 'opacity-40',
+                            ]"
+                        >
+                            <img
+                                v-if="ep.image"
+                                :src="ep.image"
+                                class="absolute inset-0 size-full object-cover transition duration-300 group-enabled:group-hover:scale-105"
+                            />
                             <div
-                                v-for="(ep, i) in episodes"
-                                :key="ep.episodeNumber"
-                                class="flex gap-3 p-3 rounded-lg bg-neutral-800/60 hover:bg-neutral-800 transition-colors cursor-pointer"
-                                @click="openDialog(ep)"
+                                class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent"
+                            />
+                            <div
+                                class="absolute inset-0 grid place-items-center bg-black/30 opacity-0 transition-opacity group-enabled:group-hover:opacity-100"
                             >
-                                <div
-                                    class="w-[140px] h-[84px] bg-neutral-700 rounded shrink-0 relative overflow-hidden"
-                                >
-                                    <img
-                                        v-if="ep.image"
-                                        :src="ep.image"
-                                        class="absolute inset-0 w-full h-full object-cover"
-                                    />
-                                    <span
-                                        class="absolute bottom-1.5 left-2 text-[11px] font-semibold text-white/80 bg-black/70 px-1.5 py-0.5 rounded"
-                                    >
-                                        {{ i + 1 }}
-                                    </span>
-                                </div>
-                                <div class="flex-1 min-w-0 py-0.5 flex flex-col">
-                                    <p
-                                        class="text-white text-sm font-medium leading-tight mb-1.5 truncate"
-                                    >
-                                        {{ episodeTitle(ep, i + 1) }}
-                                    </p>
-                                    <p
-                                        class="text-white/35 text-[11px] leading-relaxed line-clamp-3"
-                                    >
-                                        {{ ep.overview ?? 'No synopsis available.' }}
-                                    </p>
-                                    <p
-                                        v-if="ep.airDate"
-                                        class="text-[10px] text-white/25 mt-auto pt-1"
-                                    >
-                                        {{ ep.airDate }}
-                                    </p>
-                                </div>
                                 <span
-                                    v-if="formatRuntime(ep.runtime)"
-                                    class="text-[10px] text-white/25 shrink-0 pt-0.5"
+                                    class="grid size-11 place-items-center rounded-full bg-white text-black"
                                 >
-                                    {{ formatRuntime(ep.runtime) }}
+                                    <Play :size="18" fill="currentColor" />
                                 </span>
                             </div>
+                            <span
+                                class="absolute bottom-2 left-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold"
+                            >
+                                EP {{ episodeNumber(ep, index) }}
+                            </span>
+                            <span
+                                v-if="ep.runtime"
+                                class="absolute right-2 bottom-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] text-white/80"
+                            >
+                                {{ ep.runtime }}m
+                            </span>
                         </div>
-                    </template>
+                        <p class="mt-2.5 truncate text-sm font-medium">
+                            {{ namedTitle(ep) || `Episode ${episodeNumber(ep, index)}` }}
+                        </p>
+                        <p
+                            v-if="ep.overview"
+                            class="mt-1 line-clamp-2 text-xs leading-relaxed text-white/40"
+                        >
+                            {{ ep.overview }}
+                        </p>
+                        <p class="mt-1.5 text-[11px] text-white/30">
+                            <template v-if="ep.airDate">
+                                {{ isUnaired(ep) ? 'Airs' : 'Aired' }}
+                                {{ formatAirDate(ep.airDate) }}
+                            </template>
+                            <template v-else-if="isUnaired(ep)">Not aired yet</template>
+                        </p>
+                    </button>
                 </div>
+            </section>
+        </template>
+
+        <template v-else>
+            <div class="h-[340px] animate-pulse bg-raised/60" />
+            <div class="-mt-40 flex gap-8 px-10">
+                <div class="aspect-2/3 w-[190px] animate-pulse rounded-xl bg-raised" />
             </div>
         </template>
     </div>

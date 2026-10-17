@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, inject, watch } from 'vue';
-import { Play, Heart, Plus, Calendar, Tv } from '@lucide/vue';
+import { Play, Star } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import { useMediaStore } from '../stores/media';
+import { accentStyle } from '../lib/accent';
+import { mediaMeta, stripHtml } from '../lib/media-labels';
 
 const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
 
@@ -11,15 +13,9 @@ const mediaStore = useMediaStore();
 
 const title = computed(() => props.item.title?.userPreferred ?? '');
 const coverImage = computed(() => props.item.coverImage?.large ?? null);
-const synopsis = computed(() => props.item.description?.replace(/<[^>]*>/g, '') ?? '');
-const meta = computed(() => {
-    const parts: string[] = [];
-    if (props.item.format) parts.push(props.item.format);
-    if (props.item.episodes) parts.push(`${props.item.episodes} EP`);
-    if (props.item.startDate?.year) parts.push(String(props.item.startDate.year));
-    if (props.item.averageScore) parts.push(`${props.item.averageScore}%`);
-    return parts.join(' · ');
-});
+const synopsis = computed(() => stripHtml(props.item.description));
+const meta = computed(() => mediaMeta(props.item));
+const accent = computed(() => accentStyle(props.item.coverImage?.color));
 
 const hovered = ref(false);
 const pressing = ref(false);
@@ -88,56 +84,80 @@ function navigate() {
 </script>
 
 <template>
-    <div ref="triggerRef" class="relative" @mouseenter="onEnter" @mouseleave="onLeave">
+    <div
+        ref="triggerRef"
+        class="relative"
+        :style="accent"
+        @mouseenter="onEnter"
+        @mouseleave="onLeave"
+    >
         <Transition name="card-expand">
             <div
                 v-if="hovered"
                 :style="floatingStyle"
                 :class="[
-                    'fixed w-80 z-100 bg-[#0f0f0f] rounded-xl overflow-hidden will-change-transform border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,1)] bg-linear-to-b from-[#141414] to-[#0f0f0f] cursor-pointer transition-transform duration-100',
+                    'fixed z-100 w-80 cursor-pointer overflow-hidden rounded-2xl bg-raised shadow-[0_24px_70px_rgba(0,0,0,0.9)] ring-1 ring-white/10 transition-transform duration-100 will-change-transform',
                     pressing ? 'scale-[0.97]' : 'scale-100',
                 ]"
                 @click="navigate()"
                 @wheel.prevent="forwardWheel"
             >
-                <div class="h-32 relative">
-                    <div class="absolute inset-0 bg-neutral-900">
-                        <img
-                            v-if="item.bannerImage"
-                            :src="item.bannerImage"
-                            class="w-full h-full object-cover opacity-45"
-                        />
-                    </div>
+                <div class="relative h-36">
+                    <img
+                        v-if="item.bannerImage ?? coverImage"
+                        :src="item.bannerImage ?? coverImage ?? undefined"
+                        class="absolute inset-0 size-full object-cover"
+                    />
+                    <div
+                        class="absolute inset-0 bg-linear-to-t from-raised via-raised/30 to-transparent"
+                    />
                 </div>
 
-                <div class="px-4 py-3.5">
-                    <p class="text-[15px] font-bold leading-tight mb-2">{{ title }}</p>
+                <div class="-mt-6 relative px-4 pb-4">
+                    <p class="font-display text-lg leading-tight font-semibold">{{ title }}</p>
 
-                    <p class="text-[10px] tracking-[0.08em] text-white/40 mb-1.5">
-                        {{ meta }}
-                    </p>
+                    <div class="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-white/50">
+                        <span
+                            v-if="item.averageScore"
+                            class="flex items-center gap-1 font-semibold text-white/90"
+                        >
+                            <Star :size="11" class="fill-accent text-accent" />
+                            {{ item.averageScore }}%
+                        </span>
+                        <template v-for="part in meta" :key="part">
+                            <span class="text-white/20">•</span>
+                            <span>{{ part }}</span>
+                        </template>
+                    </div>
 
-                    <p class="text-[12px] leading-relaxed text-white/60 line-clamp-3">
+                    <p class="mt-2.5 line-clamp-3 text-xs leading-relaxed text-white/60">
                         {{ synopsis }}
                     </p>
 
-                    <div class="flex gap-2 items-center my-2">
+                    <div class="mt-3 flex items-center gap-2">
                         <button
-                            class="bg-white text-black px-3.5 py-1.5 text-[12px] font-semibold inline-flex items-center gap-1.5 rounded-full hover:bg-white/85 transition-opacity cursor-pointer"
+                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-white/85"
                             @click.stop="navigate()"
                         >
-                            <Play :size="12" fill="black" />
+                            <Play :size="12" fill="currentColor" />
                             {{ actionLabel ?? 'Watch now' }}
                         </button>
+                        <span
+                            v-for="genre in (item.genres ?? []).filter(Boolean).slice(0, 2)"
+                            :key="genre!"
+                            class="rounded-full bg-white/6 px-2.5 py-1 text-[11px] text-white/50"
+                        >
+                            {{ genre }}
+                        </span>
                     </div>
                 </div>
             </div>
         </Transition>
 
-        <div :class="['transition-opacity duration-200', hovered ? 'opacity-30' : 'opacity-100']">
+        <div :class="['transition-opacity duration-200', hovered ? 'opacity-40' : 'opacity-100']">
             <div
                 :class="[
-                    'aspect-2/3 rounded-lg relative overflow-hidden bg-neutral-800 cursor-pointer transition-transform duration-100',
+                    'relative aspect-2/3 cursor-pointer overflow-hidden rounded-xl bg-raised ring-1 ring-white/5 transition duration-200 hover:-translate-y-1 hover:ring-accent/60',
                     pressing ? 'scale-[0.96]' : 'scale-100',
                 ]"
                 @click="navigate()"
@@ -145,25 +165,22 @@ function navigate() {
                 <img
                     v-if="coverImage"
                     :src="coverImage"
-                    class="absolute inset-0 w-full h-full object-cover"
+                    class="absolute inset-0 size-full object-cover"
                 />
-                <div v-else class="absolute inset-0 bg-neutral-700" />
+                <span
+                    v-if="item.averageScore"
+                    class="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/65 px-1.5 py-0.5 text-[11px] font-semibold backdrop-blur-sm"
+                >
+                    <Star :size="10" class="fill-accent text-accent" />
+                    {{ item.averageScore }}
+                </span>
             </div>
 
-            <div class="mt-2">
-                <p class="text-xs font-medium leading-snug truncate">{{ title }}</p>
-
-                <div class="text-[10px] text-white/35 mt-0.5 flex justify-between">
-                    <span class="flex items-center gap-1">
-                        <Calendar :size="10" />
-                        {{ item.startDate?.year }}
-                    </span>
-
-                    <span class="flex items-center gap-1">
-                        {{ item.format }}
-                        <Tv :size="10" />
-                    </span>
-                </div>
+            <div class="mt-2.5 px-0.5">
+                <p class="truncate text-[13px] font-medium leading-snug">{{ title }}</p>
+                <p class="mt-0.5 truncate text-[11px] text-white/40">
+                    {{ meta.slice(0, 2).join(' · ') }}
+                </p>
             </div>
         </div>
     </div>

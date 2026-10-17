@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { X } from '@lucide/vue';
+import { Search, X } from '@lucide/vue';
 import { toast } from 'vue3-toastify';
 import { useLoadingStore } from '../stores/loading';
 import { useMediaStore } from '../stores/media';
@@ -107,6 +107,12 @@ function clearFilters() {
 const results = computed(() => mediaStore.searchResults);
 const hasNextPage = computed(() => mediaStore.searchHasNextPage);
 const loading = computed(() => mediaStore.searchLoading);
+const resetting = ref(false);
+const skeletonCount = computed(() => {
+    if (!loading.value) return 0;
+    if (!results.value.length) return 20;
+    return resetting.value ? 0 : 14;
+});
 
 function buildVars() {
     const v: Record<string, unknown> = { type: 'ANIME', sort: [filters.sort] };
@@ -122,14 +128,20 @@ function buildVars() {
 async function fetchPage(reset = false) {
     if (loading.value && !reset) return;
     if (!hasNextPage.value && !reset) return;
-    if (reset) loadingBar.start();
+    if (reset) {
+        loadingBar.start();
+        resetting.value = true;
+    }
 
     try {
         await mediaStore.searchAnime(buildVars() as any, reset);
     } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Search failed');
     } finally {
-        if (reset) loadingBar.finish();
+        if (reset) {
+            loadingBar.finish();
+            resetting.value = false;
+        }
     }
 }
 
@@ -195,17 +207,24 @@ onUnmounted(() => scrollObserver?.disconnect());
 </script>
 
 <template>
-    <div class="min-h-full bg-neutral-900 text-white">
+    <div class="min-h-full">
         <!-- filter bar -->
         <div
-            class="sticky top-0 z-50 bg-neutral-900/90 backdrop-blur-sm px-8 py-4 flex flex-wrap gap-2 items-center border-b border-white/5"
+            class="sticky top-0 z-50 flex flex-wrap items-center gap-2 border-b border-line bg-surface/85 px-8 py-4 backdrop-blur-md"
         >
-            <input
-                v-model="filters.search"
-                type="text"
-                placeholder="Search..."
-                class="bg-neutral-800 rounded-full px-4 h-8 text-sm text-white placeholder-white/30 outline-none focus:ring-1 focus:ring-white/20 w-52"
-            />
+            <label
+                class="flex h-9 w-64 items-center gap-2 rounded-full bg-white/5 px-3.5 ring-1 ring-line focus-within:ring-accent/60"
+            >
+                <Search :size="14" class="shrink-0 text-white/40" />
+                <input
+                    v-model="filters.search"
+                    data-search-input
+                    autofocus
+                    type="text"
+                    placeholder="Search anime"
+                    class="w-full bg-transparent text-sm text-white placeholder-white/35 outline-none"
+                />
+            </label>
 
             <SelectMenu v-model="filters.sort" :options="SORT" placeholder="Sort" />
             <SelectMenu v-model="filters.season" :options="SEASONS" placeholder="Season" />
@@ -235,22 +254,18 @@ onUnmounted(() => scrollObserver?.disconnect());
 
         <!-- results grid -->
         <div class="px-8 py-6">
-            <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-4 gap-y-6">
-                <template v-if="loading && !results.length">
-                    <div v-for="i in 20" :key="i" class="animate-pulse">
-                        <div class="aspect-[2/3] rounded-lg bg-neutral-800" />
-                        <div class="mt-2 h-2.5 bg-neutral-800 rounded w-3/4" />
-                        <div class="mt-1.5 h-2 bg-neutral-800 rounded w-1/2" />
-                    </div>
-                </template>
+            <div
+                :class="[
+                    'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-4 gap-y-6 transition-opacity',
+                    resetting && results.length && 'opacity-50',
+                ]"
+            >
                 <MediaCard v-for="item in results" :key="item.id" :item="item" />
-                <template v-if="loading && results.length">
-                    <div v-for="i in 25" :key="`skel-${i}`" class="animate-pulse">
-                        <div class="aspect-[2/3] rounded-lg bg-neutral-800" />
-                        <div class="mt-2 h-2.5 bg-neutral-800 rounded w-3/4" />
-                        <div class="mt-1.5 h-2 bg-neutral-800 rounded w-1/2" />
-                    </div>
-                </template>
+                <div v-for="i in skeletonCount" :key="`skeleton-${i}`" class="animate-pulse">
+                    <div class="aspect-2/3 rounded-xl bg-raised" />
+                    <div class="mt-2.5 h-3 w-3/4 rounded bg-raised" />
+                    <div class="mt-1.5 h-2.5 w-1/2 rounded bg-raised" />
+                </div>
             </div>
 
             <div ref="sentinel" class="h-4 mt-2" />

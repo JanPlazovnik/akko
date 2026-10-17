@@ -6,7 +6,7 @@
     --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
     --font-display: 'Outfit Variable', 'Inter Variable', ui-sans-serif, sans-serif;
 
-    --color-base: #07070a;
+    --color-canvas: #07070a;
     --color-surface: #0e0e13;
     --color-raised: #16161d;
     --color-overlay: #1f1f28;
@@ -20,7 +20,7 @@
 }
 
 body {
-    @apply bg-base font-sans text-white antialiased;
+    @apply bg-canvas font-sans text-white antialiased;
 }
 
 @layer utilities {
@@ -137,4 +137,29 @@ body {
         opacity: 0;
         scale: 0.97;
     }
+}
+
+:root {
+    --toastify-color-dark: var(--color-raised);
+    --toastify-text-color-dark: rgb(255 255 255 / 0.9);
+    --toastify-color-progress-dark: var(--color-accent);
+    --toastify-font-family: var(--font-sans);
+    --toastify-toast-min-height: 52px;
+    --toastify-toast-width: 340px;
+    --toastify-color-success: #34d399;
+    --toastify-color-error: #f87171;
+    --toastify-color-warning: #fbbf24;
+    --toastify-color-info: var(--color-accent);
+}
+
+.Toastify__toast {
+    border-radius: 12px;
+    border: 1px solid var(--color-line);
+    box-shadow: 0 16px 40px rgb(0 0 0 / 0.55);
+    font-size: 13px;
+    padding: 6px 10px;
+}
+
+.Toastify__progress-bar {
+    height: 2px;
 }

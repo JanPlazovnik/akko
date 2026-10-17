@@ -200,7 +200,10 @@ export const useMediaStore = defineStore('media', () => {
         if (searchLoading.value && !reset) return;
         if (!searchHasNextPage.value && !reset) return;
 
-        if (reset) resetSearch();
+        if (reset) {
+            searchPage.value = 1;
+            searchHasNextPage.value = true;
+        }
 
         const id = ++searchRequestId;
         searchLoading.value = true;

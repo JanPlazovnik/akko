@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, provide } from 'vue';
+import { ref, provide, onMounted, onUnmounted } from 'vue';
 import { vAutoAnimate } from '@formkit/auto-animate/vue';
+import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import MediaCard from './MediaCard.vue';
 import type { Media } from '@shared/graphql/queries';
 
@@ -10,6 +11,24 @@ const isScrolling = ref(false);
 provide('rowScrolling', isScrolling);
 
 const rowEl = ref<HTMLElement | null>(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+function updateScrollState() {
+    const el = rowEl.value;
+    if (!el) return;
+    canScrollLeft.value = el.scrollLeft > 4;
+    canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+}
+
+function scrollPage(direction: 1 | -1) {
+    const el = rowEl.value;
+    if (el) el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: 'smooth' });
+}
+
+const resizeObserver = new ResizeObserver(updateScrollState);
+onMounted(() => rowEl.value && resizeObserver.observe(rowEl.value));
+onUnmounted(() => resizeObserver.disconnect());
 let dragging = false;
 let startX = 0;
 let lastX = 0;
@@ -54,9 +73,21 @@ function onClickCapture(e: MouseEvent) {
 </script>
 
 <template>
-    <div v-if="items.length" class="px-6 pt-6">
-        <div class="flex items-baseline justify-between mb-3">
-            <h3 class="text-sm font-semibold">{{ title }}</h3>
+    <section v-if="items.length" class="pt-8">
+        <div class="mb-3 flex items-center justify-between px-8">
+            <h3 class="font-display text-xl font-semibold tracking-tight">{{ title }}</h3>
+            <div class="flex gap-1">
+                <button
+                    v-for="dir in [-1, 1] as const"
+                    :key="dir"
+                    class="grid size-8 cursor-pointer place-items-center rounded-full bg-white/5 text-white/70 transition-colors hover:bg-white/12 hover:text-white disabled:cursor-default disabled:opacity-30 disabled:hover:bg-white/5"
+                    :disabled="dir === -1 ? !canScrollLeft : !canScrollRight"
+                    @click="scrollPage(dir)"
+                >
+                    <ChevronLeft v-if="dir === -1" :size="16" />
+                    <ChevronRight v-else :size="16" />
+                </button>
+            </div>
         </div>
         <div
             ref="rowEl"
@@ -65,13 +96,17 @@ function onClickCapture(e: MouseEvent) {
                 dragging && moved ? 'cursor-grabbing' : 'cursor-grab',
             ]"
             style="scrollbar-width: none"
+            @scroll.passive="updateScrollState"
             @mousedown="onMouseDown"
             @dragstart.prevent
             @click.capture="onClickCapture"
         >
-            <div v-auto-animate class="grid grid-flow-col auto-cols-[160px] gap-3.5 w-max pb-1">
+            <div
+                v-auto-animate
+                class="grid w-max grid-flow-col auto-cols-[168px] gap-4 px-8 pt-2 pb-2"
+            >
                 <MediaCard v-for="item in items" :key="item.id" :item="item" />
             </div>
         </div>
-    </div>
+    </section>
 </template>

@@ -23,10 +23,13 @@ watch(
 
 <template>
     <DragDropProvider>
-        <div class="flex flex-col h-screen bg-black text-white select-none">
+        <div class="flex h-screen flex-col bg-canvas text-white select-none">
             <Header />
-            <main ref="mainEl" class="flex-1 overflow-auto bg-neutral-900 mx-2 mb-2 rounded-md">
-                <RouterView :class="route.path === '/player' ? 'h-full' : ''" />
+            <main
+                ref="mainEl"
+                class="mx-2 mb-2 flex-1 overflow-auto rounded-xl bg-surface ring-1 ring-line"
+            >
+                <RouterView />
             </main>
             <PersistentPlayer />
         </div>
