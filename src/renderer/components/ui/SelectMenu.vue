@@ -14,6 +14,7 @@ const props = defineProps<{
     options: { value: string; label: string }[];
     placeholder: string;
     scrollable?: boolean;
+    required?: boolean;
 }>();
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
@@ -21,7 +22,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const open = ref(false);
 
 function select(value: string) {
-    emit('update:modelValue', props.modelValue === value ? '' : value);
+    emit('update:modelValue', props.modelValue === value && !props.required ? '' : value);
 }
 </script>
 
