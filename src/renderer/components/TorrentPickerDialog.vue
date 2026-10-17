@@ -154,7 +154,7 @@ async function pick(result: TorrentResult) {
     try {
         const magnet = toMagnet(result.link, result.hash);
         const media = mediaStore.mediaFor(props.anilistId);
-        player.queueStream({
+        void player.startStream({
             media: media
                 ? mediaToSummary(media)
                 : {

@@ -4,12 +4,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { Loader2, Maximize2, X } from '@lucide/vue';
 import { useDraggable, useDragDropMonitor } from '@dnd-kit/vue';
 import { usePlayerStore } from '../stores/player';
-import { createLogger } from '../lib/logger';
-import { EMPTY_ASS } from '../lib/subtitles';
-import JASSUB from 'jassub';
-import jassubWorkerUrl from 'jassub/dist/worker/worker.js?worker&url';
-import jassubWasmUrl from 'jassub/dist/wasm/jassub-worker.wasm?url';
-import jassubModernWasmUrl from 'jassub/dist/wasm/jassub-worker-modern.wasm?url';
+import { useSubtitleRenderer } from '../lib/subtitles';
+import SelectMenu from './ui/SelectMenu.vue';
 import '@videojs/html/video/player';
 import '@videojs/html/video/minimal-skin';
 
@@ -20,7 +16,6 @@ const MINI_H = 162;
 const HEADER_H = 56;
 const MARGIN = 20;
 
-const log = createLogger('player');
 const route = useRoute();
 const router = useRouter();
 const player = usePlayerStore();
@@ -33,7 +28,12 @@ function getVideo(): HTMLVideoElement | null {
 }
 const isPlayerRoute = computed(() => route.path === '/player');
 const isVisible = computed(() => isPlayerRoute.value || Boolean(player.streamUrl));
-const playbackSrc = computed(() => (player.subtitlesReady ? player.streamUrl : null));
+const trackOptions = computed(() => player.tracks.map((t) => ({ value: t.id, label: t.label })));
+const statusMessage = computed(
+    () =>
+        player.error ??
+        (player.loading ? 'Waiting for torrent metadata…' : 'Nothing is playing right now.')
+);
 
 // ─── corner-snap positioning ──────────────────────────────────────────────────
 const corner = ref<Corner>('bottom-right');
@@ -79,44 +79,7 @@ useDragDropMonitor({
     },
 });
 
-// ─── JASSUB ──────────────────────────────────────────────────────────────────
-let assRenderer: JASSUB | null = null;
-let fontsLoaded = false;
-
-async function destroyAssRenderer() {
-    if (!assRenderer) return;
-    log.debug('Destroying JASSUB renderer');
-    const renderer = assRenderer;
-    assRenderer = null;
-    await renderer.destroy().catch(() => {});
-}
-
-async function ensureAssRenderer() {
-    const video = getVideo();
-    if (!video || assRenderer) return assRenderer;
-    log.debug('Booting JASSUB runtime');
-    assRenderer = new JASSUB({
-        video,
-        subContent: EMPTY_ASS,
-        workerUrl: jassubWorkerUrl,
-        wasmUrl: jassubWasmUrl,
-        modernWasmUrl: jassubModernWasmUrl,
-        debug: true,
-    });
-    await assRenderer.ready
-        .then(() => log.debug('JASSUB runtime ready'))
-        .catch((error) => log.debug('JASSUB runtime failed to initialize', error));
-    return assRenderer;
-}
-
-// ─── subtitle sync ───────────────────────────────────────────────────────────
-function syncSubtitleMode() {
-    const v = getVideo();
-    if (!v) return;
-    for (const track of Array.from(v.textTracks)) {
-        track.mode = track.language === player.activeSubtitle ? 'showing' : 'disabled';
-    }
-}
+useSubtitleRenderer(getVideo);
 
 // ─── fullscreen click-to-play ─────────────────────────────────────────────────
 function handleFullscreenClick(e: MouseEvent) {
@@ -165,16 +128,10 @@ onMounted(async () => {
     await nextTick();
     const v = getVideo();
     if (v) {
-        player.setVideoElement(v);
         v.addEventListener('play', () => (player.isPlaying = true));
         v.addEventListener('pause', () => (player.isPlaying = false));
         v.addEventListener('timeupdate', () => (player.currentTime = v.currentTime));
         v.addEventListener('durationchange', () => (player.duration = v.duration));
-        v.addEventListener('seeking', () => player.resetSubtitleCues());
-        v.addEventListener('volumechange', () => {
-            player.isMuted = v.muted;
-            player.volume = v.volume;
-        });
     }
 
     const skinEl = document.querySelector('video-minimal-skin');
@@ -184,106 +141,25 @@ onMounted(async () => {
         skinEl.shadowRoot.adoptedStyleSheets = [...skinEl.shadowRoot.adoptedStyleSheets, sheet];
     }
 
-    void ensureAssRenderer();
     document.addEventListener('keydown', handleKeydown);
-
-    if (
-        route.path === '/player' &&
-        player.pendingMagnet &&
-        !player.torrentId &&
-        !player.streamUrl
-    ) {
-        void player.startStream(player.pendingMagnet);
-    }
 });
 
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
-    void destroyAssRenderer();
 });
 
 watch(
-    () => route.path,
-    (path) => {
-        if (path === '/player' && player.pendingMagnet && !player.torrentId && !player.streamUrl) {
-            void player.startStream(player.pendingMagnet);
-        }
-    }
-);
-
-watch(
-    () => player.torrentId,
-    (id) => {
-        if (!id) void destroyAssRenderer();
-    }
-);
-
-watch(
-    [() => player.streamUrl, () => player.subtitlesReady],
-    ([url, subtitlesReady]) => {
+    () => player.streamUrl,
+    (url) => {
         const v = getVideo();
         if (!v) return;
-        log.debug('Playback gate changed', { hasUrl: Boolean(url), subtitlesReady });
-        if (url && subtitlesReady) v.play().catch(() => {});
-        else v.pause();
-    },
-    { flush: 'post' }
-);
-
-watch(
-    () => player.trackMeta,
-    (tracks) => {
-        if (!tracks.length) fontsLoaded = false;
-        if (!tracks.some((track) => track.format === 'ass')) void destroyAssRenderer();
-    }
-);
-
-watch(
-    [() => player.subtitles, () => player.activeSubtitle],
-    ([tracks]) => {
-        const v = getVideo();
-        if (!v) return;
-
-        const activeTrack =
-            tracks.find((t) => t.lang === player.activeSubtitle) ??
-            tracks.find((t) => t.format === 'ass') ??
-            null;
-
-        if (activeTrack?.format === 'ass') {
-            v.querySelectorAll('track').forEach((t) => t.remove());
-            queueMicrotask(async () => {
-                const video = getVideo();
-                if (!video || !activeTrack || activeTrack.format !== 'ass') return;
-                const renderer = await ensureAssRenderer();
-                if (!renderer) return;
-                await renderer.setVideo(video).catch(() => {});
-                if (!fontsLoaded && activeTrack.fonts && activeTrack.fonts.length > 0) {
-                    fontsLoaded = true;
-                    await renderer.renderer.addFonts([...activeTrack.fonts]).catch((error) => {
-                        log.debug('JASSUB addFonts failed', error);
-                    });
-                }
-                await renderer.renderer.setTrack(activeTrack.content).catch((error) => {
-                    log.debug('JASSUB setTrack failed', error);
-                });
-            });
-            return;
+        if (url) {
+            v.src = url;
+            v.play().catch(() => undefined);
+        } else {
+            v.removeAttribute('src');
+            v.load();
         }
-
-        void destroyAssRenderer();
-        v.querySelectorAll('track').forEach((t) => t.remove());
-        for (const t of tracks) {
-            if (t.format !== 'vtt' || !t.blobUrl) continue;
-            const track = document.createElement('track');
-            track.kind = 'subtitles';
-            track.src = t.blobUrl;
-            track.srclang = t.lang;
-            track.label = t.label;
-            track.default = player.activeSubtitle === t.lang;
-            track.addEventListener('load', syncSubtitleMode, { once: true });
-            v.appendChild(track);
-        }
-        queueMicrotask(syncSubtitleMode);
     },
     { flush: 'post' }
 );
@@ -302,23 +178,31 @@ watch(
     >
         <!-- Loading state (fullscreen only) -->
         <div
-            v-if="isPlayerRoute && (!player.streamUrl || !player.subtitlesReady)"
+            v-if="isPlayerRoute && !player.streamUrl"
             class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-neutral-950 text-white/60 text-sm pointer-events-none"
         >
-            <Loader2 :size="22" class="animate-spin" />
-            <div class="text-center space-y-1">
-                <p class="font-medium text-white/80">
-                    {{ player.loadingMessage ?? 'Loading player…' }}
-                </p>
-                <p class="text-xs text-white/35">Playback will start when the stream is ready.</p>
-            </div>
+            <Loader2 v-if="player.loading" :size="22" class="animate-spin" />
+            <p :class="player.error ? 'text-red-400' : 'font-medium text-white/80'">
+                {{ statusMessage }}
+            </p>
+        </div>
+
+        <div
+            v-if="isPlayerRoute && trackOptions.length > 0"
+            class="subtitle-picker absolute top-3 right-3 z-20"
+        >
+            <SelectMenu
+                v-model="player.activeTrackId"
+                :options="trackOptions"
+                placeholder="Subtitles off"
+            />
         </div>
 
         <!-- Video -->
         <div class="relative h-full">
             <video-player v-show="player.streamUrl || isPlayerRoute" class="vjs-player">
                 <video-minimal-skin>
-                    <video ref="videoRef" playsinline :src="playbackSrc ?? undefined" />
+                    <video ref="videoRef" playsinline crossorigin="anonymous" />
                 </video-minimal-skin>
             </video-player>
 
@@ -383,6 +267,16 @@ watch(
     box-shadow: 0 28px 80px rgba(0, 0, 0, 0.85);
 }
 
+.subtitle-picker {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.player-fullscreen:hover .subtitle-picker,
+.subtitle-picker:focus-within {
+    opacity: 1;
+}
+
 .mini-overlay {
     opacity: 0;
     background: rgba(0, 0, 0, 0);
@@ -391,7 +285,17 @@ watch(
         background 0.15s ease;
 }
 
-.player-mini:hover .mini-overlay {
+.player-mini:hover .subtitle-picker {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.player-fullscreen:hover .subtitle-picker,
+.subtitle-picker:focus-within {
+    opacity: 1;
+}
+
+.mini-overlay {
     opacity: 1;
     background: rgba(0, 0, 0, 0.45);
 }

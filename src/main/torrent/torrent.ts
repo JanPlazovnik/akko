@@ -1,17 +1,34 @@
-import { Torrent, WebTorrentOptions } from 'webtorrent';
-import { createMediaSession } from './stream';
-import type { TrackInfo, SidecarTrack } from './stream';
-import { sendToRenderer } from '../context';
+import path from 'node:path';
+import type WebTorrent from 'webtorrent';
+import type { Torrent, TorrentFile, TorrentServer } from 'webtorrent';
+import type { StreamStartResult } from '../../shared/ipc/api';
+import { SubtitleSession } from '../subtitles/session';
 import { createLogger } from '../logger';
 
 const log = createLogger('torrent');
 
-let client: any = null;
-let activeServer: { close(): Promise<void> | void } | null = null;
+const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.webm', '.avi', '.mov']);
+const SIDECAR_EXTS = new Set(['.srt', '.vtt']);
+const METADATA_TIMEOUT_MS = 60_000;
 
-export async function initClient(opts?: WebTorrentOptions) {
-    const WebTorrent = (await import('webtorrent')).default;
-    client = new WebTorrent(opts);
+const EPISODE_PATTERNS = [
+    /(?:\bS\d+|\d)E0*(\d+)/i,
+    /\b(?:EP?|Episode)\s?0*(\d+)\b/i,
+    /\s-\s0*(\d+)(?:v\d)?\b/,
+    /(?:^|\s)0*(\d{1,4})(?:v\d)?(?:\s|$)/,
+];
+
+let client: WebTorrent | null = null;
+let server: TorrentServer | null = null;
+let active: { torrent: Torrent; subtitles: SubtitleSession } | null = null;
+let queue: Promise<unknown> = Promise.resolve();
+
+export async function initClient() {
+    const { default: WebTorrent } = await import('webtorrent');
+    client = new WebTorrent();
+    const torrentServer = client.createServer({ hostname: '127.0.0.1', pathname: '/webtorrent' });
+    await new Promise<void>((resolve) => torrentServer.listen(0, '127.0.0.1', resolve));
+    server = torrentServer;
     log.info('Client ready');
 }
 
@@ -20,55 +37,116 @@ function getClient() {
     return client;
 }
 
-async function closeActiveServer() {
-    if (activeServer) {
-        await activeServer.close();
-        activeServer = null;
-    }
+function serialized<T>(task: () => Promise<T>): Promise<T> {
+    const run = queue.then(task);
+    queue = run.catch(() => undefined);
+    return run;
 }
 
-export async function startTorrent(magnetUri: string): Promise<{
-    torrentId: string;
-    streamUrl: string;
-    mimeType: string;
-    tracks: TrackInfo[];
-    sidecarTracks: SidecarTrack[];
-}> {
-    await closeActiveServer();
+function extension(file: TorrentFile): string {
+    return path.extname(file.name).toLowerCase();
+}
 
-    const existing: Torrent[] = client?.torrents ?? [];
-    if (existing.length > 0) {
-        existing.forEach((t) => client.remove(t.infoHash, { destroyStore: true }));
+function stem(file: TorrentFile): string {
+    return path.basename(file.name, path.extname(file.name));
+}
+
+function episodeNumber(name: string): number | null {
+    const normalized = name.replace(/\[[^\]]*\]|\([^)]*\)/g, ' ').replace(/[._]/g, ' ');
+    for (const pattern of EPISODE_PATTERNS) {
+        const match = normalized.match(pattern);
+        if (match) return Number(match[1]);
     }
+    return null;
+}
 
-    return new Promise((resolve, reject) => {
-        getClient().add(magnetUri, {}, async (torrent: Torrent) => {
-            try {
-                const { server, streamUrl, mimeType, tracks, sidecarTracks } =
-                    await createMediaSession(torrent, (sub, trackNumber) =>
-                        sendToRenderer('stream:subtitle', sub, trackNumber)
-                    );
-                activeServer = server;
-                resolve({
-                    torrentId: torrent.infoHash,
-                    streamUrl,
-                    mimeType,
-                    tracks,
-                    sidecarTracks,
-                });
-            } catch (e) {
-                reject(e);
-            }
+function pickFiles(files: TorrentFile[], episode?: number) {
+    const videos = files
+        .filter((f) => VIDEO_EXTS.has(extension(f)))
+        .sort((a, b) => b.length - a.length);
+    if (videos.length === 0) throw new Error('No video file in torrent');
+
+    const isBatch = videos.length > 1;
+    const matched =
+        isBatch && episode !== undefined
+            ? videos.find((f) => episodeNumber(stem(f)) === episode)
+            : undefined;
+    if (isBatch && !matched) log.warn(`No file matched episode ${episode}, using largest`);
+    const video = matched ?? videos[0];
+
+    const subtitles = files.filter((f) => SIDECAR_EXTS.has(extension(f)));
+    const matching = subtitles.filter((f) => f.name.startsWith(stem(video)));
+    return { video, sidecars: matching.length > 0 || isBatch ? matching : subtitles };
+}
+
+function streamUrl(torrent: Torrent, file: TorrentFile): string {
+    if (!server) throw new Error('Torrent server not initialized');
+    const filePath = file.path.split(/[\\/]/).map(encodeURIComponent).join('/');
+    return `http://127.0.0.1:${server.address().port}${server.pathname}/${torrent.infoHash}/${filePath}`;
+}
+
+function destroyTorrent(torrent: Torrent): Promise<void> {
+    return new Promise((resolve) => {
+        if (torrent.destroyed) return resolve();
+        torrent.destroy({ destroyStore: true }, (err) => {
+            if (err) log.warn('Failed to destroy torrent:', err);
+            resolve();
         });
     });
 }
 
-export async function stopTorrent(torrentId: string): Promise<void> {
-    await closeActiveServer();
+function addTorrent(magnet: string): Promise<Torrent> {
     return new Promise((resolve, reject) => {
-        getClient().remove(torrentId, { destroyStore: true }, (err: any) => {
-            if (err) reject(err);
-            else resolve();
+        const fail = (err: Error) => {
+            clearTimeout(timer);
+            void destroyTorrent(torrent);
+            reject(err);
+        };
+        const timer = setTimeout(
+            () => fail(new Error('Timed out waiting for torrent metadata')),
+            METADATA_TIMEOUT_MS
+        );
+        const torrent = getClient().add(magnet, { deselect: true }, (ready) => {
+            clearTimeout(timer);
+            torrent.removeListener('error', fail);
+            resolve(ready);
         });
+        torrent.once('error', fail);
+    });
+}
+
+async function stopActive() {
+    if (!active) return;
+    const { torrent, subtitles } = active;
+    active = null;
+    subtitles.destroy();
+    await destroyTorrent(torrent);
+}
+
+export function startTorrent(magnet: string, episode?: number): Promise<StreamStartResult> {
+    return serialized(async () => {
+        await stopActive();
+        const torrent = await addTorrent(magnet);
+        try {
+            const { video, sidecars } = pickFiles(torrent.files, episode);
+            video.select();
+            const subtitles = await SubtitleSession.open(torrent.infoHash, video, sidecars);
+            active = { torrent, subtitles };
+            log.debug('Streaming', video.name);
+            return {
+                torrentId: torrent.infoHash,
+                streamUrl: streamUrl(torrent, video),
+                tracks: subtitles.tracks,
+            };
+        } catch (err) {
+            await destroyTorrent(torrent);
+            throw err;
+        }
+    });
+}
+
+export function stopTorrent(torrentId: string): Promise<void> {
+    return serialized(async () => {
+        if (active?.torrent.infoHash === torrentId) await stopActive();
     });
 }

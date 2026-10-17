@@ -7,54 +7,39 @@ import type {
     TorrentResult,
     UpdateInfo,
 } from '../../main/extensions/types';
+import type { SubtitleEvent } from '../subtitles';
 
-export type StreamTrackInfo = {
-    trackNumber: string;
+export type SubtitleTrack = {
+    id: string;
     lang: string;
     label: string;
-    format: 'vtt' | 'ass';
     header: string;
-    fonts: string[];
 };
 
-export type StreamSidecarTrack = {
-    lang: string;
-    label: string;
-    format: 'vtt';
-    content: string;
-};
-
-export type StreamSubtitleCue = {
-    text: string;
-    time: number;
-    duration: number;
-    readOrder?: string;
-    layer?: string;
-    style?: string;
-    name?: string;
-    marginL?: string;
-    marginR?: string;
-    marginV?: string;
-    effect?: string;
-};
+export type SubtitleBatch = Record<string, SubtitleEvent[]>;
 
 export type StreamStartResult = {
     torrentId: string;
     streamUrl: string;
-    mimeType: string;
-    tracks: StreamTrackInfo[];
-    sidecarTracks: StreamSidecarTrack[];
+    tracks: SubtitleTrack[];
 };
 
 export type RendererEventMap = {
-    'stream:subtitle': [StreamSubtitleCue, string];
+    'stream:subtitles': [torrentId: string, batch: SubtitleBatch];
+    'stream:fonts': [torrentId: string, fonts: Uint8Array[]];
 };
 
+export type RendererEventListener<K extends keyof RendererEventMap> = (
+    ...args: RendererEventMap[K]
+) => void;
+
 export type AppApi = {
-    startStream: (magnet: string) => Promise<StreamStartResult>;
+    startStream: (magnet: string, episode?: number) => Promise<StreamStartResult>;
     stopStream: (torrentId: string) => Promise<void>;
-    onSubtitle: (cb: (sub: StreamSubtitleCue, trackNumber: string) => void) => void;
-    offSubtitle: () => void;
+    on: <K extends keyof RendererEventMap>(
+        channel: K,
+        listener: RendererEventListener<K>
+    ) => () => void;
     minimizeWindow: () => void;
     maximizeWindow: () => void;
     closeWindow: () => void;

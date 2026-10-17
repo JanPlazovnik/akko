@@ -1,9 +1,114 @@
-export const EMPTY_ASS = `[Script Info]
-ScriptType: v4.00+
+import { onUnmounted, watch } from 'vue';
+import JASSUB from 'jassub';
+import workerUrl from 'jassub/dist/worker/worker.js?worker&url';
+import wasmUrl from 'jassub/dist/wasm/jassub-worker.wasm?url';
+import modernWasmUrl from 'jassub/dist/wasm/jassub-worker-modern.wasm?url';
+import type { SubtitleTrack } from '@shared/ipc/api';
+import type { SubtitleEvent } from '@shared/subtitles';
+import { usePlayerStore } from '../stores/player';
+import { createLogger } from './logger';
 
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,54,&H00FFFFFF,&H000000FF,&H00000000,&H78000000,0,0,0,0,100,100,0,0,1,2,1,2,40,40,40,1
+const log = createLogger('subtitles');
 
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
+export function useSubtitleRenderer(getVideo: () => HTMLVideoElement | null) {
+    const player = usePlayerStore();
+    let jassub: JASSUB | null = null;
+    let styles = new Map<string, number>();
+    let queue: Promise<unknown> = Promise.resolve();
+
+    function enqueue(task: (renderer: JASSUB) => Promise<unknown>) {
+        const renderer = jassub;
+        if (!renderer) return;
+        queue = queue
+            .then(() => renderer.ready)
+            .then(() => (renderer === jassub ? task(renderer) : undefined))
+            .catch((err) => log.warn('Subtitle renderer task failed', err));
+    }
+
+    async function repaint(renderer: JASSUB) {
+        const video = getVideo();
+        if (!video?.paused) return;
+        await renderer.manualRender({
+            mediaTime: video.currentTime,
+            width: video.videoWidth,
+            height: video.videoHeight,
+            expectedDisplayTime: performance.now(),
+        });
+    }
+
+    async function loadTrack(renderer: JASSUB) {
+        const list = await renderer.renderer.getStyles();
+        styles = new Map(list.map((style, index) => [style.Name, index]));
+        await repaint(renderer);
+    }
+
+    async function createEvents(renderer: JASSUB, events: SubtitleEvent[]) {
+        await Promise.all(
+            events.map((event) =>
+                renderer.renderer.createEvent({
+                    Start: event.start,
+                    Duration: event.duration,
+                    ReadOrder: 0,
+                    Layer: event.layer,
+                    Style: styles.get(event.style) ?? 0,
+                    Name: event.name,
+                    MarginL: event.marginL,
+                    MarginR: event.marginR,
+                    MarginV: event.marginV,
+                    Effect: event.effect,
+                    Text: event.text,
+                })
+            )
+        );
+        await repaint(renderer);
+    }
+
+    function destroy() {
+        const renderer = jassub;
+        if (!renderer) return;
+        jassub = null;
+        queue = queue.then(() => renderer.destroy()).catch(() => undefined);
+    }
+
+    function show(track: SubtitleTrack | null) {
+        const video = getVideo();
+        if (!track || !video) return destroy();
+
+        const content = player.trackContent(track);
+        if (jassub) {
+            enqueue(async (r) => {
+                await r.renderer.setTrack(content);
+                await loadTrack(r);
+            });
+            return;
+        }
+
+        jassub = new JASSUB({
+            video,
+            subContent: content,
+            fonts: [...player.fonts],
+            workerUrl,
+            wasmUrl,
+            modernWasmUrl,
+        });
+        enqueue(loadTrack);
+    }
+
+    watch(() => player.activeTrack, show, { flush: 'post' });
+
+    watch(
+        () => player.fonts,
+        (fonts) => {
+            if (fonts.length > 0) enqueue((r) => r.renderer.addFonts([...fonts]));
+        }
+    );
+
+    const offCues = player.onCues((trackId, events) => {
+        if (trackId === player.activeTrackId) enqueue((r) => createEvents(r, events));
+    });
+
+    onUnmounted(() => {
+        offCues();
+        destroy();
+    });
+}

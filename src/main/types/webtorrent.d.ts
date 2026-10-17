@@ -9,6 +9,8 @@ declare module 'webtorrent' {
         offset?: number;
         streamURL: string;
         _client?: WebTorrent;
+        select(priority?: number): void;
+        deselect(): void;
         createReadStream(opts?: { start?: number; end?: number }): Readable;
         [Symbol.asyncIterator](opts?: {
             start?: number;
@@ -18,11 +20,12 @@ declare module 'webtorrent' {
 
     export interface TorrentOptions {
         destroyStoreOnDestroy?: boolean;
+        deselect?: boolean;
         path?: string;
         maxConns?: number;
     }
 
-    export interface Torrent {
+    export interface Torrent extends EventEmitter {
         infoHash: string;
         name: string;
         length: number;
@@ -38,12 +41,8 @@ declare module 'webtorrent' {
         _client?: WebTorrent;
         pieces: (boolean | null)[];
         done: boolean;
-        on(event: 'ready', cb: () => void): this;
-        on(event: 'error', cb: (err: Error) => void): this;
-        on(event: 'done', cb: () => void): this;
-        on(event: 'download', cb: (bytes: number) => void): this;
-        on(event: 'upload', cb: (bytes: number) => void): this;
-        remove(cb?: (err?: Error) => void): void;
+        destroyed: boolean;
+        destroy(opts?: { destroyStore?: boolean }, cb?: (err?: Error) => void): void;
         select(start: number, end: number, priority?: number): void;
         deselect(start: number, end: number, priority?: number): void;
     }

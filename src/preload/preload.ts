@@ -1,15 +1,17 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { ExtensionManifest, SearchMethod, SearchParams } from '../main/extensions/types';
-import type { AppApi, StreamSubtitleCue } from '../shared/ipc/api';
+import type { AppApi, RendererEventMap } from '../shared/ipc/api';
 
 const api: AppApi = {
-    startStream: (magnet: string) => ipcRenderer.invoke('stream:start', magnet),
+    startStream: (magnet: string, episode?: number) =>
+        ipcRenderer.invoke('stream:start', magnet, episode),
     stopStream: (torrentId: string) => ipcRenderer.invoke('stream:stop', torrentId),
-    onSubtitle: (cb: (sub: StreamSubtitleCue, trackNumber: string) => void) => {
-        ipcRenderer.removeAllListeners('stream:subtitle');
-        ipcRenderer.on('stream:subtitle', (_event, sub, trackNumber) => cb(sub, trackNumber));
+    on: (channel, listener) => {
+        const handler = (_event: IpcRendererEvent, ...args: RendererEventMap[typeof channel]) =>
+            listener(...args);
+        ipcRenderer.on(channel, handler);
+        return () => ipcRenderer.removeListener(channel, handler);
     },
-    offSubtitle: () => ipcRenderer.removeAllListeners('stream:subtitle'),
     minimizeWindow: () => ipcRenderer.send('window:minimize'),
     maximizeWindow: () => ipcRenderer.send('window:maximize'),
     closeWindow: () => ipcRenderer.send('window:close'),

@@ -1,98 +1,37 @@
 import { defineStore } from 'pinia';
 import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
+import type { SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
+import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 
-type TrackInfo = {
-    trackNumber: string;
-    lang: string;
-    label: string;
-    format: 'vtt' | 'ass';
-    header: string;
-    fonts: string[];
-};
+type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
 
-type SidecarTrack = {
-    lang: string;
-    label: string;
-    format: 'vtt';
-    content: string;
-};
-
-type SubtitleCue = {
-    text: string;
-    time: number;
-    duration: number;
-    readOrder?: string;
-    layer?: string;
-    style?: string;
-    name?: string;
-    marginL?: string;
-    marginR?: string;
-    marginV?: string;
-    effect?: string;
-};
-
-export type SubtitleTrack = {
-    lang: string;
-    label: string;
-    format: 'vtt' | 'ass';
-    content: string;
-    fonts?: string[];
-    blobUrl?: string;
-};
-
-function assTime(ms: number): string {
-    const totalCs = Math.max(0, Math.round(ms / 10));
-    const hours = Math.floor(totalCs / 360000);
-    const minutes = Math.floor((totalCs % 360000) / 6000);
-    const seconds = Math.floor((totalCs % 6000) / 100);
-    const centiseconds = totalCs % 100;
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
-}
-
-function vttTime(ms: number): string {
-    const totalMs = Math.max(0, Math.round(ms));
-    const hours = Math.floor(totalMs / 3_600_000);
-    const minutes = Math.floor((totalMs % 3_600_000) / 60_000);
-    const seconds = Math.floor((totalMs % 60_000) / 1_000);
-    const milliseconds = totalMs % 1_000;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
-}
-
-function buildAssDialogue(sub: SubtitleCue): string {
-    const end = sub.time + sub.duration;
-    return `Dialogue: ${sub.layer || '0'},${assTime(sub.time)},${assTime(end)},${sub.style || 'Default'},${sub.name || ''},${sub.marginL || '0'},${sub.marginR || '0'},${sub.marginV || '0'},${sub.effect || ''},${sub.text || ''}`;
-}
-
-function buildVttCue(sub: SubtitleCue): string {
-    const end = sub.time + sub.duration;
-    return `${vttTime(sub.time)} --> ${vttTime(end)}\n${sub.text || ''}`;
+function defaultTrackId(tracks: SubtitleTrack[]): string {
+    const english = tracks.filter((t) => t.lang === 'en');
+    const track = english.find((t) => !/sign|song/i.test(t.label)) ?? english[0] ?? tracks[0];
+    return track?.id ?? '';
 }
 
 export const usePlayerStore = defineStore('player', () => {
     const selection = ref<WatchSelection | null>(null);
-    const pendingMagnet = ref<string | null>(null);
     const torrentId = ref<string | null>(null);
     const streamUrl = ref<string | null>(null);
-    const mimeType = ref<string>('video/mp4');
+    const loading = ref(false);
+    const error = ref<string | null>(null);
 
-    const videoEl = shallowRef<HTMLVideoElement | null>(null);
     const isPlaying = ref(false);
-    const isMuted = ref(false);
-    const volume = ref(1);
-    const subtitlesReady = ref(false);
-    const loadingMessage = ref<string | null>(null);
     const currentTime = ref(0);
     const duration = ref(0);
 
-    const trackMeta = ref<TrackInfo[]>([]);
-    const subtitles = ref<SubtitleTrack[]>([]);
-    const activeSubtitle = ref<string | null>(null);
+    const tracks = ref<SubtitleTrack[]>([]);
+    const activeTrackId = ref('');
+    const fonts = shallowRef<Uint8Array[]>([]);
+    const cues = new Map<string, SubtitleEvent[]>();
+    const cueListeners = new Set<CueListener>();
 
-    const progress = computed(() => {
-        if (!duration.value) return 0;
-        return currentTime.value / duration.value;
-    });
+    const activeTrack = computed(
+        () => tracks.value.find((t) => t.id === activeTrackId.value) ?? null
+    );
 
     const activity = computed<PlaybackActivity | null>(() => {
         if (!selection.value) return null;
@@ -106,218 +45,98 @@ export const usePlayerStore = defineStore('player', () => {
         };
     });
 
-    function makeBlobUrl(content: string): string {
-        return URL.createObjectURL(new Blob([content], { type: 'text/vtt' }));
-    }
+    window.api.on('stream:subtitles', (id, batch) => {
+        if (id === torrentId.value) addCues(batch);
+    });
 
-    function revokeSubtitleBlobUrls() {
-        subtitles.value.forEach((t) => {
-            if (t.blobUrl) URL.revokeObjectURL(t.blobUrl);
-        });
-    }
+    window.api.on('stream:fonts', (id, data) => {
+        if (id === torrentId.value) fonts.value = data;
+    });
 
-    function queueStream(nextSelection: WatchSelection) {
-        selection.value = nextSelection;
-        pendingMagnet.value = nextSelection.torrent.magnet;
-        loadingMessage.value = 'Episode will load after torrent metadata is received.';
-    }
-
-    let streamGeneration = 0;
-    let resetCues: (() => void) | null = null;
-
-    async function startStream(magnet: string) {
-        window.api.offSubtitle();
-        subtitlesReady.value = false;
-        loadingMessage.value = 'Episode will load after torrent metadata is received.';
-
-        const generation = ++streamGeneration;
-        const cuesByTrack = new Map<string, string[]>();
-        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-        function rebuildSubtitles(sidecarTracks: SidecarTrack[]) {
-            if (generation !== streamGeneration) return;
-            const newTracks: SubtitleTrack[] = [
-                ...sidecarTracks.map((t) => ({
-                    lang: t.lang,
-                    label: t.label,
-                    format: t.format,
-                    content: t.content,
-                    blobUrl: makeBlobUrl(t.content),
-                })),
-                ...trackMeta.value.map((t) => {
-                    const cues = cuesByTrack.get(t.trackNumber) ?? [];
-                    const content = cues.length > 0 ? `${t.header}\n${cues.join('\n')}` : t.header;
-                    return {
-                        lang: t.lang,
-                        label: t.label,
-                        format: t.format,
-                        content,
-                        fonts: t.fonts.length > 0 ? t.fonts : undefined,
-                        blobUrl: t.format === 'vtt' ? makeBlobUrl(content) : undefined,
-                    };
-                }),
-            ];
-            revokeSubtitleBlobUrls();
-            subtitles.value = newTracks;
+    function addCues(batch: SubtitleBatch) {
+        for (const [trackId, events] of Object.entries(batch)) {
+            const existing = cues.get(trackId);
+            if (existing) events.forEach((event) => existing.push(event));
+            else cues.set(trackId, events);
+            cueListeners.forEach((listener) => listener(trackId, events));
         }
+    }
 
-        const result = await window.api.startStream(magnet);
+    function onCues(listener: CueListener) {
+        cueListeners.add(listener);
+        return () => void cueListeners.delete(listener);
+    }
 
-        trackMeta.value = result.tracks;
-        pendingMagnet.value = null;
-        torrentId.value = result.torrentId;
-        streamUrl.value = result.streamUrl;
-        mimeType.value = result.mimeType;
+    function trackContent(track: SubtitleTrack): string {
+        return [track.header, ...(cues.get(track.id) ?? []).map(dialogueLine)].join('\n');
+    }
+
+    function reset() {
+        selection.value = null;
+        torrentId.value = null;
+        streamUrl.value = null;
+        loading.value = false;
+        error.value = null;
+        isPlaying.value = false;
         currentTime.value = 0;
         duration.value = 0;
-        isPlaying.value = false;
-
-        // Set initial subtitle state (header-only, no cues yet) and allow playback to start.
-        revokeSubtitleBlobUrls();
-        subtitles.value = [
-            ...result.sidecarTracks.map((t) => ({
-                lang: t.lang,
-                label: t.label,
-                format: t.format,
-                content: t.content,
-                blobUrl: makeBlobUrl(t.content),
-            })),
-            ...result.tracks.map((t) => ({
-                lang: t.lang,
-                label: t.label,
-                format: t.format,
-                content: t.header,
-                fonts: t.fonts.length > 0 ? t.fonts : undefined,
-                blobUrl: t.format === 'vtt' ? makeBlobUrl(t.header) : undefined,
-            })),
-        ];
-
-        loadingMessage.value = null;
-        subtitlesReady.value = true;
-
-        if (!activeSubtitle.value && subtitles.value.length > 0) {
-            activeSubtitle.value = subtitles.value[0].lang;
-        }
-
-        resetCues = () => {
-            if (debounceTimer) {
-                clearTimeout(debounceTimer);
-                debounceTimer = null;
-            }
-            cuesByTrack.clear();
-            rebuildSubtitles(result.sidecarTracks);
-        };
-
-        window.api.onSubtitle((sub, trackNumber) => {
-            const track = trackMeta.value.find((t) => t.trackNumber === trackNumber);
-            if (!track) return;
-
-            const cues = cuesByTrack.get(trackNumber) ?? [];
-            cues.push(track.format === 'ass' ? buildAssDialogue(sub) : buildVttCue(sub));
-            cuesByTrack.set(trackNumber, cues);
-
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                debounceTimer = null;
-                rebuildSubtitles(result.sidecarTracks);
-            }, 150);
-        });
+        tracks.value = [];
+        activeTrackId.value = '';
+        fonts.value = [];
+        cues.clear();
     }
 
-    function resetSubtitleCues() {
-        resetCues?.();
+    let generation = 0;
+
+    async function startStream(next: WatchSelection) {
+        const current = ++generation;
+        reset();
+        selection.value = next;
+        loading.value = true;
+
+        try {
+            const result = await window.api.startStream(next.torrent.magnet, next.episode.number);
+            if (current !== generation) {
+                await window.api.stopStream(result.torrentId);
+                return;
+            }
+            torrentId.value = result.torrentId;
+            streamUrl.value = result.streamUrl;
+            tracks.value = result.tracks;
+            activeTrackId.value = defaultTrackId(result.tracks);
+        } catch (err) {
+            if (current === generation) {
+                error.value = err instanceof Error ? err.message : String(err);
+            }
+        } finally {
+            if (current === generation) loading.value = false;
+        }
     }
 
     async function stopStream() {
-        const currentTorrentId = torrentId.value;
-
-        resetCues = null;
-        window.api.offSubtitle();
-        if (currentTorrentId) {
-            await window.api.stopStream(currentTorrentId);
-        }
-
-        revokeSubtitleBlobUrls();
-
-        selection.value = null;
-        pendingMagnet.value = null;
-        trackMeta.value = [];
-        torrentId.value = null;
-        streamUrl.value = null;
-        mimeType.value = 'video/mp4';
-        isPlaying.value = false;
-        currentTime.value = 0;
-        duration.value = 0;
-        subtitlesReady.value = false;
-        loadingMessage.value = null;
-        subtitles.value = [];
-        activeSubtitle.value = null;
-    }
-
-    function setActiveSubtitle(lang: string | null) {
-        activeSubtitle.value = lang;
-    }
-
-    function setVideoElement(el: HTMLVideoElement | null) {
-        videoEl.value = el;
-    }
-
-    function play() {
-        void videoEl.value?.play();
-    }
-
-    function pause() {
-        videoEl.value?.pause();
-    }
-
-    function seekTo(time: number) {
-        if (videoEl.value) videoEl.value.currentTime = time;
-    }
-
-    function toggleMute() {
-        if (!videoEl.value) return;
-        videoEl.value.muted = !videoEl.value.muted;
-        isMuted.value = videoEl.value.muted;
-    }
-
-    function setVolume(vol: number) {
-        const clamped = Math.max(0, Math.min(1, vol));
-        volume.value = clamped;
-        if (videoEl.value) {
-            videoEl.value.volume = clamped;
-            videoEl.value.muted = clamped === 0;
-            isMuted.value = videoEl.value.muted;
-        }
+        generation++;
+        const id = torrentId.value;
+        reset();
+        if (id) await window.api.stopStream(id);
     }
 
     return {
         selection,
         torrentId,
-        pendingMagnet,
         streamUrl,
-        mimeType,
+        loading,
+        error,
         isPlaying,
-        isMuted,
-        volume,
-        subtitlesReady,
-        loadingMessage,
         currentTime,
         duration,
-        progress,
         activity,
-        trackMeta,
-        subtitles,
-        activeSubtitle,
-        queueStream,
+        tracks,
+        activeTrackId,
+        activeTrack,
+        fonts,
+        onCues,
+        trackContent,
         startStream,
         stopStream,
-        setActiveSubtitle,
-        resetSubtitleCues,
-        setVideoElement,
-        play,
-        pause,
-        seekTo,
-        toggleMute,
-        setVolume,
     };
 });
