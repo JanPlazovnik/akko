@@ -7,6 +7,8 @@ declare module 'webtorrent' {
         path: string;
         length: number;
         offset?: number;
+        progress: number;
+        downloaded: number;
         streamURL: string;
         _client?: WebTorrent;
         select(priority?: number): void;

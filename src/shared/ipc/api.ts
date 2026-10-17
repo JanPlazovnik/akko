@@ -18,6 +18,15 @@ export type SubtitleTrack = {
 
 export type SubtitleBatch = Record<string, SubtitleEvent[]>;
 
+export type StreamStats = {
+    downloadSpeed: number;
+    uploadSpeed: number;
+    peers: number;
+    progress: number;
+    downloaded: number;
+    size: number;
+};
+
 export type StreamStartResult = {
     torrentId: string;
     streamUrl: string;
@@ -27,6 +36,7 @@ export type StreamStartResult = {
 export type RendererEventMap = {
     'stream:subtitles': [torrentId: string, batch: SubtitleBatch];
     'stream:fonts': [torrentId: string, fonts: Uint8Array[]];
+    'stream:stats': [torrentId: string, stats: StreamStats];
 };
 
 export type RendererEventListener<K extends keyof RendererEventMap> = (

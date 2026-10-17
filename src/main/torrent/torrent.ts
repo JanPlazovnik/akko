@@ -1,7 +1,8 @@
 import path from 'node:path';
 import type WebTorrent from 'webtorrent';
 import type { Torrent, TorrentFile, TorrentServer } from 'webtorrent';
-import type { StreamStartResult } from '../../shared/ipc/api';
+import type { StreamStartResult, StreamStats } from '../../shared/ipc/api';
+import { sendToRenderer } from '../context';
 import { SubtitleSession } from '../subtitles/session';
 import { createLogger } from '../logger';
 
@@ -10,6 +11,7 @@ const log = createLogger('torrent');
 const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.webm', '.avi', '.mov']);
 const SIDECAR_EXTS = new Set(['.srt', '.vtt']);
 const METADATA_TIMEOUT_MS = 60_000;
+const STATS_INTERVAL_MS = 1000;
 
 const EPISODE_PATTERNS = [
     /(?:\bS\d+|\d)E0*(\d+)/i,
@@ -20,7 +22,11 @@ const EPISODE_PATTERNS = [
 
 let client: WebTorrent | null = null;
 let server: TorrentServer | null = null;
-let active: { torrent: Torrent; subtitles: SubtitleSession } | null = null;
+let active: {
+    torrent: Torrent;
+    subtitles: SubtitleSession;
+    statsTimer: ReturnType<typeof setInterval>;
+} | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
 export async function initClient() {
@@ -85,6 +91,17 @@ function streamUrl(torrent: Torrent, file: TorrentFile): string {
     return `http://127.0.0.1:${server.address().port}${server.pathname}/${torrent.infoHash}/${filePath}`;
 }
 
+function stats(torrent: Torrent, file: TorrentFile): StreamStats {
+    return {
+        downloadSpeed: torrent.downloadSpeed,
+        uploadSpeed: torrent.uploadSpeed,
+        peers: torrent.numPeers,
+        progress: file.progress,
+        downloaded: file.downloaded,
+        size: file.length,
+    };
+}
+
 function destroyTorrent(torrent: Torrent): Promise<void> {
     return new Promise((resolve) => {
         if (torrent.destroyed) return resolve();
@@ -117,8 +134,9 @@ function addTorrent(magnet: string): Promise<Torrent> {
 
 async function stopActive() {
     if (!active) return;
-    const { torrent, subtitles } = active;
+    const { torrent, subtitles, statsTimer } = active;
     active = null;
+    clearInterval(statsTimer);
     subtitles.destroy();
     await destroyTorrent(torrent);
 }
@@ -131,7 +149,11 @@ export function startTorrent(magnet: string, episode?: number): Promise<StreamSt
             const { video, sidecars } = pickFiles(torrent.files, episode);
             video.select();
             const subtitles = await SubtitleSession.open(torrent.infoHash, video, sidecars);
-            active = { torrent, subtitles };
+            const statsTimer = setInterval(
+                () => sendToRenderer('stream:stats', torrent.infoHash, stats(torrent, video)),
+                STATS_INTERVAL_MS
+            );
+            active = { torrent, subtitles, statsTimer };
             log.debug('Streaming', video.name);
             return {
                 torrentId: torrent.infoHash,

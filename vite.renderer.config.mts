@@ -10,7 +10,7 @@ export default defineConfig({
         vue({
             template: {
                 compilerOptions: {
-                    isCustomElement: (tag) => tag.startsWith('video-'),
+                    isCustomElement: (tag) => tag.startsWith('video-') || tag.startsWith('media-'),
                 },
             },
         }),

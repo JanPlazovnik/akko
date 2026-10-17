@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
-import type { SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
+import type { StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 
 type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
@@ -18,6 +18,7 @@ export const usePlayerStore = defineStore('player', () => {
     const streamUrl = ref<string | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
+    const stats = ref<StreamStats | null>(null);
 
     const isPlaying = ref(false);
     const currentTime = ref(0);
@@ -33,6 +34,14 @@ export const usePlayerStore = defineStore('player', () => {
         () => tracks.value.find((t) => t.id === activeTrackId.value) ?? null
     );
 
+    const title = computed(() => selection.value?.media.title ?? '');
+
+    const episodeLabel = computed(() => {
+        const episode = selection.value?.episode;
+        if (!episode) return '';
+        return [`Episode ${episode.number}`, episode.title].filter(Boolean).join(' · ');
+    });
+
     const activity = computed<PlaybackActivity | null>(() => {
         if (!selection.value) return null;
         return {
@@ -47,6 +56,10 @@ export const usePlayerStore = defineStore('player', () => {
 
     window.api.on('stream:subtitles', (id, batch) => {
         if (id === torrentId.value) addCues(batch);
+    });
+
+    window.api.on('stream:stats', (id, data) => {
+        if (id === torrentId.value) stats.value = data;
     });
 
     window.api.on('stream:fonts', (id, data) => {
@@ -71,17 +84,30 @@ export const usePlayerStore = defineStore('player', () => {
         return [track.header, ...(cues.get(track.id) ?? []).map(dialogueLine)].join('\n');
     }
 
+    let lastTrackId = '';
+
+    function toggleSubtitles() {
+        if (activeTrackId.value) {
+            lastTrackId = activeTrackId.value;
+            activeTrackId.value = '';
+        } else {
+            activeTrackId.value = lastTrackId || defaultTrackId(tracks.value);
+        }
+    }
+
     function reset() {
         selection.value = null;
         torrentId.value = null;
         streamUrl.value = null;
         loading.value = false;
         error.value = null;
+        stats.value = null;
         isPlaying.value = false;
         currentTime.value = 0;
         duration.value = 0;
         tracks.value = [];
         activeTrackId.value = '';
+        lastTrackId = '';
         fonts.value = [];
         cues.clear();
     }
@@ -126,9 +152,12 @@ export const usePlayerStore = defineStore('player', () => {
         streamUrl,
         loading,
         error,
+        stats,
         isPlaying,
         currentTime,
         duration,
+        title,
+        episodeLabel,
         activity,
         tracks,
         activeTrackId,
@@ -136,6 +165,7 @@ export const usePlayerStore = defineStore('player', () => {
         fonts,
         onCues,
         trackContent,
+        toggleSubtitles,
         startStream,
         stopStream,
     };
