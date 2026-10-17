@@ -7,6 +7,13 @@ import { useMediaStore } from '../stores/media';
 import { useExtensionStore } from '../stores/extensions';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
+import LogoMark from '../components/LogoMark.vue';
+
+const LOGO_SIZES = [16, 20, 28, 48, 96, 192];
+const LOGO_BACKGROUNDS = [
+    { label: 'Dark', class: 'bg-canvas text-white' },
+    { label: 'Light', class: 'bg-neutral-200 text-neutral-900' },
+];
 
 const selectVal = ref('');
 const multiVal = ref<string[]>([]);
@@ -115,6 +122,25 @@ function testTextColor(s: TestStatus): string {
             <p class="text-[10px] uppercase tracking-[0.16em] text-white/30 mb-1">Dev</p>
             <h1 class="text-2xl font-bold">Playground</h1>
         </div>
+
+        <!-- Logo -->
+        <section class="space-y-3">
+            <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">Logo</h2>
+            <div
+                v-for="bg in LOGO_BACKGROUNDS"
+                :key="bg.label"
+                :class="['flex items-end gap-8 rounded-xl p-6', bg.class]"
+            >
+                <div
+                    v-for="size in LOGO_SIZES"
+                    :key="size"
+                    class="flex flex-col items-center gap-2"
+                >
+                    <LogoMark :style="{ width: `${size}px`, height: `${size}px` }" />
+                    <span class="text-[10px] opacity-50 tabular-nums">{{ size }}px</span>
+                </div>
+            </div>
+        </section>
 
         <!-- Extensions -->
         <section class="space-y-3">
