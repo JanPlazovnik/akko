@@ -14,3 +14,26 @@ export function formatSpeed(bytesPerSecond: number): string {
 export function formatPercent(fraction: number): string {
     return `${Math.floor(Math.min(1, Math.max(0, fraction)) * 100)}%`;
 }
+
+const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['year', 31_536_000],
+    ['month', 2_592_000],
+    ['week', 604_800],
+    ['day', 86_400],
+    ['hour', 3_600],
+    ['minute', 60],
+];
+
+export function formatRelativeDate(value: string): string | null {
+    const time = Date.parse(value);
+    if (Number.isNaN(time)) return null;
+    const seconds = (time - Date.now()) / 1000;
+    const [unit, size] = RELATIVE_STEPS.find(([, s]) => Math.abs(seconds) >= s) ?? ['minute', 60];
+    return relativeTime.format(Math.round(seconds / size), unit);
+}
+
+export function errorMessage(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
+}
