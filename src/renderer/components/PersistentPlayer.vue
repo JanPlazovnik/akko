@@ -178,7 +178,7 @@ watch(
         ref="containerRef"
         :class="
             isPlayerRoute
-                ? 'fixed inset-0 z-40 bg-black'
+                ? 'fixed inset-0 z-40 bg-black select-none'
                 : [
                       'player-mini group/mini fixed z-50 rounded-xl bg-black shadow-2xl ring-1 shadow-black/80 ring-white/10',
                       isDragging ? 'cursor-grabbing' : 'cursor-pointer',

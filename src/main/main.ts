@@ -38,6 +38,14 @@ const createWindow = () => {
         );
     }
 
+    // A frameless window keeps its invisible resize border in fullscreen, which shows as a
+    // grey frame around the video. Dropping resizability while fullscreen removes it.
+    mainWindow.on('enter-full-screen', () =>
+        setTimeout(() => mainWindow.isFullScreen() && mainWindow.setResizable(false), 100)
+    );
+    mainWindow.on('leave-html-full-screen', () => mainWindow.setResizable(true));
+    mainWindow.on('leave-full-screen', () => mainWindow.setResizable(true));
+
     mainWindow.webContents.openDevTools();
 
     return mainWindow;
