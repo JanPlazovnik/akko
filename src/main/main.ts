@@ -25,6 +25,8 @@ const createWindow = () => {
         minWidth: 900,
         minHeight: 600,
         frame: false,
+        show: false,
+        backgroundColor: '#07070a',
         fullscreenable: false,
         icon: app.isPackaged ? undefined : path.join(app.getAppPath(), 'assets/icon.png'),
         webPreferences: {
@@ -41,25 +43,23 @@ const createWindow = () => {
     }
 
     useBorderlessFullscreen(mainWindow);
+    mainWindow.once('ready-to-show', () => mainWindow.show());
 
     mainWindow.webContents.openDevTools();
 
     return mainWindow;
 };
 
-app.on('ready', async () => {
+app.on('ready', () => {
     initDb();
-    const settings = dbGetSettings();
-    applySettings(settings);
+    applySettings(dbGetSettings());
 
-    logger.info('App ready, initializing');
-    await initClient(settings);
-    logger.info('Creating window');
-    const window = createWindow();
-    initContext({ window });
+    logger.info('App ready, creating window');
+    initContext({ window: createWindow() });
     registerAllHandlers();
-    logger.info('IPC handlers registered');
-    initExtensions().catch((err) => logger.error('Startup failed:', err));
+
+    initClient().catch((err) => logger.error('Torrent client failed to start:', err));
+    initExtensions().catch((err) => logger.error('Extensions failed to start:', err));
 });
 
 app.on('window-all-closed', () => {

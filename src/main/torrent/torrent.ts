@@ -40,14 +40,22 @@ export function applyTorrentSettings(settings: AppSettings) {
     client.maxConns = settings.maxConnections;
 }
 
-export async function initClient(settings: AppSettings) {
-    const { default: WebTorrent } = await import('webtorrent');
-    client = new WebTorrent();
-    applyTorrentSettings(settings);
-    const torrentServer = client.createServer({ hostname: '127.0.0.1', pathname: '/webtorrent' });
-    await new Promise<void>((resolve) => torrentServer.listen(0, '127.0.0.1', resolve));
-    server = torrentServer;
-    log.info('Client ready');
+let clientReady: Promise<void> | null = null;
+
+export function initClient(): Promise<void> {
+    clientReady ??= (async () => {
+        const { default: WebTorrent } = await import('webtorrent');
+        client = new WebTorrent();
+        applyTorrentSettings(dbGetSettings());
+        const torrentServer = client.createServer({
+            hostname: '127.0.0.1',
+            pathname: '/webtorrent',
+        });
+        await new Promise<void>((resolve) => torrentServer.listen(0, '127.0.0.1', resolve));
+        server = torrentServer;
+        log.info('Client ready');
+    })();
+    return clientReady;
 }
 
 function getClient() {
@@ -165,6 +173,7 @@ async function stopActive() {
 export function startTorrent(magnet: string, episode?: number): Promise<StreamStartResult> {
     cancelPending?.();
     return serialized(async () => {
+        await initClient();
         await stopActive();
         const torrent = await addTorrent(magnet);
         try {
