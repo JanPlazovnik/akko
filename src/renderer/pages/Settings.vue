@@ -55,6 +55,7 @@ const BUTTON =
 const store = useSettingsStore();
 const settings = computed(() => store.settings);
 const activeSection = ref(SECTIONS[0].id);
+const cacheCount = ref<number | null>(null);
 
 const languageNames = new Intl.DisplayNames(['en'], { type: 'language' });
 const languageOptions = [
@@ -80,6 +81,11 @@ async function chooseDownloadPath() {
 
 const openDownloads = () => window.api.settings.openDownloads();
 const openLogs = () => window.api.settings.openLogs();
+
+async function clearCache() {
+    await window.api.metadata.clearCache();
+    cacheCount.value = 0;
+}
 const setLogLevel = (level: string) => store.update({ logLevel: level as AppSettings['logLevel'] });
 
 const toMegabytes = (kilobytes: number) => Math.round((kilobytes / 1024) * 10) / 10;
@@ -105,6 +111,7 @@ function updateActiveSection() {
 }
 
 onMounted(async () => {
+    window.api.metadata.cacheCount().then((count) => (cacheCount.value = count));
     await store.load();
     scroller = document.querySelector('main');
     scroller?.addEventListener('scroll', updateActiveSection, { passive: true });
@@ -255,6 +262,17 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             label="Write logs to file"
                             @update:model-value="store.update({ logToFile: $event })"
                         />
+                    </SettingRow>
+                    <SettingRow
+                        title="Metadata cache"
+                        description="Show info and episode lists are kept offline and refreshed in the background."
+                    >
+                        <span v-if="cacheCount !== null" class="text-xs text-white/40 tabular-nums">
+                            {{ cacheCount }} entries
+                        </span>
+                        <button :class="BUTTON" :disabled="!cacheCount" @click="clearCache">
+                            Clear
+                        </button>
                     </SettingRow>
                 </SettingsSection>
             </div>

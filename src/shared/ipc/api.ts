@@ -8,6 +8,7 @@ import type {
     UpdateInfo,
 } from '../../main/extensions/types';
 import type { SubtitleEvent } from '../subtitles';
+import type { AniZipResponse } from '../anizip/types';
 
 export type SubtitleTrack = {
     id: string;
@@ -32,6 +33,12 @@ export type AppSettings = {
 export type SettingsPaths = {
     defaultDownloadPath: string;
     logFile: string;
+};
+
+export type CachedResult<T> = {
+    data: T;
+    age: number;
+    fromCache: boolean;
 };
 
 export type AudioTrack = {
@@ -77,6 +84,19 @@ export type AppApi = {
         channel: K,
         listener: RendererEventListener<K>
     ) => () => void;
+    metadata: {
+        anilist: (
+            query: string,
+            variables: unknown,
+            maxAge: number
+        ) => Promise<CachedResult<unknown>>;
+        anizipEpisodes: (
+            anilistId: number,
+            maxAge: number
+        ) => Promise<CachedResult<AniZipResponse | null>>;
+        cacheCount: () => Promise<number>;
+        clearCache: () => Promise<void>;
+    };
     settings: {
         get: () => Promise<AppSettings>;
         update: (patch: Partial<AppSettings>) => Promise<AppSettings>;

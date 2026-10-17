@@ -9,6 +9,7 @@ import { initDb, dbGetSettings } from './db';
 import { initExtensions } from './extensions/manager';
 import { createLogger } from './logger';
 import { applySettings } from './settings';
+import { pruneCache } from './cache';
 import { useBorderlessFullscreen } from './fullscreen';
 
 log.initialize();
@@ -52,6 +53,7 @@ const createWindow = () => {
 
 app.on('ready', () => {
     initDb();
+    pruneCache();
     applySettings(dbGetSettings());
 
     logger.info('App ready, creating window');

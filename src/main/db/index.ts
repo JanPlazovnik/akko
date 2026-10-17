@@ -1,9 +1,9 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { eq } from 'drizzle-orm';
+import { count, eq, lt } from 'drizzle-orm';
 import path from 'node:path';
 import { app } from 'electron';
-import { settings, extensions } from './schema';
+import { cache, settings, extensions } from './schema';
 import { runMigrations } from './migrator';
 import type { ExtensionManifest, InstalledExtension } from '../extensions/types';
 import type { AppSettings } from '../../shared/ipc/api';
@@ -47,6 +47,35 @@ function parseExtension(row: ExtensionRow): InstalledExtension {
 export function dbGetSettings(): AppSettings {
     const { id, ...row } = getDb().select().from(settings).get()!;
     return { ...row, logLevel: row.logLevel as AppSettings['logLevel'] };
+}
+
+export function dbGetCache(key: string): { value: string; fetchedAt: number } | undefined {
+    return getDb()
+        .select({ value: cache.value, fetchedAt: cache.fetchedAt })
+        .from(cache)
+        .where(eq(cache.key, key))
+        .get();
+}
+
+export function dbSetCache(key: string, value: string): void {
+    const fetchedAt = Date.now();
+    getDb()
+        .insert(cache)
+        .values({ key, value, fetchedAt })
+        .onConflictDoUpdate({ target: cache.key, set: { value, fetchedAt } })
+        .run();
+}
+
+export function dbPruneCache(olderThan: number): void {
+    getDb().delete(cache).where(lt(cache.fetchedAt, olderThan)).run();
+}
+
+export function dbClearCache(): void {
+    getDb().delete(cache).run();
+}
+
+export function dbCountCache(): number {
+    return getDb().select({ total: count() }).from(cache).get()?.total ?? 0;
 }
 
 export function dbSaveSettings(patch: Partial<AppSettings>): void {

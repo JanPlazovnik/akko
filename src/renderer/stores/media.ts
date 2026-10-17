@@ -1,14 +1,21 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { anilistClient } from '../lib/anilist-client';
-import { fetchEpisodes as fetchAniZipEpisodes } from '../lib/anizip-client';
+import { anilistQuery, staleWhileRevalidate } from '../lib/anilist';
 import type { ResultOf, VariablesOf } from '../../shared/graphql/graphql';
 import { DashboardQuery, GetAnimeQuery, SearchQuery } from '../../shared/graphql/queries';
-import type { AniZipEpisode } from '../../shared/anizip/types';
+import type { AniZipEpisode, AniZipResponse } from '../../shared/anizip/types';
 import type { Media } from '../../shared/graphql/queries';
 import router from '../router';
 
 type DashboardData = ResultOf<typeof DashboardQuery>;
+
+const MINUTE = 60_000;
+const MAX_AGE = {
+    dashboard: 15 * MINUTE,
+    media: 6 * 60 * MINUTE,
+    episodes: 6 * 60 * MINUTE,
+    search: 10 * MINUTE,
+};
 type SearchVars = VariablesOf<typeof SearchQuery>;
 
 function getCurrentSeason(): VariablesOf<typeof DashboardQuery> {
@@ -91,22 +98,25 @@ export const useMediaStore = defineStore('media', () => {
         return episodesLoadingByMediaId.value[id] ?? false;
     }
 
+    function applyDashboard(data: DashboardData | null) {
+        if (!data) return;
+        dashboard.value = data;
+        rememberMany(data.trending?.media);
+        rememberMany(data.season?.media);
+        rememberMany(data.popular?.media);
+        rememberMany(data.top?.media);
+    }
+
     async function fetchDashboard() {
-        if (dashboardLoading.value) return;
-        dashboardLoading.value = true;
+        dashboardLoading.value = !dashboard.value;
         dashboardError.value = null;
 
         try {
-            const { data } = await anilistClient.query(
-                DashboardQuery,
-                getCurrentSeason(),
-                'dashboard'
+            await staleWhileRevalidate(
+                (maxAge) => anilistQuery(DashboardQuery, getCurrentSeason(), maxAge),
+                MAX_AGE.dashboard,
+                applyDashboard
             );
-            dashboard.value = data;
-            rememberMany(data?.trending?.media);
-            rememberMany(data?.season?.media);
-            rememberMany(data?.popular?.media);
-            rememberMany(data?.top?.media);
         } catch (err) {
             dashboardError.value = err as Error;
         } finally {
@@ -123,8 +133,11 @@ export const useMediaStore = defineStore('media', () => {
             mediaErrorById.value = { ...mediaErrorById.value, [id]: null };
 
             try {
-                const { data } = await anilistClient.query(GetAnimeQuery, { id }, `media-${id}`);
-                if (data?.Media) rememberMedia(data.Media as Media);
+                await staleWhileRevalidate(
+                    (maxAge) => anilistQuery(GetAnimeQuery, { id }, maxAge),
+                    MAX_AGE.media,
+                    (data) => data?.Media && rememberMedia(data.Media as Media)
+                );
                 return mediaFor(id);
             } catch (err) {
                 mediaErrorById.value = { ...mediaErrorById.value, [id]: err as Error };
@@ -138,25 +151,35 @@ export const useMediaStore = defineStore('media', () => {
         return request;
     }
 
+    function applyEpisodes(id: number, data: AniZipResponse | null) {
+        episodesByMediaId.value = {
+            ...episodesByMediaId.value,
+            [id]: data ? episodeList(data.episodes) : [],
+        };
+        anidbAidByMediaId.value = {
+            ...anidbAidByMediaId.value,
+            [id]: data?.mappings.anidb_id ?? null,
+        };
+    }
+
     async function fetchEpisodes(id: number): Promise<AniZipEpisode[]> {
-        const cached = episodesByMediaId.value[id];
-        if (cached) return cached;
         const inFlight = episodeRequests.get(id);
         if (inFlight) return inFlight;
 
         const request = (async () => {
-            episodesLoadingByMediaId.value = { ...episodesLoadingByMediaId.value, [id]: true };
+            episodesLoadingByMediaId.value = {
+                ...episodesLoadingByMediaId.value,
+                [id]: !episodesByMediaId.value[id],
+            };
             episodesErrorByMediaId.value = { ...episodesErrorByMediaId.value, [id]: null };
 
             try {
-                const data = await fetchAniZipEpisodes(id);
-                const episodes = episodeList(data.episodes);
-                episodesByMediaId.value = { ...episodesByMediaId.value, [id]: episodes };
-                anidbAidByMediaId.value = {
-                    ...anidbAidByMediaId.value,
-                    [id]: data.mappings.anidb_id,
-                };
-                return episodes;
+                await staleWhileRevalidate(
+                    (maxAge) => window.api.metadata.anizipEpisodes(id, maxAge),
+                    MAX_AGE.episodes,
+                    (data) => applyEpisodes(id, data)
+                );
+                return episodesFor(id);
             } catch (err) {
                 episodesErrorByMediaId.value = {
                     ...episodesErrorByMediaId.value,
@@ -210,10 +233,11 @@ export const useMediaStore = defineStore('media', () => {
         searchError.value = null;
 
         try {
-            const { data } = await anilistClient.query(SearchQuery, {
-                ...vars,
-                page: searchPage.value,
-            } as SearchVars);
+            const { data } = await anilistQuery(
+                SearchQuery,
+                { ...vars, page: searchPage.value } as SearchVars,
+                MAX_AGE.search
+            );
             if (id !== searchRequestId) return;
 
             const media = (data?.Page?.media ?? []).filter((item): item is Media => item !== null);

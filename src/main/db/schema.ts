@@ -30,3 +30,9 @@ export const extensions = sqliteTable('extensions', {
     installedAt: text('installed_at').notNull(),
     updatedAt: text('updated_at').notNull(),
 });
+
+export const cache = sqliteTable('cache', {
+    key: text('key').primaryKey(),
+    value: text('value').notNull(),
+    fetchedAt: integer('fetched_at').notNull(),
+});

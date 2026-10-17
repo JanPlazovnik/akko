@@ -12,6 +12,14 @@ const api: AppApi = {
         ipcRenderer.on(channel, handler);
         return () => ipcRenderer.removeListener(channel, handler);
     },
+    metadata: {
+        anilist: (query, variables, maxAge) =>
+            ipcRenderer.invoke('anilist:query', query, variables, maxAge),
+        anizipEpisodes: (anilistId, maxAge) =>
+            ipcRenderer.invoke('anizip:episodes', anilistId, maxAge),
+        cacheCount: () => ipcRenderer.invoke('cache:count'),
+        clearCache: () => ipcRenderer.invoke('cache:clear'),
+    },
     settings: {
         get: () => ipcRenderer.invoke('settings:get'),
         update: (patch) => ipcRenderer.invoke('settings:update', patch),
