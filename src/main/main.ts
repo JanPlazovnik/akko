@@ -19,6 +19,10 @@ if (started) {
     app.quit();
 }
 
+// In development the app runs as electron.exe, so Windows groups it under Electron's identity
+// and shows Electron's icon in the taskbar. Packaged builds get their identity from the installer.
+if (!app.isPackaged) app.setAppUserModelId('akko.dev');
+
 const createWindow = () => {
     const mainWindow = new BrowserWindow({
         width: 1280,
@@ -29,7 +33,12 @@ const createWindow = () => {
         show: false,
         backgroundColor: '#07070a',
         fullscreenable: false,
-        icon: app.isPackaged ? undefined : path.join(app.getAppPath(), 'assets/icon.png'),
+        icon: app.isPackaged
+            ? undefined
+            : path.join(
+                  app.getAppPath(),
+                  process.platform === 'win32' ? 'assets/icon.ico' : 'assets/icon.png'
+              ),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
         },
@@ -46,7 +55,17 @@ const createWindow = () => {
     useBorderlessFullscreen(mainWindow);
     mainWindow.once('ready-to-show', () => mainWindow.show());
 
-    mainWindow.webContents.openDevTools();
+    if (!app.isPackaged) {
+        mainWindow.webContents.on('before-input-event', (event, input) => {
+            const devToolsKey =
+                input.key === 'F12' ||
+                (input.control && input.shift && input.key.toLowerCase() === 'i');
+            if (input.type === 'keyDown' && devToolsKey) {
+                mainWindow.webContents.toggleDevTools();
+                event.preventDefault();
+            }
+        });
+    }
 
     return mainWindow;
 };
