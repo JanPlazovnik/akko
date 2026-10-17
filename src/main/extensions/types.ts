@@ -23,6 +23,7 @@ export interface InstalledExtension extends Omit<ExtensionManifest, 'code'> {
 }
 
 export interface SearchParams {
+    media?: Record<string, unknown>;
     titles?: string[];
     episode?: number;
     anilistId?: number;

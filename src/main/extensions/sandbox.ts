@@ -33,7 +33,8 @@ const HOST_SCRIPT = `
             if (typeof ext?.[method] !== 'function') {
                 throw new Error('Extension does not support method: ' + method);
             }
-            return JSON.parse(JSON.stringify((await ext[method](params)) ?? null));
+            const fetcher = (...args) => fetch(...args);
+                return JSON.parse(JSON.stringify((await ext[method]({ fetch: fetcher, ...params })) ?? null));
         }),
         unload(key) {
             extensions.delete(key);
