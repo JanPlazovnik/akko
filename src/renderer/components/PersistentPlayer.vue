@@ -18,7 +18,6 @@ type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 const MINI_W = 288;
 const MINI_H = 162;
 const HEADER_H = 56;
-const BAR_H = 74;
 const MARGIN = 20;
 
 const log = createLogger('player');
@@ -40,7 +39,7 @@ const playbackSrc = computed(() => (player.subtitlesReady ? player.streamUrl : n
 const corner = ref<Corner>('bottom-right');
 
 function cornerPosition(c: Corner): { top: number; left: number } {
-    const bottomEdge = window.innerHeight - BAR_H - MINI_H - MARGIN;
+    const bottomEdge = window.innerHeight - MINI_H - MARGIN;
     return {
         'top-left': { top: HEADER_H + MARGIN, left: MARGIN },
         'top-right': { top: HEADER_H + MARGIN, left: window.innerWidth - MINI_W - MARGIN },
@@ -298,10 +297,7 @@ watch(
             isPlayerRoute ? 'player-fullscreen' : 'player-mini',
             { 'is-dragging': isDragging },
         ]"
-        :style="[
-            !isPlayerRoute ? miniStyle : {},
-            isPlayerRoute && player.streamUrl ? { bottom: '74px' } : {},
-        ]"
+        :style="!isPlayerRoute ? miniStyle : {}"
         @click="handleFullscreenClick"
     >
         <!-- Loading state (fullscreen only) -->
