@@ -8,7 +8,8 @@ import {
     dbUpdateExtensionCode,
     dbExtensionExists,
 } from '../db';
-import { loadExtension, testExtension, searchExtension } from './sandbox';
+import { loadExtension, unloadExtension, testExtension, searchExtension } from './sandbox';
+import type { ExtensionInstance } from './sandbox';
 import type {
     ExtensionManifest,
     InstalledExtension,
@@ -22,9 +23,40 @@ import { createLogger } from '../logger';
 
 const log = createLogger('extensions');
 
-type ExtensionInstance = ReturnType<typeof loadExtension>;
-
 const instances = new Map<string, ExtensionInstance>();
+
+async function loadTested(code: string): Promise<ExtensionInstance | null> {
+    const instance = await loadExtension(code);
+    const ok = await testExtension(instance).catch((err) => {
+        unloadExtension(instance);
+        throw err;
+    });
+    if (ok) return instance;
+    unloadExtension(instance);
+    return null;
+}
+
+function deactivate(id: string) {
+    const current = instances.get(id);
+    if (current) unloadExtension(current);
+    instances.delete(id);
+}
+
+function activate(id: string, instance: ExtensionInstance) {
+    deactivate(id);
+    instances.set(id, instance);
+}
+
+async function search(
+    id: string,
+    instance: ExtensionInstance,
+    method: SearchMethod,
+    params: SearchParams
+): Promise<TorrentResult[]> {
+    log.debug(`running search() for ${id} with method ${method}`);
+    const results = await searchExtension(instance, method, params);
+    return results.map((r) => ({ ...r, extensionId: id }));
+}
 
 function semverGt(a: string, b: string): boolean {
     const pa = a.split('.').map(Number);
@@ -42,10 +74,9 @@ export async function initExtensions() {
     await Promise.allSettled(
         extensions.map(async (ext) => {
             try {
-                const instance = loadExtension(ext.cachedCode);
-                const ok = await testExtension(instance);
-                if (ok) {
-                    instances.set(ext.id, instance);
+                const instance = await loadTested(ext.cachedCode);
+                if (instance) {
+                    activate(ext.id, instance);
                 } else {
                     log.warn(`${ext.id} test() returned false - disabling`);
                     dbSetEnabled(ext.id, false);
@@ -86,20 +117,18 @@ export async function installExtension(manifest: ExtensionManifest): Promise<voi
     const code = await res.text();
     log.debug(`code downloaded (${code.length} chars), loading sandbox`);
 
-    const instance = loadExtension(code);
-    log.debug(`sandbox loaded, running test()`);
-    const ok = await testExtension(instance);
-    if (!ok) throw new Error('Extension test() failed - not installing');
+    const instance = await loadTested(code);
+    if (!instance) throw new Error('Extension test() failed - not installing');
 
     log.debug(`test() passed, saving to DB`);
     dbInstallExtension(manifest, code);
-    instances.set(manifest.id, instance);
+    activate(manifest.id, instance);
     log.info(`${manifest.id} installed successfully`);
 }
 
 export function uninstallExtension(id: string) {
     dbUninstallExtension(id);
-    instances.delete(id);
+    deactivate(id);
     log.info(`${id} uninstalled`);
 }
 
@@ -112,16 +141,15 @@ export async function toggleExtension(id: string, enabled: boolean): Promise<voi
         if (!code) throw new Error('Cached code not found');
 
         log.debug(`${id}: loading sandbox and running test()`);
-        const instance = loadExtension(code);
-        const ok = await testExtension(instance);
-        if (!ok) {
+        const instance = await loadTested(code);
+        if (!instance) {
             dbSetEnabled(id, false);
             log.warn(`${id}: test() failed, keeping disabled`);
             throw new Error('Extension test() failed - kept disabled');
         }
-        instances.set(id, instance);
+        activate(id, instance);
     } else if (!enabled) {
-        instances.delete(id);
+        deactivate(id);
     }
 }
 
@@ -174,12 +202,11 @@ export async function updateExtension(
     if (!res.ok) throw new Error(`Failed to download updated code: ${res.status}`);
     const code = await res.text();
 
-    const instance = loadExtension(code);
-    const ok = await testExtension(instance);
-    if (!ok) throw new Error('Updated extension test() failed - keeping old version');
+    const instance = await loadTested(code);
+    if (!instance) throw new Error('Updated extension test() failed - keeping old version');
 
     dbUpdateExtensionCode(id, newVersion, code);
-    instances.set(id, instance);
+    activate(id, instance);
 }
 
 export async function testExtensionById(id: string): Promise<boolean> {
@@ -198,9 +225,7 @@ export async function searchOne(
 ): Promise<TorrentResult[]> {
     const instance = instances.get(id);
     if (!instance) throw new Error(`Extension ${id} not active`);
-    log.debug(`running search() for ${id} with method ${method}`);
-    const results = await searchExtension(instance, method, params);
-    return results.map((r) => ({ ...r, extensionId: id }));
+    return search(id, instance, method, params);
 }
 
 export async function searchAll(
@@ -208,18 +233,15 @@ export async function searchAll(
     params: SearchParams
 ): Promise<ExtensionSearchResult[]> {
     log.debug(`running searchAll() with method ${method}`);
+    const active = [...instances.entries()];
     const results = await Promise.allSettled(
-        [...instances.entries()].map(async ([id, instance]) => {
-            log.debug(`running search() for ${id} with method ${method}`);
-            const results = await searchExtension(instance, method, params);
-            return { extensionId: id, results: results.map((r) => ({ ...r, extensionId: id })) };
-        })
+        active.map(([id, instance]) => search(id, instance, method, params))
     );
 
     log.debug(`searchAll() results:`, results);
     return results.map((r, i) => {
-        const id = [...instances.keys()][i];
-        if (r.status === 'fulfilled') return r.value;
+        const id = active[i][0];
+        if (r.status === 'fulfilled') return { extensionId: id, results: r.value };
         log.warn(`${id} search() failed:`, r.reason);
         return { extensionId: id, results: [], error: String(r.reason) };
     });
