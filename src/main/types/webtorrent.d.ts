@@ -72,6 +72,9 @@ declare module 'webtorrent' {
     class WebTorrent {
         constructor(opts?: WebTorrentOptions);
         torrents: Torrent[];
+        maxConns: number;
+        throttleDownload(rate: number): void;
+        throttleUpload(rate: number): void;
         downloadSpeed: number;
         uploadSpeed: number;
         ratio: number;

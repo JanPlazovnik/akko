@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { DragDropProvider } from '@dnd-kit/vue';
 import Header from './components/Header.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
+import { useSettingsStore } from './stores/settings';
 const route = useRoute();
+const settings = useSettingsStore();
+onMounted(() => void settings.load());
 const mainEl = ref<HTMLElement | null>(null);
 const scrollMemory = new Map<string, number>();
 const REMEMBER = new Set(['/']);

@@ -6,8 +6,7 @@ import { app } from 'electron';
 import { settings, extensions } from './schema';
 import { runMigrations } from './migrator';
 import type { ExtensionManifest, InstalledExtension } from '../extensions/types';
-
-export type AppSettings = Omit<typeof settings.$inferSelect, 'id'>;
+import type { AppSettings } from '../../shared/ipc/api';
 
 type ExtensionRow = typeof extensions.$inferSelect;
 
@@ -46,8 +45,8 @@ function parseExtension(row: ExtensionRow): InstalledExtension {
 }
 
 export function dbGetSettings(): AppSettings {
-    const row = getDb().select().from(settings).get()!;
-    return { logLevel: row.logLevel, logToFile: row.logToFile };
+    const { id, ...row } = getDb().select().from(settings).get()!;
+    return { ...row, logLevel: row.logLevel as AppSettings['logLevel'] };
 }
 
 export function dbSaveSettings(patch: Partial<AppSettings>): void {

@@ -16,6 +16,24 @@ export type SubtitleTrack = {
     header: string;
 };
 
+export const LOG_LEVELS = ['error', 'warn', 'info', 'verbose', 'debug', 'silly'] as const;
+
+export type AppSettings = {
+    logLevel: (typeof LOG_LEVELS)[number];
+    logToFile: boolean;
+    subtitleLanguage: string;
+    downloadPath: string | null;
+    keepFiles: boolean;
+    downloadLimit: number;
+    uploadLimit: number;
+    maxConnections: number;
+};
+
+export type SettingsPaths = {
+    defaultDownloadPath: string;
+    logFile: string;
+};
+
 export type AudioTrack = {
     lang: string;
     label: string;
@@ -59,6 +77,14 @@ export type AppApi = {
         channel: K,
         listener: RendererEventListener<K>
     ) => () => void;
+    settings: {
+        get: () => Promise<AppSettings>;
+        update: (patch: Partial<AppSettings>) => Promise<AppSettings>;
+        paths: () => Promise<SettingsPaths>;
+        chooseFolder: (current: string) => Promise<string | null>;
+        openDownloads: () => Promise<void>;
+        openLogs: () => Promise<void>;
+    };
     minimizeWindow: () => void;
     maximizeWindow: () => void;
     closeWindow: () => void;

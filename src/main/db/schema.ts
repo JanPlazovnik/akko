@@ -4,6 +4,12 @@ export const settings = sqliteTable('settings', {
     id: integer('id').primaryKey(),
     logLevel: text('log_level').notNull().default('debug'),
     logToFile: integer('log_to_file', { mode: 'boolean' }).notNull().default(false),
+    subtitleLanguage: text('subtitle_language').notNull().default('en'),
+    downloadPath: text('download_path'),
+    keepFiles: integer('keep_files', { mode: 'boolean' }).notNull().default(false),
+    downloadLimit: integer('download_limit').notNull().default(0),
+    uploadLimit: integer('upload_limit').notNull().default(0),
+    maxConnections: integer('max_connections').notNull().default(55),
 });
 
 export const extensions = sqliteTable('extensions', {

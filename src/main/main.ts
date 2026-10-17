@@ -7,8 +7,8 @@ import { initContext } from './context';
 import { registerAllHandlers } from './ipc';
 import { initDb, dbGetSettings } from './db';
 import { initExtensions } from './extensions/manager';
-import { createLogger, configureLogger } from './logger';
-import type { LogLevel } from './logger';
+import { createLogger } from './logger';
+import { applySettings } from './settings';
 
 log.initialize();
 const logger = createLogger('main');
@@ -46,10 +46,10 @@ const createWindow = () => {
 app.on('ready', async () => {
     initDb();
     const settings = dbGetSettings();
-    configureLogger({ level: settings.logLevel as LogLevel, logToFile: settings.logToFile });
+    applySettings(settings);
 
     logger.info('App ready, initializing');
-    await initClient();
+    await initClient(settings);
     logger.info('Creating window');
     const window = createWindow();
     initContext({ window });

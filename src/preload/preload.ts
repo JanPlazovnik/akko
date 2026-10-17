@@ -12,6 +12,14 @@ const api: AppApi = {
         ipcRenderer.on(channel, handler);
         return () => ipcRenderer.removeListener(channel, handler);
     },
+    settings: {
+        get: () => ipcRenderer.invoke('settings:get'),
+        update: (patch) => ipcRenderer.invoke('settings:update', patch),
+        paths: () => ipcRenderer.invoke('settings:paths'),
+        chooseFolder: (current) => ipcRenderer.invoke('settings:choose-folder', current),
+        openDownloads: () => ipcRenderer.invoke('settings:open-downloads'),
+        openLogs: () => ipcRenderer.invoke('settings:open-logs'),
+    },
     minimizeWindow: () => ipcRenderer.send('window:minimize'),
     maximizeWindow: () => ipcRenderer.send('window:maximize'),
     closeWindow: () => ipcRenderer.send('window:close'),

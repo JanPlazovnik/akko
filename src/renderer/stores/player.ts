@@ -5,6 +5,7 @@ import type { AniZipEpisode } from '@shared/anizip/types';
 import type { AudioTrack, StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 import { errorMessage } from '../lib/format';
+import { useSettingsStore } from './settings';
 
 export type PickerContext = {
     episode: AniZipEpisode;
@@ -16,13 +17,17 @@ export type PickerContext = {
 
 type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
 
-function defaultTrackId(tracks: SubtitleTrack[]): string {
-    const english = tracks.filter((t) => t.lang === 'en');
-    const track = english.find((t) => !/sign|song/i.test(t.label)) ?? english[0] ?? tracks[0];
+function defaultTrackId(tracks: SubtitleTrack[], lang: string): string {
+    const preferred = tracks.filter((t) => t.lang === lang);
+    const pool = preferred.length ? preferred : tracks;
+    const track = pool.find((t) => !/sign|song/i.test(t.label)) ?? pool[0];
     return track?.id ?? '';
 }
 
 export const usePlayerStore = defineStore('player', () => {
+    const settingsStore = useSettingsStore();
+    const subtitleLanguage = () => settingsStore.settings?.subtitleLanguage ?? 'en';
+
     const selection = ref<WatchSelection | null>(null);
     const pickerContext = shallowRef<PickerContext | null>(null);
     const pickerOpen = ref(false);
@@ -105,7 +110,8 @@ export const usePlayerStore = defineStore('player', () => {
             lastTrackId = activeTrackId.value;
             activeTrackId.value = '';
         } else {
-            activeTrackId.value = lastTrackId || defaultTrackId(tracks.value);
+            activeTrackId.value =
+                lastTrackId || defaultTrackId(tracks.value, subtitleLanguage() || 'en');
         }
     }
 
@@ -148,7 +154,9 @@ export const usePlayerStore = defineStore('player', () => {
             streamUrl.value = result.streamUrl;
             tracks.value = result.tracks;
             audioTracks.value = result.audioTracks;
-            activeTrackId.value = defaultTrackId(result.tracks);
+            activeTrackId.value = subtitleLanguage()
+                ? defaultTrackId(result.tracks, subtitleLanguage())
+                : '';
         } catch (err) {
             if (current === generation) {
                 error.value = errorMessage(err);

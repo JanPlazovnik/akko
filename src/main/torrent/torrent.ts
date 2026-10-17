@@ -1,9 +1,11 @@
 import path from 'node:path';
 import type WebTorrent from 'webtorrent';
 import type { Torrent, TorrentFile, TorrentServer } from 'webtorrent';
-import type { StreamStartResult, StreamStats } from '../../shared/ipc/api';
+import type { AppSettings, StreamStartResult, StreamStats } from '../../shared/ipc/api';
 import { sendToRenderer } from '../context';
 import { SubtitleSession } from '../subtitles/session';
+import { dbGetSettings } from '../db';
+import { defaultDownloadPath } from '../paths';
 import { createLogger } from '../logger';
 
 const log = createLogger('torrent');
@@ -30,9 +32,18 @@ let active: {
 let cancelPending: (() => void) | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
-export async function initClient() {
+export function applyTorrentSettings(settings: AppSettings) {
+    if (!client) return;
+    const rate = (kbps: number) => (kbps > 0 ? kbps * 1024 : -1);
+    client.throttleDownload(rate(settings.downloadLimit));
+    client.throttleUpload(rate(settings.uploadLimit));
+    client.maxConns = settings.maxConnections;
+}
+
+export async function initClient(settings: AppSettings) {
     const { default: WebTorrent } = await import('webtorrent');
     client = new WebTorrent();
+    applyTorrentSettings(settings);
     const torrentServer = client.createServer({ hostname: '127.0.0.1', pathname: '/webtorrent' });
     await new Promise<void>((resolve) => torrentServer.listen(0, '127.0.0.1', resolve));
     server = torrentServer;
@@ -106,7 +117,7 @@ function stats(torrent: Torrent, file: TorrentFile): StreamStats {
 function destroyTorrent(torrent: Torrent): Promise<void> {
     return new Promise((resolve) => {
         if (torrent.destroyed) return resolve();
-        torrent.destroy({ destroyStore: true }, (err) => {
+        torrent.destroy({ destroyStore: !dbGetSettings().keepFiles }, (err) => {
             if (err) log.warn('Failed to destroy torrent:', err);
             resolve();
         });
@@ -125,7 +136,13 @@ function addTorrent(magnet: string): Promise<Torrent> {
             () => fail(new Error('Timed out waiting for torrent metadata')),
             METADATA_TIMEOUT_MS
         );
-        const torrent = getClient().add(magnet, { deselect: true }, (ready) => {
+        const { downloadPath, maxConnections } = dbGetSettings();
+        const options = {
+            deselect: true,
+            path: downloadPath ?? defaultDownloadPath(),
+            maxConns: maxConnections,
+        };
+        const torrent = getClient().add(magnet, options, (ready) => {
             clearTimeout(timer);
             cancelPending = null;
             torrent.removeListener('error', fail);
