@@ -9,6 +9,7 @@ import { useSubtitleRenderer } from '../lib/subtitles';
 import PlayerControls from './player/PlayerControls.vue';
 import PlayerStatus from './player/PlayerStatus.vue';
 import MiniPlayerOverlay from './player/MiniPlayerOverlay.vue';
+import TorrentPickerDialog from './TorrentPickerDialog.vue';
 
 type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
@@ -218,6 +219,11 @@ watch(
                 <PlayerStatus v-if="isPlayerRoute" />
             </media-container>
         </video-player>
+        <TorrentPickerDialog
+            v-if="player.pickerContext"
+            v-model:open="player.pickerOpen"
+            v-bind="player.pickerContext"
+        />
     </div>
 </template>
 

@@ -1,9 +1,18 @@
 import { defineStore } from 'pinia';
 import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
-import type { StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
+import type { AniZipEpisode } from '@shared/anizip/types';
+import type { AudioTrack, StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 import { errorMessage } from '../lib/format';
+
+export type PickerContext = {
+    episode: AniZipEpisode;
+    anilistId: number;
+    titles: string[];
+    episodeCount: number | null;
+    anidbAid: number | null;
+};
 
 type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
 
@@ -15,6 +24,8 @@ function defaultTrackId(tracks: SubtitleTrack[]): string {
 
 export const usePlayerStore = defineStore('player', () => {
     const selection = ref<WatchSelection | null>(null);
+    const pickerContext = shallowRef<PickerContext | null>(null);
+    const pickerOpen = ref(false);
     const torrentId = ref<string | null>(null);
     const streamUrl = ref<string | null>(null);
     const loading = ref(false);
@@ -26,10 +37,15 @@ export const usePlayerStore = defineStore('player', () => {
     const duration = ref(0);
 
     const tracks = ref<SubtitleTrack[]>([]);
+    const audioTracks = ref<AudioTrack[]>([]);
     const activeTrackId = ref('');
     const fonts = shallowRef<Uint8Array[]>([]);
     const cues = new Map<string, SubtitleEvent[]>();
     const cueListeners = new Set<CueListener>();
+
+    const unsupportedAudio = computed(
+        () => audioTracks.value.length > 0 && audioTracks.value.every((t) => !t.supported)
+    );
 
     const activeTrack = computed(
         () => tracks.value.find((t) => t.id === activeTrackId.value) ?? null
@@ -95,6 +111,8 @@ export const usePlayerStore = defineStore('player', () => {
 
     function reset() {
         selection.value = null;
+        pickerContext.value = null;
+        pickerOpen.value = false;
         torrentId.value = null;
         streamUrl.value = null;
         loading.value = false;
@@ -104,6 +122,7 @@ export const usePlayerStore = defineStore('player', () => {
         currentTime.value = 0;
         duration.value = 0;
         tracks.value = [];
+        audioTracks.value = [];
         activeTrackId.value = '';
         lastTrackId = '';
         fonts.value = [];
@@ -112,10 +131,11 @@ export const usePlayerStore = defineStore('player', () => {
 
     let generation = 0;
 
-    async function startStream(next: WatchSelection) {
+    async function startStream(next: WatchSelection, context: PickerContext | null = null) {
         const current = ++generation;
         reset();
         selection.value = next;
+        pickerContext.value = context;
         loading.value = true;
 
         try {
@@ -127,6 +147,7 @@ export const usePlayerStore = defineStore('player', () => {
             torrentId.value = result.torrentId;
             streamUrl.value = result.streamUrl;
             tracks.value = result.tracks;
+            audioTracks.value = result.audioTracks;
             activeTrackId.value = defaultTrackId(result.tracks);
         } catch (err) {
             if (current === generation) {
@@ -146,6 +167,8 @@ export const usePlayerStore = defineStore('player', () => {
 
     return {
         selection,
+        pickerContext,
+        pickerOpen,
         torrentId,
         streamUrl,
         loading,
@@ -159,6 +182,8 @@ export const usePlayerStore = defineStore('player', () => {
         episodeTitle,
         activity,
         tracks,
+        audioTracks,
+        unsupportedAudio,
         activeTrackId,
         activeTrack,
         fonts,

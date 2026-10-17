@@ -17,6 +17,7 @@ import { goBack } from '../../lib/navigation';
 import WindowControls from '../WindowControls.vue';
 import StreamStats from './StreamStats.vue';
 import SubtitleMenu from './SubtitleMenu.vue';
+import AudioNotice from './AudioNotice.vue';
 import { CONTROL_BUTTON } from './styles';
 
 defineProps<{ fullscreen: boolean }>();
@@ -123,6 +124,8 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
                     <span class="mx-1 text-white/35">/</span>
                     <media-time type="duration" class="text-white/50" />
                 </div>
+
+                <AudioNotice class="ml-5" />
 
                 <div class="ml-auto flex items-center gap-1">
                     <SubtitleMenu />

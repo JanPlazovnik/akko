@@ -3,10 +3,12 @@ import path from 'node:path';
 import Metadata from 'matroska-metadata';
 import type { MatroskaAttachment, MatroskaSubtitle } from 'matroska-metadata';
 import type { TorrentFile } from 'webtorrent';
-import type { SubtitleBatch, SubtitleTrack } from '../../shared/ipc/api';
+import type { AudioTrack, SubtitleBatch, SubtitleTrack } from '../../shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '../../shared/subtitles';
 import { sendToRenderer } from '../context';
 import { createLogger } from '../logger';
+import { readAudioTracks } from '../media/audio';
+import { describeLanguage } from '../media/language';
 import { assEvent, assHeader, parseTextSubtitles, plainEvent, PLAIN_HEADER } from './format';
 
 const log = createLogger('subtitles');
@@ -17,27 +19,11 @@ const ASS_TYPES = new Set(['ass', 'ssa']);
 const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 const SCAN_BYTES = 8 * 1024 * 1024;
 
-const languageNames = new Intl.DisplayNames(['en'], { type: 'language', fallback: 'none' });
-
 type IteratorEvent = { iterator: AsyncIterable<Uint8Array>; req: IncomingMessage };
 type IteratorHandler = (
     event: IteratorEvent,
     transform: (iterator: AsyncIterable<Uint8Array>) => void
 ) => void;
-
-function language(code: string): { lang: string; name?: string } {
-    try {
-        const name = languageNames.of(code);
-        return name ? { lang: Intl.getCanonicalLocales(code)[0], name } : { lang: 'und' };
-    } catch {
-        return { lang: 'und' };
-    }
-}
-
-function describe(code: string, label: string | undefined, fallback: string) {
-    const { lang, name } = language(code);
-    return { lang, label: label || name || fallback };
-}
 
 function rangeStart(req: IncomingMessage): number {
     return Number(/bytes=(\d+)/.exec(req.headers.range ?? '')?.[1] ?? 0);
@@ -71,6 +57,7 @@ async function readText(file: TorrentFile): Promise<string> {
 
 export class SubtitleSession {
     tracks: SubtitleTrack[] = [];
+    audioTracks: AudioTrack[] = [];
 
     private metadata: Metadata | null = null;
     private onIterator: IteratorHandler | null = null;
@@ -110,6 +97,7 @@ export class SubtitleSession {
         this.metadata = metadata;
 
         const tracks = await metadata.getTracks();
+        this.audioTracks = await readAudioTracks(metadata);
         const assTracks = new Set(
             tracks.filter((t) => ASS_TYPES.has(t.type)).map((t) => String(t.number))
         );
@@ -137,7 +125,7 @@ export class SubtitleSession {
 
         return tracks.map((track) => ({
             id: `mkv:${track.number}`,
-            ...describe(track.language ?? 'eng', track.name, `Track ${track.number}`),
+            ...describeLanguage(track.language ?? 'eng', track.name, `Track ${track.number}`),
             header: assTracks.has(String(track.number)) ? assHeader(track.header) : PLAIN_HEADER,
         }));
     }
@@ -150,7 +138,7 @@ export class SubtitleSession {
             .catch((err) => log.warn(`Failed to read ${file.name}:`, err));
 
         const code = stem(file).split('.').pop() ?? '';
-        return { id, ...describe(code, undefined, stem(file)), header: PLAIN_HEADER };
+        return { id, ...describeLanguage(code, undefined, stem(file)), header: PLAIN_HEADER };
     }
 
     private scanFrom(metadata: Metadata, offset: number) {

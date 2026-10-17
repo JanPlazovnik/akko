@@ -77,9 +77,22 @@ const orderedSources = computed(() =>
 const searching = computed(() => sources.value.some((s) => s.status === 'loading'));
 const totalResults = computed(() => sources.value.reduce((n, s) => n + s.results.length, 0));
 
+const UNSUPPORTED_AUDIO = /(?:^|[^a-z])(?:DDP|DD\+|E-?AC-?3|AC-?3|DTS|TrueHD|DD(?=\d))/i;
+
+function isPlaying(result: TorrentResult): boolean {
+    return player.selection?.torrent.magnet === toMagnet(result.link, result.hash);
+}
+
+function hasUnsupportedAudio(result: TorrentResult): boolean {
+    return UNSUPPORTED_AUDIO.test(result.title);
+}
+
 function sortResults(results: TorrentResult[]): TorrentResult[] {
     return [...results].sort(
-        (a, b) => b.seeders - a.seeders || Date.parse(b.date) - Date.parse(a.date)
+        (a, b) =>
+            Number(hasUnsupportedAudio(a)) - Number(hasUnsupportedAudio(b)) ||
+            b.seeders - a.seeders ||
+            Date.parse(b.date) - Date.parse(a.date)
     );
 }
 
@@ -180,21 +193,30 @@ async function pick(result: TorrentResult) {
     selecting.value = true;
     try {
         const media = mediaStore.mediaFor(props.anilistId);
-        void player.startStream({
-            media: media
-                ? mediaToSummary(media)
-                : {
-                      anilistId: props.anilistId,
-                      title: props.titles[0] ?? 'Unknown title',
-                      episodeCount: props.episodeCount,
-                  },
-            episode: { ...episodeToSummary(props.episode), title: episodeTitle.value },
-            torrent: {
-                title: result.title,
-                infoHash: result.hash || undefined,
-                magnet: toMagnet(result.link, result.hash),
+        void player.startStream(
+            {
+                media: media
+                    ? mediaToSummary(media)
+                    : {
+                          anilistId: props.anilistId,
+                          title: props.titles[0] ?? 'Unknown title',
+                          episodeCount: props.episodeCount,
+                      },
+                episode: { ...episodeToSummary(props.episode), title: episodeTitle.value },
+                torrent: {
+                    title: result.title,
+                    infoHash: result.hash || undefined,
+                    magnet: toMagnet(result.link, result.hash),
+                },
             },
-        });
+            {
+                episode: props.episode,
+                anilistId: props.anilistId,
+                titles: props.titles,
+                episodeCount: props.episodeCount,
+                anidbAid: props.anidbAid,
+            }
+        );
         emit('update:open', false);
         await router.push('/player');
     } finally {
@@ -392,6 +414,19 @@ async function pick(result: TorrentResult) {
                                         class="rounded bg-sky-400/12 px-1.5 py-px font-medium text-sky-300"
                                     >
                                         Batch
+                                    </span>
+                                    <span
+                                        v-if="isPlaying(result)"
+                                        class="rounded bg-white/12 px-1.5 py-px font-medium text-white/80"
+                                    >
+                                        Playing now
+                                    </span>
+                                    <span
+                                        v-if="hasUnsupportedAudio(result)"
+                                        class="rounded bg-amber-400/12 px-1.5 py-px font-medium text-amber-300"
+                                        title="Dolby/DTS audio can't be played. If this release has no other audio track, it will be silent."
+                                    >
+                                        Audio may not play
                                     </span>
                                     <span v-if="formatRelativeDate(result.date)">
                                         {{ formatRelativeDate(result.date) }}

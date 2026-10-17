@@ -16,6 +16,14 @@ export type SubtitleTrack = {
     header: string;
 };
 
+export type AudioTrack = {
+    lang: string;
+    label: string;
+    codec: string;
+    channels: number;
+    supported: boolean;
+};
+
 export type SubtitleBatch = Record<string, SubtitleEvent[]>;
 
 export type StreamStats = {
@@ -31,6 +39,7 @@ export type StreamStartResult = {
     torrentId: string;
     streamUrl: string;
     tracks: SubtitleTrack[];
+    audioTracks: AudioTrack[];
 };
 
 export type RendererEventMap = {

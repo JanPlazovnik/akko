@@ -164,6 +164,7 @@ export function startTorrent(magnet: string, episode?: number): Promise<StreamSt
                 torrentId: torrent.infoHash,
                 streamUrl: streamUrl(torrent, video),
                 tracks: subtitles.tracks,
+                audioTracks: subtitles.audioTracks,
             };
         } catch (err) {
             await destroyTorrent(torrent);
