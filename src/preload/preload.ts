@@ -5,7 +5,7 @@ import type { AppApi, RendererEventMap } from '../shared/ipc/api';
 const api: AppApi = {
     startStream: (magnet: string, episode?: number) =>
         ipcRenderer.invoke('stream:start', magnet, episode),
-    stopStream: (torrentId: string) => ipcRenderer.invoke('stream:stop', torrentId),
+    stopStream: (torrentId: string | null) => ipcRenderer.invoke('stream:stop', torrentId),
     on: (channel, listener) => {
         const handler = (_event: IpcRendererEvent, ...args: RendererEventMap[typeof channel]) =>
             listener(...args);

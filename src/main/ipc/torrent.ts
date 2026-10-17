@@ -6,7 +6,7 @@ export function registerTorrentHandlers() {
         startTorrent(magnet, episode)
     );
 
-    ipcMain.handle('stream:stop', async (_event, torrentId: string) => {
+    ipcMain.handle('stream:stop', async (_event, torrentId: string | null) => {
         await stopTorrent(torrentId);
     });
 }

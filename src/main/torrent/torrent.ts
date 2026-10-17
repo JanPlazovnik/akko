@@ -27,6 +27,7 @@ let active: {
     subtitles: SubtitleSession;
     statsTimer: ReturnType<typeof setInterval>;
 } | null = null;
+let cancelPending: (() => void) | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
 export async function initClient() {
@@ -116,6 +117,7 @@ function addTorrent(magnet: string): Promise<Torrent> {
     return new Promise((resolve, reject) => {
         const fail = (err: Error) => {
             clearTimeout(timer);
+            cancelPending = null;
             void destroyTorrent(torrent);
             reject(err);
         };
@@ -125,10 +127,12 @@ function addTorrent(magnet: string): Promise<Torrent> {
         );
         const torrent = getClient().add(magnet, { deselect: true }, (ready) => {
             clearTimeout(timer);
+            cancelPending = null;
             torrent.removeListener('error', fail);
             resolve(ready);
         });
         torrent.once('error', fail);
+        cancelPending = () => fail(new Error('Cancelled'));
     });
 }
 
@@ -142,6 +146,7 @@ async function stopActive() {
 }
 
 export function startTorrent(magnet: string, episode?: number): Promise<StreamStartResult> {
+    cancelPending?.();
     return serialized(async () => {
         await stopActive();
         const torrent = await addTorrent(magnet);
@@ -167,8 +172,9 @@ export function startTorrent(magnet: string, episode?: number): Promise<StreamSt
     });
 }
 
-export function stopTorrent(torrentId: string): Promise<void> {
+export function stopTorrent(torrentId: string | null): Promise<void> {
+    cancelPending?.();
     return serialized(async () => {
-        if (active?.torrent.infoHash === torrentId) await stopActive();
+        if (!torrentId || active?.torrent.infoHash === torrentId) await stopActive();
     });
 }

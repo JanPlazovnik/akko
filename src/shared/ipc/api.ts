@@ -45,7 +45,7 @@ export type RendererEventListener<K extends keyof RendererEventMap> = (
 
 export type AppApi = {
     startStream: (magnet: string, episode?: number) => Promise<StreamStartResult>;
-    stopStream: (torrentId: string) => Promise<void>;
+    stopStream: (torrentId: string | null) => Promise<void>;
     on: <K extends keyof RendererEventMap>(
         channel: K,
         listener: RendererEventListener<K>
