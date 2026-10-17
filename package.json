@@ -2,7 +2,7 @@
   "name": "akko",
   "productName": "akko",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "A desktop app for browsing anime and streaming episodes over BitTorrent",
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
@@ -24,7 +24,7 @@
     "name": "Jan Plazovnik",
     "email": "jan.plazovnik@gmail.com"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
     "@electron-forge/maker-deb": "^7.11.1",
