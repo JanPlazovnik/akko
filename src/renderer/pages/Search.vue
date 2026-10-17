@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Search, X } from '@lucide/vue';
+import { X } from '@lucide/vue';
 import { toast } from 'vue3-toastify';
 import { useLoadingStore } from '../stores/loading';
 import { useMediaStore } from '../stores/media';
@@ -145,6 +145,11 @@ async function fetchPage(reset = false) {
     }
 }
 
+watch(
+    () => route.query.search,
+    (search) => (filters.search = String(search ?? ''))
+);
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(
@@ -212,20 +217,6 @@ onUnmounted(() => scrollObserver?.disconnect());
         <div
             class="sticky top-0 z-50 flex flex-wrap items-center gap-2 border-b border-line bg-surface/85 px-8 py-4 backdrop-blur-md"
         >
-            <label
-                class="flex h-9 w-64 items-center gap-2 rounded-full bg-white/5 px-3.5 ring-1 ring-line focus-within:ring-accent/60"
-            >
-                <Search :size="14" class="shrink-0 text-white/40" />
-                <input
-                    v-model="filters.search"
-                    data-search-input
-                    autofocus
-                    type="text"
-                    placeholder="Search anime"
-                    class="w-full bg-transparent text-sm text-white placeholder-white/35 outline-none"
-                />
-            </label>
-
             <SelectMenu v-model="filters.sort" :options="SORT" placeholder="Sort" />
             <SelectMenu v-model="filters.season" :options="SEASONS" placeholder="Season" />
             <SelectMenu

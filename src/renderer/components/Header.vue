@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Compass, FlaskConical, Home, Search, Settings } from '@lucide/vue';
+import { FlaskConical, Search, Settings, X } from '@lucide/vue';
 import LoadingBar from './LoadingBar.vue';
 import WindowControls from './WindowControls.vue';
 import LogoMark from './LogoMark.vue';
@@ -10,18 +10,40 @@ const route = useRoute();
 const router = useRouter();
 const isDev = import.meta.env.DEV;
 
-const NAV = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/search', label: 'Browse', icon: Compass },
-];
-
 const ICON_BUTTON =
     'grid size-9 cursor-pointer place-items-center rounded-full transition-colors hover:bg-white/10 hover:text-white';
 
-async function openSearch() {
-    await router.push('/search');
-    await nextTick();
-    document.querySelector<HTMLInputElement>('[data-search-input]')?.focus();
+const searchInput = ref<HTMLInputElement | null>(null);
+const query = ref('');
+const onSearchPage = () => route.path === '/search';
+
+watch(
+    () => [route.path, route.query.search],
+    () => (query.value = onSearchPage() ? String(route.query.search ?? '') : ''),
+    { immediate: true }
+);
+
+function openSearch() {
+    if (!onSearchPage())
+        void router.push({ path: '/search', query: { search: query.value || undefined } });
+}
+
+function onSearchInput() {
+    const search = query.value || undefined;
+    if (onSearchPage()) void router.replace({ query: { ...route.query, search } });
+    else void router.push({ path: '/search', query: { search } });
+}
+
+function clearSearch() {
+    query.value = '';
+    onSearchInput();
+    searchInput.value?.focus();
+}
+
+function onSearchKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape') return;
+    if (query.value) clearSearch();
+    else searchInput.value?.blur();
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -29,7 +51,7 @@ function onKeydown(event: KeyboardEvent) {
     const typing = target?.closest('input, textarea, [contenteditable]');
     if ((event.ctrlKey && event.key.toLowerCase() === 'k') || (event.key === '/' && !typing)) {
         event.preventDefault();
-        void openSearch();
+        searchInput.value?.focus();
     }
 }
 
@@ -44,35 +66,41 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
             <span class="font-display text-lg font-semibold tracking-tight">akko</span>
         </button>
 
-        <nav class="no-drag ml-6 flex items-center gap-1">
-            <RouterLink
-                v-for="item in NAV"
-                :key="item.path"
-                :to="item.path"
-                :class="[
-                    'flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
-                    route.path === item.path
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/50 hover:text-white',
-                ]"
-            >
-                <component :is="item.icon" :size="15" />
-                {{ item.label }}
-            </RouterLink>
-        </nav>
-
-        <button
-            class="no-drag ml-4 flex h-9 w-72 cursor-pointer items-center gap-2.5 rounded-full bg-white/5 px-4 text-sm text-white/40 ring-1 ring-line transition-colors hover:bg-white/8 hover:text-white/60"
-            @click="openSearch"
+        <label
+            :class="[
+                'no-drag group ml-8 flex h-9 w-80 cursor-text items-center gap-2.5 rounded-full px-4 text-sm ring-1 transition-colors focus-within:bg-white/10 focus-within:ring-white/20',
+                onSearchPage()
+                    ? 'bg-white/10 ring-white/15'
+                    : 'bg-white/5 ring-line hover:bg-white/8',
+            ]"
         >
-            <Search :size="14" class="shrink-0" />
-            <span>Search anime</span>
+            <Search :size="14" class="shrink-0 text-white/40" />
+            <input
+                ref="searchInput"
+                v-model="query"
+                type="text"
+                spellcheck="false"
+                placeholder="Search anime"
+                class="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/40"
+                @focus="openSearch"
+                @input="onSearchInput"
+                @keydown="onSearchKeydown"
+            />
+            <button
+                v-if="query"
+                class="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
+                title="Clear"
+                @click.prevent="clearSearch"
+            >
+                <X :size="12" />
+            </button>
             <kbd
-                class="ml-auto rounded-md bg-white/8 px-1.5 py-0.5 font-sans text-[10px] font-medium text-white/40"
+                v-else
+                class="rounded-md bg-white/8 px-1.5 py-0.5 font-sans text-[10px] font-medium text-white/40 group-focus-within:hidden"
             >
                 Ctrl K
             </kbd>
-        </button>
+        </label>
 
         <div class="no-drag ml-auto flex items-center gap-1 pr-2 text-white/55">
             <LoadingBar class="mr-2" />
