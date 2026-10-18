@@ -173,3 +173,18 @@ export const SearchQuery = graphql(
     `,
     [MediaFragment]
 );
+
+export const ViewerQuery = graphql(`
+    query Viewer {
+        Viewer {
+            id
+            name
+            avatar {
+                medium
+            }
+            mediaListOptions {
+                scoreFormat
+            }
+        }
+    }
+`);

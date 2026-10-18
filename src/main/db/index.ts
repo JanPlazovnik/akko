@@ -3,12 +3,13 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { count, eq, lt } from 'drizzle-orm';
 import path from 'node:path';
 import { app } from 'electron';
-import { cache, settings, extensions } from './schema';
+import { accounts, cache, settings, extensions } from './schema';
 import { runMigrations } from './migrator';
 import type { ExtensionManifest, InstalledExtension } from '../extensions/types';
 import type { AppSettings } from '../../shared/ipc/api';
 
 type ExtensionRow = typeof extensions.$inferSelect;
+export type AccountRow = typeof accounts.$inferSelect;
 
 let db: ReturnType<typeof drizzle>;
 
@@ -151,4 +152,20 @@ export function dbExtensionExists(id: string): boolean {
         .from(extensions)
         .where(eq(extensions.id, id))
         .get();
+}
+
+export function dbGetAccount(provider: string): AccountRow | undefined {
+    return getDb().select().from(accounts).where(eq(accounts.provider, provider)).get();
+}
+
+export function dbSaveAccount(row: AccountRow): void {
+    getDb()
+        .insert(accounts)
+        .values(row)
+        .onConflictDoUpdate({ target: accounts.provider, set: row })
+        .run();
+}
+
+export function dbDeleteAccount(provider: string): void {
+    getDb().delete(accounts).where(eq(accounts.provider, provider)).run();
 }

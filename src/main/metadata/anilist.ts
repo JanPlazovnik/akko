@@ -13,6 +13,8 @@ type GraphQLResponse = { data?: unknown; errors?: { message: string }[] };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export class AnilistAuthError extends Error {}
+
 function stableStringify(value: unknown): string {
     if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
     if (value && typeof value === 'object') {
@@ -24,10 +26,19 @@ function stableStringify(value: unknown): string {
     return JSON.stringify(value);
 }
 
-async function request(query: string, variables: unknown, attempt = 0): Promise<unknown> {
+export async function anilistRequest(
+    query: string,
+    variables: unknown,
+    token?: string,
+    attempt = 0
+): Promise<unknown> {
     const res = await fetch(ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+        },
         body: JSON.stringify({ query, variables }),
     });
 
@@ -35,13 +46,17 @@ async function request(query: string, variables: unknown, attempt = 0): Promise<
         const wait = Math.min(Number(res.headers.get('retry-after')) || 5, MAX_RETRY_WAIT_S);
         log.warn(`Rate limited, retrying in ${wait}s`);
         await sleep(wait * 1000);
-        return request(query, variables, attempt + 1);
+        return anilistRequest(query, variables, token, attempt + 1);
     }
 
     if (res.status === 404) return null;
     const body = (await res.json().catch(() => null)) as GraphQLResponse | null;
+    const message = body?.errors?.[0]?.message;
+    if (res.status === 401 || message === 'Invalid token') {
+        throw new AnilistAuthError(message ?? 'AniList rejected the login');
+    }
     if (!res.ok || body?.errors?.length) {
-        throw new Error(body?.errors?.[0]?.message ?? `AniList request failed (${res.status})`);
+        throw new Error(message ?? `AniList request failed (${res.status})`);
     }
     return body?.data ?? null;
 }
@@ -52,5 +67,5 @@ export function queryAnilist(
     maxAge: number
 ): Promise<CachedResult<unknown>> {
     const hash = createHash('sha1').update(query).update(stableStringify(variables)).digest('hex');
-    return cached(`anilist:${hash}`, maxAge, () => request(query, variables));
+    return cached(`anilist:${hash}`, maxAge, () => anilistRequest(query, variables));
 }

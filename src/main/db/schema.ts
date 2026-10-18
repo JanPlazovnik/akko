@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const settings = sqliteTable('settings', {
     id: integer('id').primaryKey(),
@@ -36,4 +36,14 @@ export const cache = sqliteTable('cache', {
     key: text('key').primaryKey(),
     value: text('value').notNull(),
     fetchedAt: integer('fetched_at').notNull(),
+});
+
+export const accounts = sqliteTable('accounts', {
+    provider: text('provider').primaryKey(),
+    userId: integer('user_id').notNull(),
+    name: text('name').notNull(),
+    avatar: text('avatar'),
+    scoreFormat: text('score_format').notNull(),
+    token: blob('token', { mode: 'buffer' }).notNull(),
+    expiresAt: integer('expires_at').notNull(),
 });

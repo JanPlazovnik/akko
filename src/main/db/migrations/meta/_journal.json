@@ -1,34 +1,41 @@
 {
-    "version": "7",
-    "dialect": "sqlite",
-    "entries": [
-        {
-            "idx": 0,
-            "version": "6",
-            "when": 1778005372002,
-            "tag": "0000_red_santa_claus",
-            "breakpoints": true
-        },
-        {
-            "idx": 1,
-            "version": "6",
-            "when": 1792273444771,
-            "tag": "0001_cool_deadpool",
-            "breakpoints": true
-        },
-        {
-            "idx": 2,
-            "version": "6",
-            "when": 1792276775908,
-            "tag": "0002_medical_starjammers",
-            "breakpoints": true
-        },
-        {
-            "idx": 3,
-            "version": "6",
-            "when": 1792318484123,
-            "tag": "0003_right_shiva",
-            "breakpoints": true
-        }
-    ]
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1778005372002,
+      "tag": "0000_red_santa_claus",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792273444771,
+      "tag": "0001_cool_deadpool",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792276775908,
+      "tag": "0002_medical_starjammers",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792318484123,
+      "tag": "0003_right_shiva",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792339758760,
+      "tag": "0004_milky_supreme_intelligence",
+      "breakpoints": true
+    }
+  ]
 }

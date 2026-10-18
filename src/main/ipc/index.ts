@@ -3,6 +3,7 @@ import { registerWindowHandlers } from './window';
 import { registerExtensionHandlers } from './extensions';
 import { registerSettingsHandlers } from './settings';
 import { registerMetadataHandlers } from './metadata';
+import { registerAccountHandlers } from './accounts';
 
 export function registerAllHandlers() {
     registerTorrentHandlers();
@@ -10,4 +11,5 @@ export function registerAllHandlers() {
     registerExtensionHandlers();
     registerSettingsHandlers();
     registerMetadataHandlers();
+    registerAccountHandlers();
 }

@@ -12,6 +12,7 @@ import { applySettings } from './settings';
 import { pruneCache } from './cache';
 import { useBorderlessFullscreen } from './fullscreen';
 import { removeLegacyDownloads } from './paths';
+import { refreshAnilistAccount } from './accounts/anilist';
 
 log.initialize();
 const logger = createLogger('main');
@@ -84,6 +85,7 @@ app.on('ready', () => {
 
     initClient().catch((err) => logger.error('Torrent client failed to start:', err));
     initExtensions().catch((err) => logger.error('Extensions failed to start:', err));
+    void refreshAnilistAccount();
 });
 
 app.on('window-all-closed', () => {

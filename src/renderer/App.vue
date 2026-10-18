@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { DragDropProvider } from '@dnd-kit/vue';
 import Header from './components/Header.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
+import { useAccountsStore } from './stores/accounts';
 const route = useRoute();
 const mainEl = ref<HTMLElement | null>(null);
 const scrollMemory = new Map<string, number>();
 const REMEMBER = new Set(['/']);
+const accounts = useAccountsStore();
+
+onMounted(() => void accounts.warnIfExpiring());
 
 watch(
     () => route.path,

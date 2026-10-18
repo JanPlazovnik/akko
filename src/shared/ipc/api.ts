@@ -44,6 +44,18 @@ export const HEALTHY_DHT_NODES = 8;
 
 export type NetworkCheck = { trackersReached: number; trackersTotal: number; dhtNodes: number };
 
+export type AnilistAccount = {
+    id: number;
+    name: string;
+    avatar: string | null;
+    scoreFormat: string;
+    expiresAt: number;
+};
+
+export type Accounts = {
+    anilist: AnilistAccount | null;
+};
+
 export type CachedResult<T> = {
     data: T;
     age: number;
@@ -84,6 +96,7 @@ export type RendererEventMap = {
     'stream:subtitles': [torrentId: string, batch: SubtitleBatch];
     'stream:fonts': [torrentId: string, fonts: Uint8Array[]];
     'stream:stats': [torrentId: string, stats: StreamStats];
+    'accounts:changed': [accounts: Accounts];
 };
 
 export type RendererEventListener<K extends keyof RendererEventMap> = (
@@ -110,6 +123,11 @@ export type AppApi = {
         ) => Promise<CachedResult<AniZipResponse | null>>;
         cacheCount: () => Promise<number>;
         clearCache: () => Promise<void>;
+    };
+    accounts: {
+        get: () => Promise<Accounts>;
+        loginAnilist: () => Promise<AnilistAccount>;
+        logoutAnilist: () => Promise<void>;
     };
     settings: {
         get: () => Promise<AppSettings>;

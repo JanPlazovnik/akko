@@ -22,6 +22,11 @@ const api: AppApi = {
         cacheCount: () => ipcRenderer.invoke('cache:count'),
         clearCache: () => ipcRenderer.invoke('cache:clear'),
     },
+    accounts: {
+        get: () => ipcRenderer.invoke('accounts:get'),
+        loginAnilist: () => ipcRenderer.invoke('accounts:anilist-login'),
+        logoutAnilist: () => ipcRenderer.invoke('accounts:anilist-logout'),
+    },
     settings: {
         get: () => ipcRenderer.invoke('settings:get'),
         update: (patch) => ipcRenderer.invoke('settings:update', patch),

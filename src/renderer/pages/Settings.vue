@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { FolderOpen, RotateCcw } from '@lucide/vue';
+import { FolderOpen, RotateCcw, UserRound } from '@lucide/vue';
 import { LOG_LEVELS, type AppSettings } from '@shared/ipc/api';
 import { useSettingsStore } from '../stores/settings';
+import { useAccountsStore } from '../stores/accounts';
 import SettingsSection from '../components/settings/SettingsSection.vue';
 import SettingRow from '../components/settings/SettingRow.vue';
 import ExtensionsSettings from '../components/settings/ExtensionsSettings.vue';
@@ -11,6 +12,7 @@ import Toggle from '../components/ui/Toggle.vue';
 import NumberField from '../components/ui/NumberField.vue';
 
 const SECTIONS = [
+    { id: 'accounts', label: 'Accounts' },
     { id: 'playback', label: 'Playback' },
     { id: 'torrents', label: 'Torrents' },
     { id: 'extensions', label: 'Extensions' },
@@ -53,6 +55,10 @@ const BUTTON =
     'inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-white/8 px-3 text-sm font-medium transition-colors hover:bg-white/14 disabled:cursor-default disabled:opacity-40';
 
 const store = useSettingsStore();
+const accounts = useAccountsStore();
+const anilistExpiry = computed(() => accounts.anilistExpiry());
+const formatDate = (date: Date) =>
+    date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const settings = computed(() => store.settings);
 const activeSection = ref(SECTIONS[0].id);
 const cacheCount = ref<number | null>(null);
@@ -103,7 +109,7 @@ function updateActiveSection() {
 
 onMounted(async () => {
     window.api.metadata.cacheCount().then((count) => (cacheCount.value = count));
-    await store.load();
+    await Promise.all([store.load(), accounts.load()]);
     scroller = document.querySelector('main');
     scroller?.addEventListener('scroll', updateActiveSection, { passive: true });
     updateActiveSection();
@@ -135,6 +141,77 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
 
         <div v-if="settings" class="min-w-0 flex-1 px-8 py-8 pb-24">
             <div class="max-w-3xl space-y-12">
+                <SettingsSection
+                    id="accounts"
+                    title="Accounts"
+                    description="Sync your lists and watch progress with a tracking site."
+                >
+                    <div class="flex items-center gap-4 px-5 py-4">
+                        <img
+                            v-if="accounts.anilist?.avatar"
+                            :src="accounts.anilist.avatar"
+                            :class="[
+                                'size-10 shrink-0 rounded-full object-cover',
+                                anilistExpiry?.expired && 'opacity-50 grayscale',
+                            ]"
+                            alt=""
+                        />
+                        <div
+                            v-else
+                            class="grid size-10 shrink-0 place-items-center rounded-full bg-white/8 text-white/40"
+                        >
+                            <UserRound :size="18" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-medium">
+                                {{ accounts.anilist?.name ?? 'AniList' }}
+                            </p>
+                            <p class="mt-0.5 text-xs text-white/45">
+                                <template v-if="accounts.anilist && anilistExpiry">
+                                    AniList ·
+                                    <span v-if="anilistExpiry.expired" class="text-red-400">
+                                        login expired
+                                    </span>
+                                    <span v-else-if="anilistExpiry.soon" class="text-amber-400">
+                                        login expires {{ anilistExpiry.relative }}
+                                    </span>
+                                    <template v-else>
+                                        login expires {{ formatDate(anilistExpiry.date) }}
+                                    </template>
+                                </template>
+                                <template v-else>Not connected</template>
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <button
+                                v-if="
+                                    !accounts.anilist ||
+                                    anilistExpiry?.expired ||
+                                    anilistExpiry?.soon
+                                "
+                                :class="BUTTON"
+                                :disabled="accounts.connecting"
+                                @click="accounts.connectAnilist"
+                            >
+                                {{
+                                    accounts.connecting
+                                        ? 'Waiting for AniList…'
+                                        : accounts.anilist
+                                          ? 'Reconnect'
+                                          : 'Connect'
+                                }}
+                            </button>
+                            <button
+                                v-if="accounts.anilist"
+                                :class="BUTTON"
+                                @click="accounts.disconnectAnilist"
+                            >
+                                Disconnect
+                            </button>
+                        </div>
+                    </div>
+                </SettingsSection>
+
                 <SettingsSection id="playback" title="Playback">
                     <SettingRow
                         title="Preferred subtitles"
