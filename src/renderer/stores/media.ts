@@ -5,6 +5,7 @@ import { createLogger } from '../lib/logger';
 import type { ResultOf, VariablesOf } from '../../shared/graphql/graphql';
 import { DashboardQuery, GetAnimeQuery, SearchQuery } from '../../shared/graphql/queries';
 import {
+    matchStreaming,
     normalizeEpisodes,
     type AniZipResponse,
     type Episode,
@@ -56,6 +57,7 @@ export const useMediaStore = defineStore('media', () => {
     const mediaRequests = new Map<number, Promise<Media | null>>();
     const episodeRequests = new Map<number, Promise<Episode[]>>();
     const loggedMappings = new Set<number>();
+    const loggedStreaming = new Set<number>();
     let searchRequestId = 0;
 
     const selectedMedia = computed(() =>
@@ -160,11 +162,33 @@ export const useMediaStore = defineStore('media', () => {
             [id]: (media.streamingEpisodes ?? []).flatMap((e) => (e ? [e] : [])),
         };
         logMapping(id);
+        logStreaming(id);
     }
 
     function applyEpisodes(id: number, data: AniZipResponse | null) {
         anizipById.value = { ...anizipById.value, [id]: data };
         logMapping(id);
+        logStreaming(id);
+    }
+
+    function logStreaming(id: number) {
+        const streaming = streamingById.value[id];
+        const data = anizipById.value[id];
+        if (!streaming?.length || !data || loggedStreaming.has(id)) return;
+        loggedStreaming.add(id);
+
+        const match = matchStreaming(normalizeEpisodes(data), streaming);
+        if (match) {
+            log.debug(
+                `AniList ${id} uses ${match.byKey.size}/${streaming.length} streaming episodes,`,
+                `matched by ${match.scheme}`
+            );
+        } else {
+            log.info(
+                `AniList ${id} ignores ${streaming.length} streaming episodes,`,
+                "they don't line up with its episodes"
+            );
+        }
     }
 
     // Episode numbers come from AniZip, so a wrong mapping or a count that differs from AniList's

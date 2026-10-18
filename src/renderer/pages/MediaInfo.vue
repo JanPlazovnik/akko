@@ -42,7 +42,10 @@ onMounted(async () => {
     loadingBar.start();
     mediaStore.setSelectedMedia(id);
     try {
-        const loadedMedia = media.value ?? (await mediaStore.fetchMedia(id));
+        // Cards only carry list fields, so always load the details (streaming episodes etc.)
+        const details = mediaStore.fetchMedia(id);
+        if (media.value) details.catch(() => undefined);
+        const loadedMedia = media.value ?? (await details);
         if (loadedMedia?.status !== 'NOT_YET_RELEASED') {
             await mediaStore.fetchEpisodes(id);
         }

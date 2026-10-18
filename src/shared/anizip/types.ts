@@ -76,38 +76,88 @@ export interface Episode extends EpisodeNumbers {
 
 const STREAMING_TITLE = /^Episode (\d+)(?:\s*-\s*(.+))?$/i;
 
+type Streamed = { title: string | null; thumbnail: string | null };
+
+export type StreamingMatch = {
+    scheme: 'number' | 'absoluteNumber';
+    byKey: Map<string, Streamed>;
+};
+
+function words(title: string): Set<string> {
+    return new Set(
+        title
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, '')
+            .split(/\s+/)
+            .filter(Boolean)
+    );
+}
+
+function similarTitles(a: string, b: string): boolean {
+    const x = words(a);
+    const y = words(b);
+    const shared = [...x].filter((word) => y.has(word)).length;
+    return shared / Math.min(x.size, y.size) >= 0.5;
+}
+
+// AniList often attaches the whole series' Crunchyroll list to every season, numbered from the
+// first season or across all of them. Only use it when it lines up with AniZip's episodes: most
+// titles agree, or with no titles to compare, every streamed episode lands on one of ours.
+export function matchStreaming(
+    episodes: Episode[],
+    streaming: StreamingEpisode[]
+): StreamingMatch | null {
+    const byNumber = new Map<number, Streamed>();
+    for (const item of streaming) {
+        const match = item.title?.match(STREAMING_TITLE);
+        if (match) {
+            byNumber.set(Number(match[1]), {
+                title: match[2] ?? null,
+                thumbnail: item.thumbnail ?? null,
+            });
+        }
+    }
+    if (byNumber.size === 0) return null;
+
+    for (const scheme of ['number', 'absoluteNumber'] as const) {
+        const byKey = new Map<string, Streamed>();
+        let compared = 0;
+        let agreed = 0;
+        for (const episode of episodes) {
+            const number = episode[scheme];
+            const streamed = number === null ? undefined : byNumber.get(number);
+            if (!streamed) continue;
+            byKey.set(episode.key, streamed);
+            if (episode.title && streamed.title) {
+                compared++;
+                if (similarTitles(episode.title, streamed.title)) agreed++;
+            }
+        }
+        const fits = compared > 0 ? agreed * 2 > compared : byKey.size === byNumber.size;
+        if (byKey.size > 0 && fits) return { scheme, byKey };
+    }
+    return null;
+}
+
 export function normalizeEpisodes(
     data: AniZipResponse | null,
     streaming: StreamingEpisode[] = []
 ): Episode[] {
     if (!data) return [];
 
-    const fromStreaming = new Map<number, { title: string | null; thumbnail: string | null }>();
-    for (const item of streaming) {
-        const match = item.title?.match(STREAMING_TITLE);
-        if (match) {
-            fromStreaming.set(Number(match[1]), {
-                title: match[2] ?? null,
-                thumbnail: item.thumbnail ?? null,
-            });
-        }
-    }
-
-    return Object.entries(data.episodes)
+    const episodes = Object.entries(data.episodes)
         .filter(([key]) => /^\d+$/.test(key))
         .map(([key, episode]) => {
-            const number = Number(episode.episode || key);
-            const streamed = fromStreaming.get(number);
             const title = episode.title;
             return {
                 key,
-                number,
+                number: Number(episode.episode || key),
                 season: episode.seasonNumber ?? null,
                 seasonEpisode: episode.episodeNumber ?? null,
                 absoluteNumber: episode.absoluteEpisodeNumber ?? null,
-                title: title?.en || title?.['x-jat'] || title?.ja || streamed?.title || null,
+                title: title?.en || title?.['x-jat'] || title?.ja || null,
                 overview: episode.overview ?? episode.summary ?? null,
-                image: episode.image ?? streamed?.thumbnail ?? null,
+                image: episode.image ?? null,
                 airDate: episode.airDate ?? episode.airdate ?? null,
                 runtime: episode.runtime ?? episode.length ?? null,
                 anidbEid: episode.anidbEid ?? null,
@@ -115,4 +165,16 @@ export function normalizeEpisodes(
             };
         })
         .sort((a, b) => a.number - b.number);
+
+    const streamed = matchStreaming(episodes, streaming)?.byKey;
+    if (!streamed) return episodes;
+    return episodes.map((episode) => {
+        const extra = streamed.get(episode.key);
+        if (!extra) return episode;
+        return {
+            ...episode,
+            title: episode.title ?? extra.title,
+            image: episode.image ?? extra.thumbnail,
+        };
+    });
 }
