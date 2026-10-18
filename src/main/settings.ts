@@ -13,6 +13,8 @@ import { applyTorrentSettings } from './torrent/torrent';
 import { defaultDownloadPath } from './paths';
 import { getWindow } from './context';
 
+const TMPFS_MAGIC = 0x01021994;
+
 const clamp = (value: number, min: number, max: number) =>
     Math.min(max, Math.max(min, Math.round(Number(value) || 0)));
 
@@ -70,8 +72,8 @@ export async function checkFolder(folder: string): Promise<FolderCheck> {
         const probe = path.join(folder, `.akko-write-test-${process.pid}`);
         await writeFile(probe, '');
         await rm(probe);
-        const { bavail, bsize } = await statfs(folder);
-        return { writable: true, freeBytes: bavail * bsize };
+        const { bavail, bsize, type } = await statfs(folder);
+        return { writable: true, freeBytes: bavail * bsize, inMemory: type === TMPFS_MAGIC };
     } catch (err) {
         return { writable: false, error: err instanceof Error ? err.message : String(err) };
     }

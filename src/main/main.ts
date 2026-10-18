@@ -11,6 +11,7 @@ import { createLogger } from './logger';
 import { applySettings } from './settings';
 import { pruneCache } from './cache';
 import { useBorderlessFullscreen } from './fullscreen';
+import { removeLegacyDownloads } from './paths';
 
 log.initialize();
 const logger = createLogger('main');
@@ -73,6 +74,9 @@ app.on('ready', () => {
     initDb();
     pruneCache();
     applySettings(dbGetSettings());
+    removeLegacyDownloads(dbGetSettings()).catch((err) =>
+        logger.warn('Failed to remove old downloads:', err)
+    );
 
     logger.info('App ready, creating window');
     initContext({ window: createWindow() });

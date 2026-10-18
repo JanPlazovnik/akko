@@ -73,6 +73,13 @@ const folderStatus = computed<Status>(() => {
         };
     }
     const free = formatBytes(folder.value.freeBytes);
+    if (folder.value.inMemory) {
+        return {
+            state: 'warn',
+            title: 'This folder is stored in memory',
+            detail: `It's a tmpfs with ${free} free, so downloads use RAM and are lost on restart. Choose a folder on disk.`,
+        };
+    }
     if (folder.value.freeBytes < LOW_SPACE_BYTES) {
         return {
             state: 'warn',

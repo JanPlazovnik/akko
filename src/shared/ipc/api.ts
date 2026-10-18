@@ -37,7 +37,7 @@ export type SettingsPaths = {
 };
 
 export type FolderCheck =
-    | { writable: true; freeBytes: number }
+    | { writable: true; freeBytes: number; inMemory: boolean }
     | { writable: false; error: string };
 
 export const HEALTHY_DHT_NODES = 8;
