@@ -107,7 +107,8 @@ function pickFiles(files: TorrentFile[], episode?: number) {
 
 function streamUrl(torrent: Torrent, file: TorrentFile): string {
     if (!server) throw new Error('Torrent server not initialized');
-    const filePath = file.path.split(/[\\/]/).map(encodeURIComponent).join('/');
+    // webtorrent matches the path with decodeURI, which leaves reserved characters encoded
+    const filePath = encodeURI(file.path.replace(/\\/g, '/')).replace(/[?#]/g, encodeURIComponent);
     return `http://127.0.0.1:${server.address().port}${server.pathname}/${torrent.infoHash}/${filePath}`;
 }
 
