@@ -2,7 +2,13 @@ import { defineStore } from 'pinia';
 import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
-import type { AudioTrack, StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
+import type {
+    AudioTrack,
+    FileMatch,
+    StreamStats,
+    SubtitleBatch,
+    SubtitleTrack,
+} from '@shared/ipc/api';
 import { describeEpisode } from '@shared/media/types';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 import { errorMessage } from '../lib/format';
@@ -40,6 +46,7 @@ export const usePlayerStore = defineStore('player', () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
     const stats = ref<StreamStats | null>(null);
+    const fileMatch = ref<FileMatch | null>(null);
 
     const isPlaying = ref(false);
     const currentTime = ref(0);
@@ -128,6 +135,7 @@ export const usePlayerStore = defineStore('player', () => {
         loading.value = false;
         error.value = null;
         stats.value = null;
+        fileMatch.value = null;
         isPlaying.value = false;
         currentTime.value = 0;
         duration.value = 0;
@@ -167,6 +175,7 @@ export const usePlayerStore = defineStore('player', () => {
             streamUrl.value = result.streamUrl;
             tracks.value = result.tracks;
             audioTracks.value = result.audioTracks;
+            fileMatch.value = result.match;
             activeTrackId.value = subtitleLanguage()
                 ? defaultTrackId(result.tracks, subtitleLanguage())
                 : '';
@@ -195,6 +204,7 @@ export const usePlayerStore = defineStore('player', () => {
         loading,
         error,
         stats,
+        fileMatch,
         isPlaying,
         currentTime,
         duration,

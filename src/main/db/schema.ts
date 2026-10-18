@@ -12,6 +12,7 @@ export const settings = sqliteTable('settings', {
     maxConnections: integer('max_connections').notNull().default(55),
     onboarded: integer('onboarded', { mode: 'boolean' }).notNull().default(false),
     titleLanguage: text('title_language').notNull().default('ANILIST'),
+    syncProgress: integer('sync_progress', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const extensions = sqliteTable('extensions', {

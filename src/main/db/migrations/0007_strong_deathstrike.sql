@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `sync_progress` integer DEFAULT true NOT NULL;

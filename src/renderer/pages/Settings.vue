@@ -229,6 +229,17 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             </button>
                         </div>
                     </div>
+                    <SettingRow
+                        v-if="accounts.anilist"
+                        title="Sync watch progress"
+                        description="Marks episodes as watched near the end, and puts a show on Watching once you've watched it for 5 minutes."
+                    >
+                        <Toggle
+                            :model-value="settings.syncProgress"
+                            label="Sync watch progress"
+                            @update:model-value="store.update({ syncProgress: $event })"
+                        />
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection id="client" title="Client">

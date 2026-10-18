@@ -26,6 +26,7 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
     }
     if (patch.logToFile !== undefined) clean.logToFile = Boolean(patch.logToFile);
     if (patch.keepFiles !== undefined) clean.keepFiles = Boolean(patch.keepFiles);
+    if (patch.syncProgress !== undefined) clean.syncProgress = Boolean(patch.syncProgress);
     if (patch.subtitleLanguage !== undefined) {
         clean.subtitleLanguage = String(patch.subtitleLanguage).slice(0, 16);
     }

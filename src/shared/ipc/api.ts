@@ -31,6 +31,7 @@ export type AppSettings = {
     maxConnections: number;
     onboarded: boolean;
     titleLanguage: (typeof TITLE_LANGUAGES)[number];
+    syncProgress: boolean;
 };
 
 export type SettingsPaths = {

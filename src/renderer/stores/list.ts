@@ -72,9 +72,8 @@ function withRules(
 
     const vars: Omit<SaveVariables, 'mediaId'> = { status, progress, repeat };
     if (patch.score !== undefined) vars.score = patch.score;
-    if (!previous?.startedAt?.year && status !== 'PLANNING' && progress > 0) {
-        vars.startedAt = today();
-    }
+    const started = progress > 0 || status === 'CURRENT' || status === 'REPEATING';
+    if (!previous?.startedAt?.year && status !== 'PLANNING' && started) vars.startedAt = today();
     if (status === 'COMPLETED' && !previous?.completedAt?.year) vars.completedAt = today();
     return vars;
 }
@@ -119,13 +118,36 @@ export const useListStore = defineStore('list', () => {
         entries.value = entry ? [...others, entry].sort(byUpdated) : others;
     }
 
-    // Shows the change straight away and rolls it back if AniList refuses it
+    // A show not on the list yet borrows the media store's copy until AniList replies
+    const mediaOf = (mediaId: number) =>
+        entryFor(mediaId)?.media ?? (mediaStore.mediaFor(mediaId) as unknown as ListEntry['media']);
+
     async function save(mediaId: number, patch: EntryPatch): Promise<ListEntry | null> {
+        return commit(mediaId, withRules(entryFor(mediaId), patch, mediaOf(mediaId)?.episodes));
+    }
+
+    // Puts an entry back exactly as it was, dates included, e.g. to undo an automatic update
+    async function restore(mediaId: number, entry: ListEntry | null): Promise<boolean> {
+        if (!entry) return remove(mediaId);
+        const { status, progress, score, repeat, startedAt, completedAt } = entry;
+        const saved = await commit(mediaId, {
+            status,
+            progress,
+            score,
+            repeat,
+            startedAt: startedAt ?? undefined,
+            completedAt: completedAt ?? undefined,
+        });
+        return Boolean(saved);
+    }
+
+    // Shows the change straight away and rolls it back if AniList refuses it
+    async function commit(
+        mediaId: number,
+        vars: Omit<SaveVariables, 'mediaId'>
+    ): Promise<ListEntry | null> {
         const previous = entryFor(mediaId);
-        // A show not on the list yet borrows the media store's copy until AniList replies
-        const media =
-            previous?.media ?? (mediaStore.mediaFor(mediaId) as unknown as ListEntry['media']);
-        const vars = withRules(previous, patch, media?.episodes);
+        const media = mediaOf(mediaId);
         const optimistic = {
             ...previous,
             ...vars,
@@ -203,5 +225,16 @@ export const useListStore = defineStore('list', () => {
 
     watch(() => accounts.anilist?.id, load, { immediate: true });
 
-    return { entries, loading, error, byStatus, continueWatching, entryFor, load, save, remove };
+    return {
+        entries,
+        loading,
+        error,
+        byStatus,
+        continueWatching,
+        entryFor,
+        load,
+        save,
+        restore,
+        remove,
+    };
 });
