@@ -39,7 +39,7 @@ const select = (status: ListStatus) => void router.replace({ query: { status } }
                 v-for="tab in tabs"
                 :key="tab.status"
                 :class="[
-                    'flex cursor-pointer items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+                    'flex cursor-pointer items-baseline gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
                     active === tab.status
                         ? 'bg-white/10 text-white'
                         : 'text-white/50 hover:text-white',
