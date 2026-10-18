@@ -9,6 +9,7 @@ import { STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
 import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
+import { useListStore } from '../stores/list';
 import { useLoadingStore } from '../stores/loading';
 import type { Episode } from '@shared/anizip/types';
 
@@ -23,6 +24,7 @@ const route = useRoute();
 const mediaStore = useMediaStore();
 const loadingBar = useLoadingStore();
 const accounts = useAccountsStore();
+const list = useListStore();
 
 const routeMediaId = computed(() => Number(route.params.id));
 const media = computed(() => mediaStore.mediaFor(routeMediaId.value));
@@ -37,7 +39,28 @@ const description = computed(() => stripHtml(media.value?.description));
 const fallbackThumbnail = computed(
     () => media.value?.bannerImage ?? media.value?.coverImage?.large ?? null
 );
-const firstEpisode = computed(() => episodes.value.find((ep) => !isUnaired(ep)) ?? null);
+// Continues from list progress; finished shows start over, movies have no episode to name
+const watchAction = computed<{ episode: Episode | null; label: string }>(() => {
+    const aired = episodes.value.filter((ep) => !isUnaired(ep));
+    if (!aired.length) return { episode: null, label: 'Not available yet' };
+
+    const entry = list.entryFor(routeMediaId.value);
+    const progress = entry?.progress ?? 0;
+    const single = media.value?.format === 'MOVIE' || episodes.value.length === 1;
+    const finished =
+        entry?.status === 'COMPLETED' || (progress > 0 && progress >= episodes.value.length);
+    if (finished) {
+        return { episode: aired[0], label: single ? 'Rewatch' : 'Rewatch from episode 1' };
+    }
+
+    const next = progress ? episodes.value.find((ep) => ep.number === progress + 1) : aired[0];
+    if (!next) return { episode: null, label: 'All caught up' };
+    if (isUnaired(next)) {
+        const when = next.airDate ? ` ${formatAirDate(next.airDate)}` : ' soon';
+        return { episode: null, label: `Episode ${next.number} airs${when}` };
+    }
+    return { episode: next, label: single ? 'Watch' : `Watch episode ${next.number}` };
+});
 
 // The router reuses this page when only the id changes, so load on every id
 async function load(id: number) {
@@ -115,11 +138,11 @@ const formatAirDate = (date: string) =>
                         {{ accounts.titleOf(media) }}
                     </p>
                     <button
-                        v-if="firstEpisode"
+                        v-if="watchAction.episode"
                         class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-white/85"
-                        @click="openDialog(firstEpisode)"
+                        @click="openDialog(watchAction.episode)"
                     >
-                        <Play :size="12" fill="currentColor" /> Watch
+                        <Play :size="12" fill="currentColor" /> {{ watchAction.label }}
                     </button>
                 </div>
             </Transition>
@@ -208,15 +231,11 @@ const formatAirDate = (date: string) =>
                     <div class="mt-5 flex items-center gap-3">
                         <button
                             class="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:bg-white/85 active:scale-[0.97] disabled:cursor-default disabled:opacity-40"
-                            :disabled="!firstEpisode"
-                            @click="firstEpisode && openDialog(firstEpisode)"
+                            :disabled="!watchAction.episode"
+                            @click="watchAction.episode && openDialog(watchAction.episode)"
                         >
-                            <Play :size="15" fill="currentColor" />
-                            {{
-                                firstEpisode
-                                    ? `Watch episode ${firstEpisode.number}`
-                                    : 'Not available yet'
-                            }}
+                            <Play v-if="watchAction.episode" :size="15" fill="currentColor" />
+                            {{ watchAction.label }}
                         </button>
                     </div>
                 </div>
