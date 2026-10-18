@@ -1,3 +1,5 @@
+import { readdir, rm } from 'node:fs/promises';
+import path from 'node:path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
@@ -8,6 +10,14 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 const PREBUILD = /[/\\]prebuilds[/\\]([^/\\]+)/;
+const KEEP_LOCALES = new Set(['en-US.pak']);
+
+// The UI is English only; Chromium falls back to en-US for its own strings
+async function pruneLocales(buildPath: string) {
+    const dir = path.join(buildPath, 'locales');
+    const files = await readdir(dir).catch(() => []);
+    await Promise.all(files.filter((f) => !KEEP_LOCALES.has(f)).map((f) => rm(path.join(dir, f))));
+}
 
 const config: ForgeConfig = {
     packagerConfig: {
@@ -25,6 +35,10 @@ const config: ForgeConfig = {
         asar: {
             unpack: '**/*.node',
         },
+        afterExtract: [
+            (buildPath, _version, _platform, _arch, done) =>
+                void pruneLocales(buildPath).then(() => done(), done),
+        ],
     },
     rebuildConfig: {},
     makers: [
