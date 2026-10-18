@@ -75,7 +75,7 @@ const totalResults = computed(() => sources.value.reduce((n, s) => n + s.results
 const UNSUPPORTED_AUDIO = /(?:^|[^a-z])(?:DDP|DD\+|E-?AC-?3|AC-?3|DTS|TrueHD|DD(?=\d))/i;
 
 function isPlaying(result: TorrentResult): boolean {
-    return player.selection?.torrent.magnet === toMagnet(result.link, result.hash);
+    return player.selection?.torrent.magnet === torrentId(result.link, result.hash);
 }
 
 function hasUnsupportedAudio(result: TorrentResult): boolean {
@@ -100,8 +100,9 @@ function parseTitle(title: string) {
     };
 }
 
-function toMagnet(link: string, hash: string): string {
-    if (link.startsWith('magnet:')) return link;
+// Sources return a magnet, a .torrent URL (which WebTorrent downloads itself) or a bare info hash
+function torrentId(link: string, hash: string): string {
+    if (link.startsWith('magnet:') || /^https?:\/\//.test(link)) return link;
     return `magnet:?xt=urn:btih:${link || hash}`;
 }
 
@@ -205,7 +206,7 @@ async function pick(result: TorrentResult) {
                 torrent: {
                     title: result.title,
                     infoHash: result.hash || undefined,
-                    magnet: toMagnet(result.link, result.hash),
+                    magnet: torrentId(result.link, result.hash),
                 },
             },
             {
