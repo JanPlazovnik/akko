@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { count, eq, lt } from 'drizzle-orm';
+import { count, eq, like, lt } from 'drizzle-orm';
 import path from 'node:path';
 import { app } from 'electron';
 import { accounts, cache, settings, extensions } from './schema';
@@ -69,6 +69,13 @@ export function dbSetCache(key: string, value: string): void {
 
 export function dbPruneCache(olderThan: number): void {
     getDb().delete(cache).where(lt(cache.fetchedAt, olderThan)).run();
+}
+
+export function dbClearCacheByPrefix(prefix: string): void {
+    getDb()
+        .delete(cache)
+        .where(like(cache.key, `${prefix}%`))
+        .run();
 }
 
 export function dbClearCache(): void {

@@ -6,6 +6,27 @@ export const STATUS_LABELS: Record<string, string> = {
     HIATUS: 'On Hiatus',
 };
 
+export const LIST_STATUS_LABELS: Record<string, string> = {
+    CURRENT: 'Watching',
+    REPEATING: 'Rewatching',
+    PLANNING: 'Planning',
+    COMPLETED: 'Completed',
+    PAUSED: 'Paused',
+    DROPPED: 'Dropped',
+};
+
+type ListSource = {
+    status?: string | null;
+    progress?: number | null;
+    media?: { episodes?: number | null } | null;
+};
+
+export function listLabel({ status, progress, media }: ListSource): string {
+    const label = LIST_STATUS_LABELS[status ?? ''] ?? status ?? '';
+    if (!progress || status === 'COMPLETED' || status === 'PLANNING') return label;
+    return `${label} · ${progress}/${media?.episodes ?? '?'}`;
+}
+
 export const FORMAT_LABELS: Record<string, string> = {
     TV: 'TV',
     TV_SHORT: 'TV Short',

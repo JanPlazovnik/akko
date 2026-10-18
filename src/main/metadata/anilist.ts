@@ -61,11 +61,15 @@ export async function anilistRequest(
     return body?.data ?? null;
 }
 
+export function anilistCacheKey(query: string, variables: unknown): string {
+    return createHash('sha1').update(query).update(stableStringify(variables)).digest('hex');
+}
+
 export function queryAnilist(
     query: string,
     variables: unknown,
     maxAge: number
 ): Promise<CachedResult<unknown>> {
-    const hash = createHash('sha1').update(query).update(stableStringify(variables)).digest('hex');
-    return cached(`anilist:${hash}`, maxAge, () => anilistRequest(query, variables));
+    const key = `anilist:${anilistCacheKey(query, variables)}`;
+    return cached(key, maxAge, () => anilistRequest(query, variables));
 }

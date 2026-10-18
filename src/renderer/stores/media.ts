@@ -14,6 +14,7 @@ import {
     type StreamingEpisode,
 } from '../../shared/anizip/types';
 import type { Media } from '../../shared/graphql/queries';
+import { mediaTitle } from '../../shared/media/types';
 import router from '../router';
 
 type DashboardData = ResultOf<typeof DashboardQuery>;
@@ -96,6 +97,16 @@ export const useMediaStore = defineStore('media', () => {
 
     function rememberMedia(item: Media) {
         mediaById.value = { ...mediaById.value, [item.id]: item };
+    }
+
+    // Fills in media known only from lighter queries without replacing fuller copies
+    function rememberMissing(items: Media[]) {
+        const missing = items.filter((item) => !(item.id in mediaById.value));
+        if (!missing.length) return;
+        mediaById.value = {
+            ...mediaById.value,
+            ...Object.fromEntries(missing.map((item) => [item.id, item])),
+        };
     }
 
     function rememberMany(items: (Media | null)[] | null | undefined) {
@@ -226,7 +237,7 @@ export const useMediaStore = defineStore('media', () => {
         loggedMappings.add(id);
 
         const data = anizipById.value[id];
-        const name = `AniList ${id} "${media.title?.userPreferred}"`;
+        const name = `AniList ${id} "${mediaTitle(media)}"`;
         if (!data) return log.warn(`${name} has no AniZip data, using AniList's episode count`);
 
         const { anilist_id, anidb_id, thetvdb_id, mal_id } = data.mappings;
@@ -365,6 +376,7 @@ export const useMediaStore = defineStore('media', () => {
         searchLoading,
         searchError,
         rememberMedia,
+        rememberMissing,
         setSelectedMedia,
         mediaFor,
         episodesFor,

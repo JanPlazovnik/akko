@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { toast } from 'vue3-toastify';
 import type { AnilistAccount } from '@shared/ipc/api';
+import { mediaTitle } from '@shared/media/types';
 import { errorMessage, formatRelativeDate } from '../lib/format';
 import router from '../router';
 
@@ -37,6 +38,9 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
 
     const anilistExpiry = () => (anilist.value ? expiryOf(anilist.value) : null);
+
+    const titleOf = (media: Parameters<typeof mediaTitle>[0]) =>
+        mediaTitle(media, anilist.value?.titleLanguage);
 
     async function warnIfExpiring() {
         await load();
@@ -78,6 +82,7 @@ export const useAccountsStore = defineStore('accounts', () => {
         connecting,
         load,
         anilistExpiry,
+        titleOf,
         warnIfExpiring,
         connectAnilist,
         disconnectAnilist,

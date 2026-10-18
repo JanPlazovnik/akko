@@ -1,4 +1,4 @@
-import { MediaFragment } from './fragments';
+import { ListEntryFragment, MediaFragment } from './fragments';
 import { graphql, ResultOf } from './graphql';
 
 export const GetAnimeQuery = graphql(
@@ -182,9 +182,36 @@ export const ViewerQuery = graphql(`
             avatar {
                 medium
             }
+            options {
+                titleLanguage
+            }
             mediaListOptions {
                 scoreFormat
             }
         }
     }
 `);
+
+export const UserListQuery = graphql(
+    `
+        query UserList($userId: Int) {
+            MediaListCollection(
+                userId: $userId
+                type: ANIME
+                forceSingleCompletedList: true
+                sort: UPDATED_TIME_DESC
+            ) {
+                lists {
+                    isCustomList
+                    status
+                    entries {
+                        ...ListEntryFragment
+                    }
+                }
+            }
+        }
+    `,
+    [ListEntryFragment]
+);
+
+export type ListEntry = ResultOf<typeof ListEntryFragment>;

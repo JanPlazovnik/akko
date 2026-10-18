@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { FlaskConical, Home, Search, Settings, X } from '@lucide/vue';
+import { FlaskConical, Home, Library, Search, Settings, X } from '@lucide/vue';
 import LoadingBar from './LoadingBar.vue';
 import WindowControls from './WindowControls.vue';
 import LogoMark from './LogoMark.vue';
@@ -12,6 +12,11 @@ const isDev = import.meta.env.DEV;
 
 const ICON_BUTTON =
     'grid size-9 cursor-pointer place-items-center rounded-full transition-colors hover:bg-white/10 hover:text-white';
+
+const navLink = (active: boolean) => [
+    'no-drag flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+    active ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white',
+];
 
 const searchInput = ref<HTMLInputElement | null>(null);
 const query = ref('');
@@ -66,15 +71,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
             <span class="font-display text-lg font-semibold tracking-tight">akko</span>
         </div>
 
-        <RouterLink
-            to="/"
-            :class="[
-                'no-drag ml-6 flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
-                route.path === '/' ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white',
-            ]"
-        >
+        <RouterLink to="/" :class="['ml-6', navLink(route.path === '/')]">
             <Home :size="15" />
             Home
+        </RouterLink>
+        <RouterLink to="/library" :class="['ml-1', navLink(route.path === '/library')]">
+            <Library :size="15" />
+            Library
         </RouterLink>
 
         <label

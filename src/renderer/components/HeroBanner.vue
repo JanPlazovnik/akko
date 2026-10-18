@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Play, Star } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import { useMediaStore } from '../stores/media';
+import { useAccountsStore } from '../stores/accounts';
 import Badge from './ui/Badge.vue';
 import { accentStyle } from '../lib/accent';
 import { mediaMeta, stripHtml } from '../lib/media-labels';
@@ -11,6 +12,7 @@ const SLIDE_MS = 7000;
 
 const props = defineProps<{ items: Media[] }>();
 const mediaStore = useMediaStore();
+const accounts = useAccountsStore();
 
 const heroIndex = ref(0);
 const paused = ref(false);
@@ -62,7 +64,7 @@ function go(index: number) {
                 <h2
                     class="line-clamp-2 font-display text-5xl leading-[1.05] font-bold tracking-tight text-balance"
                 >
-                    {{ current.title?.userPreferred }}
+                    {{ accounts.titleOf(current) }}
                 </h2>
 
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/70">
@@ -110,7 +112,7 @@ function go(index: number) {
                 v-for="(item, i) in items"
                 :key="item.id"
                 class="h-1 w-8 cursor-pointer overflow-hidden rounded-full bg-white/20"
-                :title="item.title?.userPreferred ?? undefined"
+                :title="accounts.titleOf(item)"
                 @click="go(i)"
             >
                 <span

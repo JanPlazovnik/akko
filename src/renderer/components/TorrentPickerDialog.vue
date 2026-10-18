@@ -13,6 +13,7 @@ import {
 } from 'reka-ui';
 import { usePlayerStore } from '../stores/player';
 import { useMediaStore } from '../stores/media';
+import { useAccountsStore } from '../stores/accounts';
 import { createLogger } from '../lib/logger';
 import { errorMessage, formatBytes, formatRelativeDate } from '../lib/format';
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
@@ -43,6 +44,7 @@ const log = createLogger('picker');
 const router = useRouter();
 const player = usePlayerStore();
 const mediaStore = useMediaStore();
+const accounts = useAccountsStore();
 
 const RESOLUTIONS = ['1080', '720', '480'] as const;
 const ACCURACY_DOT: Record<TorrentResult['accuracy'], string> = {
@@ -196,7 +198,7 @@ async function pick(result: TorrentResult) {
         void player.startStream(
             {
                 media: media
-                    ? mediaToSummary(media)
+                    ? mediaToSummary(media, accounts.titleOf(media))
                     : {
                           anilistId: props.anilistId,
                           title: props.titles[0] ?? 'Unknown title',

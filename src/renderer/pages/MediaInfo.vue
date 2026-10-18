@@ -8,6 +8,7 @@ import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import { STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
 import { useMediaStore } from '../stores/media';
+import { useAccountsStore } from '../stores/accounts';
 import { useLoadingStore } from '../stores/loading';
 import type { Episode } from '@shared/anizip/types';
 
@@ -21,6 +22,7 @@ const STATUS_DOT: Record<string, string> = {
 const route = useRoute();
 const mediaStore = useMediaStore();
 const loadingBar = useLoadingStore();
+const accounts = useAccountsStore();
 
 const routeMediaId = computed(() => Number(route.params.id));
 const media = computed(() => mediaStore.mediaFor(routeMediaId.value));
@@ -110,7 +112,7 @@ const formatAirDate = (date: string) =>
                         class="h-10 w-7 shrink-0 rounded object-cover"
                     />
                     <p class="truncate font-display font-semibold">
-                        {{ media.title?.userPreferred }}
+                        {{ accounts.titleOf(media) }}
                     </p>
                     <button
                         v-if="firstEpisode"
@@ -164,7 +166,7 @@ const formatAirDate = (date: string) =>
                         ref="titleEl"
                         class="mt-1 font-display text-4xl leading-tight font-bold tracking-tight text-balance select-text"
                     >
-                        {{ media.title?.userPreferred }}
+                        {{ accounts.titleOf(media) }}
                     </h1>
 
                     <div

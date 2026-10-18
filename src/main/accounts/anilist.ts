@@ -1,12 +1,19 @@
 import { BrowserWindow, safeStorage, session } from 'electron';
 import { print } from 'graphql';
-import type { AnilistAccount } from '../../shared/ipc/api';
+import type { AnilistAccount, CachedResult } from '../../shared/ipc/api';
 import type { ResultOf } from '../../shared/graphql/graphql';
 import { ViewerQuery } from '../../shared/graphql/queries';
 import { getWindow, sendToRenderer } from '../context';
-import { dbDeleteAccount, dbGetAccount, dbSaveAccount, type AccountRow } from '../db';
+import { cached } from '../cache';
+import {
+    dbClearCacheByPrefix,
+    dbDeleteAccount,
+    dbGetAccount,
+    dbSaveAccount,
+    type AccountRow,
+} from '../db';
 import { createLogger } from '../logger';
-import { AnilistAuthError, anilistRequest } from '../metadata/anilist';
+import { AnilistAuthError, anilistCacheKey, anilistRequest } from '../metadata/anilist';
 
 const log = createLogger('accounts');
 
@@ -14,6 +21,7 @@ const PROVIDER = 'anilist';
 const CLIENT_ID = '54213';
 const AUTHORIZE_URL = `https://anilist.co/api/v2/oauth/authorize?client_id=${CLIENT_ID}&response_type=token`;
 const PARTITION = 'persist:anilist';
+const USER_CACHE_PREFIX = 'anilist-user:';
 const DEFAULT_EXPIRY_S = 365 * 24 * 60 * 60;
 
 type Viewer = NonNullable<ResultOf<typeof ViewerQuery>['Viewer']>;
@@ -26,6 +34,7 @@ function toAccount(row: AccountRow): AnilistAccount {
         name: row.name,
         avatar: row.avatar,
         scoreFormat: row.scoreFormat,
+        titleLanguage: row.titleLanguage,
         expiresAt: row.expiresAt,
     };
 }
@@ -49,6 +58,7 @@ function saveViewer(viewer: Viewer, token: Buffer, expiresAt: number): AnilistAc
         name: viewer.name,
         avatar: viewer.avatar?.medium ?? null,
         scoreFormat: viewer.mediaListOptions?.scoreFormat ?? 'POINT_10',
+        titleLanguage: viewer.options?.titleLanguage ?? 'ROMAJI',
         token,
         expiresAt,
     };
@@ -83,6 +93,18 @@ export async function anilistUserRequest(query: string, variables: unknown): Pro
         }
         throw err;
     }
+}
+
+// Cached per user; served stale when offline or after the login expires
+export function queryAnilistUser(
+    query: string,
+    variables: unknown,
+    maxAge: number
+): Promise<CachedResult<unknown>> {
+    const row = dbGetAccount(PROVIDER);
+    if (!row) return Promise.reject(new Error('Not connected to AniList'));
+    const key = `${USER_CACHE_PREFIX}${row.userId}:${anilistCacheKey(query, variables)}`;
+    return cached(key, maxAge, () => anilistUserRequest(query, variables));
 }
 
 // The implicit grant redirects to the client's redirect URL with the token in the fragment.
@@ -159,6 +181,7 @@ export function loginAnilist(): Promise<AnilistAccount> {
 
 export async function logoutAnilist() {
     dbDeleteAccount(PROVIDER);
+    dbClearCacheByPrefix(USER_CACHE_PREFIX);
     notify();
     await session.fromPartition(PARTITION).clearStorageData();
     log.info('Disconnected AniList');

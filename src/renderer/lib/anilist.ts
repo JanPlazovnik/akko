@@ -26,6 +26,17 @@ export function anilistQuery<TQuery extends object>(
     >;
 }
 
+// Sent with the connected account's token and cached per user
+export function anilistUserQuery<TQuery extends object>(
+    query: TQuery,
+    variables: VariablesOf<TQuery>,
+    maxAge: number
+): Promise<CachedResult<ResultOf<TQuery> | null>> {
+    return window.api.metadata.anilistUser(source(query), variables, maxAge) as Promise<
+        CachedResult<ResultOf<TQuery> | null>
+    >;
+}
+
 // Applies whatever is cached straight away, then refreshes in the background when it is older
 // than maxAge. The returned promise settles once the first data has been applied.
 export async function staleWhileRevalidate<T>(

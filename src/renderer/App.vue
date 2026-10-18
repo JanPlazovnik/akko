@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { DragDropProvider } from '@dnd-kit/vue';
 import Header from './components/Header.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
 import { useAccountsStore } from './stores/accounts';
+import { useListStore } from './stores/list';
 const route = useRoute();
 const mainEl = ref<HTMLElement | null>(null);
 const scrollMemory = new Map<string, number>();
-const REMEMBER = new Set(['/']);
+const REMEMBER = new Set(['/', '/library']);
 const accounts = useAccountsStore();
+useListStore();
 
 onMounted(() => void accounts.warnIfExpiring());
 
@@ -20,7 +22,8 @@ watch(
             scrollMemory.set(oldPath, mainEl.value.scrollTop);
         }
         const saved = REMEMBER.has(newPath) ? (scrollMemory.get(newPath) ?? 0) : 0;
-        mainEl.value?.scrollTo({ top: saved });
+        // Restore once the new page has rendered, or the old page's height clamps it
+        void nextTick(() => mainEl.value?.scrollTo({ top: saved }));
     }
 );
 </script>

@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `title_language` text DEFAULT 'ROMAJI' NOT NULL;

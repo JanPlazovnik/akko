@@ -38,14 +38,24 @@ export type PlaybackActivity = WatchSelection & {
     };
 };
 
-export function mediaToSummary(media: Media): MediaSummary {
+type Titles = {
+    title?: { romaji?: string | null; english?: string | null; native?: string | null } | null;
+};
+
+// userPreferred depends on whether a request was signed in, so pick from the account's setting
+export function mediaTitle({ title }: Titles, language = 'ROMAJI'): string {
+    const preferred = language.startsWith('ENGLISH')
+        ? title?.english
+        : language.startsWith('NATIVE')
+          ? title?.native
+          : null;
+    return preferred ?? title?.romaji ?? title?.english ?? title?.native ?? 'Unknown title';
+}
+
+export function mediaToSummary(media: Media, title: string): MediaSummary {
     return {
         anilistId: media.id,
-        title:
-            media.title?.userPreferred ??
-            media.title?.english ??
-            media.title?.romaji ??
-            'Unknown title',
+        title,
         coverImage: media.coverImage?.large,
         bannerImage: media.bannerImage,
         format: media.format,

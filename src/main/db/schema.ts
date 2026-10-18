@@ -44,6 +44,7 @@ export const accounts = sqliteTable('accounts', {
     name: text('name').notNull(),
     avatar: text('avatar'),
     scoreFormat: text('score_format').notNull(),
+    titleLanguage: text('title_language').notNull().default('ROMAJI'),
     token: blob('token', { mode: 'buffer' }).notNull(),
     expiresAt: integer('expires_at').notNull(),
 });

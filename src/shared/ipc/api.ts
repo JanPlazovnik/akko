@@ -49,6 +49,7 @@ export type AnilistAccount = {
     name: string;
     avatar: string | null;
     scoreFormat: string;
+    titleLanguage: string;
     expiresAt: number;
 };
 
@@ -113,6 +114,11 @@ export type AppApi = {
     ) => () => void;
     metadata: {
         anilist: (
+            query: string,
+            variables: unknown,
+            maxAge: number
+        ) => Promise<CachedResult<unknown>>;
+        anilistUser: (
             query: string,
             variables: unknown,
             maxAge: number

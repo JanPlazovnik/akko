@@ -3,11 +3,13 @@ import { computed, onMounted, watch } from 'vue';
 import { toast } from 'vue3-toastify';
 import { useMediaStore } from '../stores/media';
 import { useLoadingStore } from '../stores/loading';
+import { entryMedia, useListStore } from '../stores/list';
 import HeroBanner from '../components/HeroBanner.vue';
 import MediaRow from '../components/MediaRow.vue';
 
 const mediaStore = useMediaStore();
 const loadingBar = useLoadingStore();
+const list = useListStore();
 
 onMounted(async () => {
     loadingBar.start();
@@ -26,6 +28,7 @@ const nonNull = <T,>(arr: (T | null)[] | null | undefined) =>
 const trending = computed(() => nonNull(mediaStore.dashboard?.trending?.media));
 const season = computed(() => nonNull(mediaStore.dashboard?.season?.media));
 const popular = computed(() => nonNull(mediaStore.dashboard?.popular?.media));
+const continueWatching = computed(() => list.continueWatching.map(entryMedia));
 </script>
 
 <template>
@@ -45,6 +48,11 @@ const popular = computed(() => nonNull(mediaStore.dashboard?.popular?.media));
         </template>
         <template v-else>
             <HeroBanner :items="trending.slice(0, 6)" />
+            <MediaRow
+                v-if="continueWatching.length"
+                title="Continue watching"
+                :items="continueWatching"
+            />
             <MediaRow title="Trending now" :items="trending" />
             <MediaRow title="Airing this season" :items="season" />
             <MediaRow title="All-time popular" :items="popular" />

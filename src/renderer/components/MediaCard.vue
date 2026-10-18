@@ -3,15 +3,20 @@ import { ref, computed, inject, watch } from 'vue';
 import { Play, Star } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import { useMediaStore } from '../stores/media';
+import { useListStore } from '../stores/list';
+import { useAccountsStore } from '../stores/accounts';
 import { accentStyle } from '../lib/accent';
-import { mediaMeta, stripHtml } from '../lib/media-labels';
+import { listLabel, mediaMeta, stripHtml } from '../lib/media-labels';
 
 const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
 
 const props = defineProps<{ item: Media; actionLabel?: string }>();
 const mediaStore = useMediaStore();
+const list = useListStore();
+const accounts = useAccountsStore();
+const listEntry = computed(() => list.entryFor(props.item.id));
 
-const title = computed(() => props.item.title?.userPreferred ?? '');
+const title = computed(() => accounts.titleOf(props.item));
 const coverImage = computed(() => props.item.coverImage?.large ?? null);
 const synopsis = computed(() => stripHtml(props.item.description));
 const meta = computed(() => mediaMeta(props.item));
@@ -173,6 +178,12 @@ function navigate() {
                 >
                     <Star :size="10" class="fill-accent text-accent" />
                     {{ item.averageScore }}
+                </span>
+                <span
+                    v-if="listEntry"
+                    class="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-black/65 px-1.5 py-0.5 text-[11px] font-medium backdrop-blur-sm"
+                >
+                    {{ listLabel(listEntry) }}
                 </span>
             </div>
 

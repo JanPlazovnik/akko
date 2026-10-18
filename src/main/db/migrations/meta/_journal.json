@@ -36,6 +36,13 @@
       "when": 1792339758760,
       "tag": "0004_milky_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792340904307,
+      "tag": "0005_past_energizer",
+      "breakpoints": true
     }
   ]
 }

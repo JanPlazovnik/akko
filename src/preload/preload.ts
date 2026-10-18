@@ -17,6 +17,8 @@ const api: AppApi = {
     metadata: {
         anilist: (query, variables, maxAge) =>
             ipcRenderer.invoke('anilist:query', query, variables, maxAge),
+        anilistUser: (query, variables, maxAge) =>
+            ipcRenderer.invoke('anilist:user-query', query, variables, maxAge),
         anizipEpisodes: (anilistId, maxAge) =>
             ipcRenderer.invoke('anizip:episodes', anilistId, maxAge),
         cacheCount: () => ipcRenderer.invoke('cache:count'),
