@@ -14,7 +14,8 @@ function chooseAnother() {
 
 <template>
     <p v-if="player.unsupportedAudio" class="text-sm text-amber-200/90">
-        No sound, {{ codecs }} audio isn't supported.
+        No sound, {{ codecs }} audio
+        {{ player.audioBridgeFailed ? "couldn't be loaded" : "isn't supported" }}.
         <button
             v-if="player.pickerContext"
             class="cursor-pointer text-white/80 underline decoration-white/30 underline-offset-4 transition-colors hover:text-white hover:decoration-white"

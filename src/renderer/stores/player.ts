@@ -59,8 +59,14 @@ export const usePlayerStore = defineStore('player', () => {
     const cues = new Map<string, SubtitleEvent[]>();
     const cueListeners = new Set<CueListener>();
 
+    const audioSupport = computed(() => {
+        const supports = new Set(audioTracks.value.map((t) => t.support));
+        if (!supports.size || supports.has('native')) return 'native';
+        return supports.has('decoded') ? 'decoded' : 'none';
+    });
+    const audioBridgeFailed = ref(false);
     const unsupportedAudio = computed(
-        () => audioTracks.value.length > 0 && audioTracks.value.every((t) => !t.supported)
+        () => audioSupport.value === 'none' || audioBridgeFailed.value
     );
 
     const activeTrack = computed(
@@ -141,6 +147,7 @@ export const usePlayerStore = defineStore('player', () => {
         duration.value = 0;
         tracks.value = [];
         audioTracks.value = [];
+        audioBridgeFailed.value = false;
         activeTrackId.value = '';
         lastTrackId = '';
         fonts.value = [];
@@ -214,6 +221,8 @@ export const usePlayerStore = defineStore('player', () => {
         activity,
         tracks,
         audioTracks,
+        audioSupport,
+        audioBridgeFailed,
         unsupportedAudio,
         activeTrackId,
         activeTrack,

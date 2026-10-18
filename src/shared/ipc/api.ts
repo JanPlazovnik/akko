@@ -66,12 +66,14 @@ export type CachedResult<T> = {
     fromCache: boolean;
 };
 
+export type AudioSupport = 'native' | 'decoded' | 'none';
+
 export type AudioTrack = {
     lang: string;
     label: string;
     codec: string;
     channels: number;
-    supported: boolean;
+    support: AudioSupport;
 };
 
 export type SubtitleBatch = Record<string, SubtitleEvent[]>;

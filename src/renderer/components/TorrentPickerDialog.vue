@@ -74,7 +74,7 @@ const orderedSources = computed(() =>
 const searching = computed(() => sources.value.some((s) => s.status === 'loading'));
 const totalResults = computed(() => sources.value.reduce((n, s) => n + s.results.length, 0));
 
-const UNSUPPORTED_AUDIO = /(?:^|[^a-z])(?:DDP|DD\+|E-?AC-?3|AC-?3|DTS|TrueHD|DD(?=\d))/i;
+const UNSUPPORTED_AUDIO = /(?:^|[^a-z])(?:DTS|TrueHD)/i;
 
 function isPlaying(result: TorrentResult): boolean {
     return player.selection?.torrent.magnet === torrentId(result.link, result.hash);
@@ -424,7 +424,7 @@ async function pick(result: TorrentResult) {
                                     <span
                                         v-if="hasUnsupportedAudio(result)"
                                         class="rounded bg-amber-400/12 px-1.5 py-px font-medium text-amber-300"
-                                        title="Dolby/DTS audio can't be played. If this release has no other audio track, it will be silent."
+                                        title="DTS/TrueHD audio can't be played. If this release has no other audio track, it will be silent."
                                     >
                                         Audio may not play
                                     </span>

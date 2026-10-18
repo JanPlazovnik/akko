@@ -6,6 +6,7 @@ import '@videojs/html/video/ui';
 import '@videojs/html/base.css';
 import { usePlayerStore } from '../stores/player';
 import { useSubtitleRenderer } from '../lib/subtitles';
+import { AudioBridge } from '../lib/audio-bridge';
 import PlayerControls from './player/PlayerControls.vue';
 import PlayerStatus from './player/PlayerStatus.vue';
 import MiniPlayerOverlay from './player/MiniPlayerOverlay.vue';
@@ -174,6 +175,21 @@ watch(
     },
     { flush: 'post' }
 );
+
+let audioBridge: AudioBridge | null = null;
+
+watch(
+    () => (player.audioSupport === 'decoded' ? player.streamUrl : null),
+    (url) => {
+        audioBridge?.dispose();
+        const v = getVideo();
+        audioBridge =
+            url && v ? new AudioBridge(v, url, () => (player.audioBridgeFailed = true)) : null;
+    },
+    { flush: 'post' }
+);
+
+onUnmounted(() => audioBridge?.dispose());
 </script>
 
 <template>
