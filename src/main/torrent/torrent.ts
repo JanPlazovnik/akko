@@ -24,6 +24,7 @@ const log = createLogger('torrent');
 const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.webm', '.avi', '.mov']);
 const SIDECAR_EXTS = new Set(['.srt', '.vtt']);
 const METADATA_TIMEOUT_MS = 60_000;
+const HEADER_TIMEOUT_MS = 60_000;
 const STATS_INTERVAL_MS = 1000;
 const DHT_WAIT_MS = 10_000;
 
@@ -34,7 +35,7 @@ let active: {
     subtitles: SubtitleSession;
     statsTimer: ReturnType<typeof setInterval>;
 } | null = null;
-let cancelPending: (() => void) | null = null;
+let pendingStart: AbortController | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
 export function applyTorrentSettings(settings: AppSettings) {
@@ -207,33 +208,37 @@ function destroyTorrent(torrent: Torrent): Promise<void> {
     });
 }
 
-function addTorrent(magnet: string): Promise<Torrent> {
-    return new Promise((resolve, reject) => {
-        const fail = (err: Error) => {
-            clearTimeout(timer);
-            cancelPending = null;
-            void destroyTorrent(torrent);
-            reject(err);
-        };
-        const timer = setTimeout(
-            () => fail(new Error('Timed out waiting for torrent metadata')),
-            METADATA_TIMEOUT_MS
-        );
-        const { downloadPath, maxConnections } = dbGetSettings();
-        const options = {
-            deselect: true,
-            path: downloadPath ?? defaultDownloadPath(),
-            maxConns: maxConnections,
-        };
-        const torrent = getClient().add(magnet, options, (ready) => {
-            clearTimeout(timer);
-            cancelPending = null;
-            torrent.removeListener('error', fail);
-            resolve(ready);
-        });
-        torrent.once('error', fail);
-        cancelPending = () => fail(new Error('Cancelled'));
+function addTorrent(magnet: string): { torrent: Torrent; ready: Promise<void> } {
+    const { downloadPath, maxConnections } = dbGetSettings();
+    const torrent = getClient().add(magnet, {
+        deselect: true,
+        path: downloadPath ?? defaultDownloadPath(),
+        maxConns: maxConnections,
     });
+    const ready = new Promise<void>((resolve, reject) => {
+        torrent.once('error', reject);
+        torrent.once('ready', () => {
+            torrent.removeListener('error', reject);
+            resolve();
+        });
+    });
+    return { torrent, ready };
+}
+
+// Rejects when a newer start or a stop supersedes this one, or when peers never deliver
+function guard<T>(step: Promise<T>, signal: AbortSignal, timeoutMs: number, message: string) {
+    let cleanup: (() => void) | undefined;
+    const stop = new Promise<never>((_, reject) => {
+        const cancel = () => reject(new Error('Cancelled'));
+        const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+        signal.addEventListener('abort', cancel, { once: true });
+        if (signal.aborted) cancel();
+        cleanup = () => {
+            clearTimeout(timer);
+            signal.removeEventListener('abort', cancel);
+        };
+    });
+    return Promise.race([step, stop]).finally(() => cleanup?.());
 }
 
 async function stopActive() {
@@ -245,40 +250,72 @@ async function stopActive() {
     await destroyTorrent(torrent);
 }
 
-export function startTorrent(magnet: string, episode?: EpisodeNumbers): Promise<StreamStartResult> {
-    cancelPending?.();
-    return serialized(async () => {
-        await initClient();
-        await stopActive();
-        log.debug('Adding torrent', magnet.slice(0, 80));
-        const torrent = await addTorrent(magnet);
+async function openStream(
+    magnet: string,
+    episode: EpisodeNumbers | undefined,
+    signal: AbortSignal
+): Promise<StreamStartResult> {
+    log.debug('Adding torrent', magnet.slice(0, 80));
+    const { torrent, ready } = addTorrent(magnet);
+    let opening: Promise<SubtitleSession> | undefined;
+    try {
+        await guard(ready, signal, METADATA_TIMEOUT_MS, 'Timed out waiting for torrent metadata');
         log.debug(`Got metadata for ${torrent.infoHash}, ${torrent.files.length} files`);
+        const { video, match, sidecars } = pickFiles(torrent.files, episode);
+        video.select();
+        log.debug('Reading video header');
+        opening = SubtitleSession.open(torrent.infoHash, video, sidecars);
+        const subtitles = await guard(
+            opening,
+            signal,
+            HEADER_TIMEOUT_MS,
+            'Timed out waiting for peers to send the video'
+        );
+        const statsTimer = setInterval(
+            () => sendToRenderer('stream:stats', torrent.infoHash, stats(torrent, video)),
+            STATS_INTERVAL_MS
+        );
+        active = { torrent, subtitles, statsTimer };
+        log.debug('Streaming', video.name);
+        return {
+            torrentId: torrent.infoHash,
+            match,
+            streamUrl: streamUrl(torrent, video),
+            tracks: subtitles.tracks,
+            audioTracks: subtitles.audioTracks,
+        };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === 'Cancelled') log.debug('Stream start cancelled');
+        else log.warn('Stream start failed:', message);
+        opening?.then(
+            (session) => session.destroy(),
+            () => undefined
+        );
+        await destroyTorrent(torrent);
+        throw err;
+    }
+}
+
+export function startTorrent(magnet: string, episode?: EpisodeNumbers): Promise<StreamStartResult> {
+    pendingStart?.abort();
+    const start = new AbortController();
+    pendingStart = start;
+    return serialized(async () => {
         try {
-            const { video, match, sidecars } = pickFiles(torrent.files, episode);
-            video.select();
-            const subtitles = await SubtitleSession.open(torrent.infoHash, video, sidecars);
-            const statsTimer = setInterval(
-                () => sendToRenderer('stream:stats', torrent.infoHash, stats(torrent, video)),
-                STATS_INTERVAL_MS
-            );
-            active = { torrent, subtitles, statsTimer };
-            log.debug('Streaming', video.name);
-            return {
-                torrentId: torrent.infoHash,
-                match,
-                streamUrl: streamUrl(torrent, video),
-                tracks: subtitles.tracks,
-                audioTracks: subtitles.audioTracks,
-            };
-        } catch (err) {
-            await destroyTorrent(torrent);
-            throw err;
+            if (start.signal.aborted) throw new Error('Cancelled');
+            await initClient();
+            await stopActive();
+            return await openStream(magnet, episode, start.signal);
+        } finally {
+            if (pendingStart === start) pendingStart = null;
         }
     });
 }
 
+// A stop for a specific torrent must not cancel a newer start that is still loading
 export function stopTorrent(torrentId: string | null): Promise<void> {
-    cancelPending?.();
+    if (!torrentId) pendingStart?.abort();
     return serialized(async () => {
         if (!torrentId || active?.torrent.infoHash === torrentId) await stopActive();
     });
