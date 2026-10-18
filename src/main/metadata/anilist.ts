@@ -52,6 +52,8 @@ export async function anilistRequest(
     if (res.status === 404) return null;
     const body = (await res.json().catch(() => null)) as GraphQLResponse | null;
     const message = body?.errors?.[0]?.message;
+    if (body?.errors?.length)
+        log.debug(`AniList answered ${res.status}:`, JSON.stringify(body.errors));
     if (res.status === 401 || message === 'Invalid token') {
         throw new AnilistAuthError(message ?? 'AniList rejected the login');
     }

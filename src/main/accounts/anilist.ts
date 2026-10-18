@@ -84,14 +84,23 @@ export async function anilistUserRequest(query: string, variables: unknown): Pro
     const row = dbGetAccount(PROVIDER);
     if (!row) throw new Error('Not connected to AniList');
     if (isExpired(row)) throw new Error('Your AniList login expired, reconnect it in Settings');
+    const token = safeStorage.decryptString(row.token);
     try {
-        return await anilistRequest(query, variables, safeStorage.decryptString(row.token));
+        return await anilistRequest(query, variables, token);
     } catch (err) {
-        if (err instanceof AnilistAuthError) {
+        if (!(err instanceof AnilistAuthError)) throw err;
+        // AniList occasionally rejects a valid token, so only expire it if the profile fails too
+        const stillValid = await anilistRequest(print(ViewerQuery), {}, token).then(
+            Boolean,
+            () => false
+        );
+        if (!stillValid) {
             log.warn('AniList rejected the token:', err.message);
             expire(row);
+            throw err;
         }
-        throw err;
+        log.warn('AniList rejected a valid token, retrying once:', err.message);
+        return anilistRequest(query, variables, token);
     }
 }
 
