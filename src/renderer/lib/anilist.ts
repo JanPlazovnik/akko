@@ -37,6 +37,16 @@ export function anilistUserQuery<TQuery extends object>(
     >;
 }
 
+export function anilistMutation<TQuery extends object>(
+    query: TQuery,
+    variables: VariablesOf<TQuery>
+): Promise<ResultOf<TQuery> | null> {
+    return window.api.metadata.anilistMutate(
+        source(query),
+        variables
+    ) as Promise<ResultOf<TQuery> | null>;
+}
+
 // Applies whatever is cached straight away, then refreshes in the background when it is older
 // than maxAge. The returned promise settles once the first data has been applied.
 export async function staleWhileRevalidate<T>(

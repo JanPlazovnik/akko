@@ -215,3 +215,38 @@ export const UserListQuery = graphql(
 );
 
 export type ListEntry = ResultOf<typeof ListEntryFragment>;
+
+export const SaveListEntryMutation = graphql(
+    `
+        mutation SaveListEntry(
+            $mediaId: Int!
+            $status: MediaListStatus
+            $progress: Int
+            $score: Float
+            $repeat: Int
+            $startedAt: FuzzyDateInput
+            $completedAt: FuzzyDateInput
+        ) {
+            SaveMediaListEntry(
+                mediaId: $mediaId
+                status: $status
+                progress: $progress
+                score: $score
+                repeat: $repeat
+                startedAt: $startedAt
+                completedAt: $completedAt
+            ) {
+                ...ListEntryFragment
+            }
+        }
+    `,
+    [ListEntryFragment]
+);
+
+export const DeleteListEntryMutation = graphql(`
+    mutation DeleteListEntry($id: Int!) {
+        DeleteMediaListEntry(id: $id) {
+            deleted
+        }
+    }
+`);

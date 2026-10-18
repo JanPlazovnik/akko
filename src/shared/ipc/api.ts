@@ -125,6 +125,7 @@ export type AppApi = {
             variables: unknown,
             maxAge: number
         ) => Promise<CachedResult<unknown>>;
+        anilistMutate: (query: string, variables: unknown) => Promise<unknown>;
         anizipEpisodes: (
             anilistId: number,
             maxAge: number

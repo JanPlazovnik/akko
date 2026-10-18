@@ -116,6 +116,14 @@ export function queryAnilistUser(
     return cached(key, maxAge, () => anilistUserRequest(query, variables));
 }
 
+// Clears the user's cached queries so nothing stale is served after the change
+export async function mutateAnilist(query: string, variables: unknown): Promise<unknown> {
+    const result = await anilistUserRequest(query, variables);
+    const row = dbGetAccount(PROVIDER);
+    if (row) dbClearCacheByPrefix(`${USER_CACHE_PREFIX}${row.userId}:`);
+    return result;
+}
+
 // The implicit grant redirects to the client's redirect URL with the token in the fragment.
 // The window never needs to load that URL: the token is read from the navigation itself.
 function authorize(): Promise<{ token: string; expiresIn: number }> {

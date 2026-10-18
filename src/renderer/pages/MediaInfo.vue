@@ -2,9 +2,10 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
-import { Play, Star } from '@lucide/vue';
+import { Pencil, Play, Plus, Star } from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
 import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
+import ListEntryDialog from '../components/ListEntryDialog.vue';
 import { STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
 import { useMediaStore } from '../stores/media';
@@ -33,6 +34,8 @@ const episodesLoading = computed(() => mediaStore.episodesLoadingFor(routeMediaI
 const mappings = computed(() => mediaStore.mappingsFor(routeMediaId.value));
 const selectedEpisode = ref<Episode | null>(null);
 const dialogOpen = ref(false);
+const listDialogOpen = ref(false);
+const listEntry = computed(() => list.entryFor(routeMediaId.value));
 const descriptionExpanded = ref(false);
 
 const description = computed(() => stripHtml(media.value?.description));
@@ -66,6 +69,7 @@ const watchAction = computed<{ episode: Episode | null; label: string }>(() => {
 async function load(id: number) {
     selectedEpisode.value = null;
     dialogOpen.value = false;
+    listDialogOpen.value = false;
     descriptionExpanded.value = false;
     loadingBar.start();
     mediaStore.setSelectedMedia(id);
@@ -237,6 +241,22 @@ const formatAirDate = (date: string) =>
                             <Play v-if="watchAction.episode" :size="15" fill="currentColor" />
                             {{ watchAction.label }}
                         </button>
+                        <button
+                            v-if="accounts.anilist"
+                            class="grid size-10 cursor-pointer place-items-center rounded-full bg-white/10 transition-colors hover:bg-white/15 disabled:cursor-default disabled:opacity-40"
+                            :disabled="accounts.anilistExpiry()?.expired"
+                            :title="
+                                accounts.anilistExpiry()?.expired
+                                    ? 'Reconnect AniList in Settings to edit your list'
+                                    : listEntry
+                                      ? 'Edit list entry'
+                                      : 'Add to list'
+                            "
+                            @click="listDialogOpen = true"
+                        >
+                            <Pencil v-if="listEntry" :size="16" />
+                            <Plus v-else :size="18" />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -354,6 +374,7 @@ const formatAirDate = (date: string) =>
         </template>
     </div>
 
+    <ListEntryDialog v-model:open="listDialogOpen" :media-id="routeMediaId" />
     <TorrentPickerDialog
         v-if="selectedEpisode && media"
         v-model:open="dialogOpen"

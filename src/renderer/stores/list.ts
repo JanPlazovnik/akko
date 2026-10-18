@@ -1,8 +1,15 @@
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
-import { UserListQuery, type ListEntry, type Media } from '@shared/graphql/queries';
-import type { ResultOf } from '@shared/graphql/graphql';
-import { anilistUserQuery, staleWhileRevalidate } from '../lib/anilist';
+import { toast } from 'vue3-toastify';
+import {
+    DeleteListEntryMutation,
+    SaveListEntryMutation,
+    UserListQuery,
+    type ListEntry,
+    type Media,
+} from '@shared/graphql/queries';
+import type { ResultOf, VariablesOf } from '@shared/graphql/graphql';
+import { anilistMutation, anilistUserQuery, staleWhileRevalidate } from '../lib/anilist';
 import { errorMessage } from '../lib/format';
 import { createLogger } from '../lib/logger';
 import { useAccountsStore } from './accounts';
@@ -24,6 +31,53 @@ export type ListStatus = (typeof LIST_STATUSES)[number];
 
 // ListMediaFragment leaves out tags and relation titles, which nothing reading list media uses
 export const entryMedia = (entry: ListEntry) => entry.media as unknown as Media;
+
+export type EntryPatch = {
+    status?: ListStatus;
+    progress?: number;
+    score?: number;
+    repeat?: number;
+};
+
+type SaveVariables = VariablesOf<typeof SaveListEntryMutation>;
+
+const today = () => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+};
+
+const byUpdated = (a: ListEntry, b: ListEntry) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+
+// Like AniList's site: progress starts a planned show and the last episode completes it, unless
+// the status was picked explicitly. Completing needs a known episode count, or airing shows
+// would complete at whatever has aired so far.
+function withRules(
+    previous: ListEntry | null,
+    patch: EntryPatch,
+    episodes: number | null | undefined
+): Omit<SaveVariables, 'mediaId'> {
+    let status = patch.status ?? (previous?.status as ListStatus | undefined) ?? 'PLANNING';
+    let progress = patch.progress ?? previous?.progress ?? 0;
+    let repeat = patch.repeat ?? previous?.repeat ?? 0;
+    if (episodes) progress = Math.min(progress, episodes);
+
+    if (patch.status === 'COMPLETED' && episodes) progress = episodes;
+    if (!patch.status && progress > (previous?.progress ?? 0)) {
+        if (status === 'PLANNING' || status === 'PAUSED') status = 'CURRENT';
+        if (episodes && progress >= episodes && (status === 'CURRENT' || status === 'REPEATING')) {
+            if (status === 'REPEATING') repeat += 1;
+            status = 'COMPLETED';
+        }
+    }
+
+    const vars: Omit<SaveVariables, 'mediaId'> = { status, progress, repeat };
+    if (patch.score !== undefined) vars.score = patch.score;
+    if (!previous?.startedAt?.year && status !== 'PLANNING' && progress > 0) {
+        vars.startedAt = today();
+    }
+    if (status === 'COMPLETED' && !previous?.completedAt?.year) vars.completedAt = today();
+    return vars;
+}
 
 // Without a scheduled next episode AniList often still has one airing, so assume there is
 function hasUnwatchedEpisode({ media, progress }: ListEntry): boolean {
@@ -60,12 +114,64 @@ export const useListStore = defineStore('list', () => {
 
     const entryFor = (mediaId: number) => byMediaId.value.get(mediaId) ?? null;
 
+    function put(mediaId: number, entry: ListEntry | null) {
+        const others = entries.value.filter((e) => e.mediaId !== mediaId);
+        entries.value = entry ? [...others, entry].sort(byUpdated) : others;
+    }
+
+    // Shows the change straight away and rolls it back if AniList refuses it
+    async function save(mediaId: number, patch: EntryPatch): Promise<ListEntry | null> {
+        const previous = entryFor(mediaId);
+        // A show not on the list yet borrows the media store's copy until AniList replies
+        const media =
+            previous?.media ?? (mediaStore.mediaFor(mediaId) as unknown as ListEntry['media']);
+        const vars = withRules(previous, patch, media?.episodes);
+        const optimistic = {
+            ...previous,
+            ...vars,
+            id: previous?.id ?? 0,
+            mediaId,
+            media,
+            updatedAt: Math.floor(Date.now() / 1000),
+        } as ListEntry;
+        put(mediaId, optimistic);
+        try {
+            const data = await anilistMutation(SaveListEntryMutation, { mediaId, ...vars });
+            const saved = data?.SaveMediaListEntry as ListEntry | null | undefined;
+            if (saved) put(mediaId, saved);
+            log.info(`Saved AniList ${mediaId}:`, JSON.stringify(vars));
+            return saved ?? optimistic;
+        } catch (err) {
+            put(mediaId, previous);
+            log.warn(`Failed to save AniList ${mediaId}:`, err);
+            toast.error(`Couldn't update your list: ${errorMessage(err)}`);
+            return null;
+        }
+    }
+
+    async function remove(mediaId: number): Promise<boolean> {
+        const previous = entryFor(mediaId);
+        if (!previous) return true;
+        put(mediaId, null);
+        try {
+            const data = await anilistMutation(DeleteListEntryMutation, { id: previous.id });
+            if (!data?.DeleteMediaListEntry?.deleted) throw new Error('AniList kept the entry');
+            log.info(`Removed AniList ${mediaId} from the list`);
+            return true;
+        } catch (err) {
+            put(mediaId, previous);
+            log.warn(`Failed to remove AniList ${mediaId}:`, err);
+            toast.error(`Couldn't remove it from your list: ${errorMessage(err)}`);
+            return false;
+        }
+    }
+
     // Custom lists repeat entries from the status lists, so only the status lists are read
     function apply(data: ResultOf<typeof UserListQuery> | null) {
         const next = (data?.MediaListCollection?.lists ?? [])
             .flatMap((list) => (list && !list.isCustomList ? (list.entries ?? []) : []))
             .filter((entry): entry is ListEntry => Boolean(entry?.media))
-            .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+            .sort(byUpdated);
         entries.value = next;
         mediaStore.rememberMissing(next.map(entryMedia));
         log.info(`Loaded ${next.length} list entries`);
@@ -97,5 +203,5 @@ export const useListStore = defineStore('list', () => {
 
     watch(() => accounts.anilist?.id, load, { immediate: true });
 
-    return { entries, loading, error, byStatus, continueWatching, entryFor, load };
+    return { entries, loading, error, byStatus, continueWatching, entryFor, load, save, remove };
 });
