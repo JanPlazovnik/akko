@@ -1,6 +1,7 @@
 import { readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
+import { MakerAppImage } from '@reforged/maker-appimage';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
@@ -46,6 +47,7 @@ const config: ForgeConfig = {
         new MakerZIP({}, ['darwin']),
         new MakerRpm({ options: { icon: 'assets/icon.png' } }),
         new MakerDeb({ options: { icon: 'assets/icon.png' } }),
+        new MakerAppImage({ options: { icon: 'assets/icon.png', categories: ['AudioVideo'] } }),
     ],
     plugins: [
         new VitePlugin({

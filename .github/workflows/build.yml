@@ -22,7 +22,7 @@ jobs:
 
             - name: Install packaging tools
               if: runner.os == 'Linux'
-              run: sudo apt-get update && sudo apt-get install -y rpm fakeroot dpkg
+              run: sudo apt-get update && sudo apt-get install -y rpm fakeroot dpkg squashfs-tools
 
             - run: npm ci
 
@@ -35,6 +35,7 @@ jobs:
                       out/make/**/*.exe
                       out/make/**/*.deb
                       out/make/**/*.rpm
+                      out/make/**/*.AppImage
                   if-no-files-found: error
                   retention-days: 1
 
