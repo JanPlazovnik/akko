@@ -12,6 +12,7 @@ const PREBUILD = /[/\\]prebuilds[/\\]([^/\\]+)/;
 const config: ForgeConfig = {
     packagerConfig: {
         icon: 'assets/icon',
+        appCopyright: `Copyright © ${new Date().getFullYear()} relevantcroissant`,
         // The Vite plugin only packages .vite/ by default. Externalized runtime dependencies
         // (webtorrent, better-sqlite3, koffi) also need node_modules; devDependencies are pruned.
         // Prebuilds for other platforms are dropped, rpm's strip step fails on foreign binaries.
@@ -27,7 +28,7 @@ const config: ForgeConfig = {
     },
     rebuildConfig: {},
     makers: [
-        new MakerSquirrel({ setupIcon: 'assets/icon.ico' }),
+        new MakerSquirrel({ setupIcon: 'assets/icon.ico', loadingGif: 'assets/installing.gif' }),
         new MakerZIP({}, ['darwin']),
         new MakerRpm({ options: { icon: 'assets/icon.png' } }),
         new MakerDeb({ options: { icon: 'assets/icon.png' } }),
