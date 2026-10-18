@@ -1,4 +1,4 @@
-import type { Episode } from '../anizip/types';
+import type { Episode, EpisodeNumbers } from '../anizip/types';
 import type { Media } from '../graphql/queries';
 
 export type MediaSummary = {
@@ -10,9 +10,8 @@ export type MediaSummary = {
     episodeCount?: number | null;
 };
 
-export type EpisodeSummary = {
+export type EpisodeSummary = EpisodeNumbers & {
     key: string;
-    number: number;
     title?: string | null;
     thumbnail?: string | null;
     airDate?: string | null;
@@ -57,10 +56,21 @@ export function mediaToSummary(media: Media): MediaSummary {
 export function episodeToSummary(episode: Episode): EpisodeSummary {
     return {
         key: episode.key,
-        number: episode.absoluteNumber ?? episode.number,
+        number: episode.number,
+        season: episode.season,
+        seasonEpisode: episode.seasonEpisode,
+        absoluteNumber: episode.absoluteNumber,
         title: episode.title,
         thumbnail: episode.image,
         airDate: episode.airDate,
         source: 'anizip',
     };
+}
+
+export function describeEpisode({ number, season, seasonEpisode, absoluteNumber }: EpisodeNumbers) {
+    const aliases = [
+        season !== null && seasonEpisode !== null && `S${season}E${seasonEpisode}`,
+        absoluteNumber !== null && absoluteNumber !== number && `#${absoluteNumber}`,
+    ].filter(Boolean);
+    return `episode ${number}${aliases.length ? ` (${aliases.join(', ')})` : ''}`;
 }

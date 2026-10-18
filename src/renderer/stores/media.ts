@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { anilistQuery, staleWhileRevalidate } from '../lib/anilist';
+import { createLogger } from '../lib/logger';
 import type { ResultOf, VariablesOf } from '../../shared/graphql/graphql';
 import { DashboardQuery, GetAnimeQuery, SearchQuery } from '../../shared/graphql/queries';
 import {
@@ -13,6 +14,8 @@ import type { Media } from '../../shared/graphql/queries';
 import router from '../router';
 
 type DashboardData = ResultOf<typeof DashboardQuery>;
+
+const log = createLogger('media');
 
 const MINUTE = 60_000;
 const MAX_AGE = {
@@ -52,6 +55,7 @@ export const useMediaStore = defineStore('media', () => {
     const searchError = ref<Error | null>(null);
     const mediaRequests = new Map<number, Promise<Media | null>>();
     const episodeRequests = new Map<number, Promise<Episode[]>>();
+    const loggedMappings = new Set<number>();
     let searchRequestId = 0;
 
     const selectedMedia = computed(() =>
@@ -155,10 +159,48 @@ export const useMediaStore = defineStore('media', () => {
             ...streamingById.value,
             [id]: (media.streamingEpisodes ?? []).flatMap((e) => (e ? [e] : [])),
         };
+        logMapping(id);
     }
 
     function applyEpisodes(id: number, data: AniZipResponse | null) {
         anizipById.value = { ...anizipById.value, [id]: data };
+        logMapping(id);
+    }
+
+    // Episode numbers come from AniZip, so a wrong mapping or a count that differs from AniList's
+    // means playback would line up with the wrong AniList episode. While a show airs, AniZip only
+    // lists aired episodes, so fewer than AniList's total is expected.
+    function logMapping(id: number) {
+        const media = mediaFor(id);
+        if (!media || !(id in anizipById.value) || loggedMappings.has(id)) return;
+        loggedMappings.add(id);
+
+        const data = anizipById.value[id];
+        const name = `AniList ${id} "${media.title?.userPreferred}"`;
+        if (!data) return log.warn(`${name} has no AniZip data, episode numbers are unavailable`);
+
+        const { anilist_id, anidb_id, thetvdb_id, mal_id } = data.mappings;
+        const episodeCount = data.episodeCount ?? 0;
+        log.info(
+            `${name} maps to AniDB ${anidb_id}, TVDB ${thetvdb_id}, MAL ${mal_id};`,
+            `${episodeCount} episodes, AniList has ${media.episodes ?? 'unknown'}`
+        );
+        if (!episodeCount) log.warn(`${name} has no AniZip episodes, the episode list is empty`);
+        if (anilist_id !== id) log.warn(`${name} got AniZip data for AniList ${anilist_id}`);
+        if (media.idMal && mal_id && media.idMal !== mal_id) {
+            log.warn(`${name} has MAL ${media.idMal} but AniZip maps it to MAL ${mal_id}`);
+        }
+        const finished = media.status === 'FINISHED';
+        if (
+            media.episodes &&
+            episodeCount &&
+            (episodeCount > media.episodes || (finished && episodeCount !== media.episodes))
+        ) {
+            log.warn(
+                `${name} has ${media.episodes} episodes but AniZip lists ${episodeCount},`,
+                'episode numbers may be offset'
+            );
+        }
     }
 
     async function fetchEpisodes(id: number): Promise<Episode[]> {

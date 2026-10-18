@@ -54,10 +54,17 @@ export interface StreamingEpisode {
     thumbnail?: string | null;
 }
 
-export interface Episode {
-    key: string;
+// number is AniDB's, which splits seasons the same way AniList does, so it lines up with list
+// progress. season and seasonEpisode are TVDB's, which often continues numbering across cours.
+export interface EpisodeNumbers {
     number: number;
+    season: number | null;
+    seasonEpisode: number | null;
     absoluteNumber: number | null;
+}
+
+export interface Episode extends EpisodeNumbers {
+    key: string;
     title: string | null;
     overview: string | null;
     image: string | null;
@@ -89,12 +96,14 @@ export function normalizeEpisodes(
     return Object.entries(data.episodes)
         .filter(([key]) => /^\d+$/.test(key))
         .map(([key, episode]) => {
-            const number = episode.episodeNumber ?? Number(episode.episode || key);
+            const number = Number(episode.episode || key);
             const streamed = fromStreaming.get(number);
             const title = episode.title;
             return {
                 key,
                 number,
+                season: episode.seasonNumber ?? null,
+                seasonEpisode: episode.episodeNumber ?? null,
                 absoluteNumber: episode.absoluteEpisodeNumber ?? null,
                 title: title?.en || title?.['x-jat'] || title?.ja || streamed?.title || null,
                 overview: episode.overview ?? episode.summary ?? null,

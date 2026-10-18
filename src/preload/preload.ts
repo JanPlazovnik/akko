@@ -1,9 +1,10 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { ExtensionManifest, SearchMethod, SearchParams } from '../main/extensions/types';
 import type { AppApi, RendererEventMap } from '../shared/ipc/api';
+import type { EpisodeNumbers } from '../shared/anizip/types';
 
 const api: AppApi = {
-    startStream: (magnet: string, episode?: number) =>
+    startStream: (magnet: string, episode?: EpisodeNumbers) =>
         ipcRenderer.invoke('stream:start', magnet, episode),
     stopStream: (torrentId: string | null) => ipcRenderer.invoke('stream:stop', torrentId),
     checkNetwork: () => ipcRenderer.invoke('stream:check-network'),

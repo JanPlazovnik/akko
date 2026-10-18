@@ -3,8 +3,10 @@ import { ref, computed, shallowRef } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
 import type { AudioTrack, StreamStats, SubtitleBatch, SubtitleTrack } from '@shared/ipc/api';
+import { describeEpisode } from '@shared/media/types';
 import { dialogueLine, type SubtitleEvent } from '@shared/subtitles';
 import { errorMessage } from '../lib/format';
+import { createLogger } from '../lib/logger';
 import { useSettingsStore } from './settings';
 
 export type PickerContext = {
@@ -16,6 +18,8 @@ export type PickerContext = {
 };
 
 type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
+
+const log = createLogger('player');
 
 function defaultTrackId(tracks: SubtitleTrack[], lang: string): string {
     const preferred = tracks.filter((t) => t.lang === lang);
@@ -143,12 +147,21 @@ export const usePlayerStore = defineStore('player', () => {
         selection.value = next;
         pickerContext.value = context;
         loading.value = true;
+        log.info(
+            `Starting AniList ${next.media.anilistId} "${next.media.title}"`,
+            `${describeEpisode(next.episode)} from "${next.torrent.title}"`
+        );
 
         try {
-            const result = await window.api.startStream(next.torrent.magnet, next.episode.number);
+            const result = await window.api.startStream(next.torrent.magnet, next.episode);
             if (current !== generation) {
                 await window.api.stopStream(result.torrentId);
                 return;
+            }
+            if (result.match === 'fallback') {
+                log.warn(
+                    `No file in "${next.torrent.title}" matched ${describeEpisode(next.episode)}`
+                );
             }
             torrentId.value = result.torrentId;
             streamUrl.value = result.streamUrl;

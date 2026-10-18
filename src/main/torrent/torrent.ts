@@ -1,9 +1,11 @@
 import path from 'node:path';
+import { parse } from 'anitomy';
 import type WebTorrent from 'webtorrent';
 import type { Torrent, TorrentFile, TorrentServer } from 'webtorrent';
 import {
     HEALTHY_DHT_NODES,
     type AppSettings,
+    type FileMatch,
     type NetworkCheck,
     type StreamStartResult,
     type StreamStats,
@@ -14,6 +16,8 @@ import { dbGetSettings } from '../db';
 import { defaultDownloadPath } from '../paths';
 import { createLogger } from '../logger';
 import { probeTrackers } from './network';
+import type { EpisodeNumbers } from '../../shared/anizip/types';
+import { describeEpisode } from '../../shared/media/types';
 
 const log = createLogger('torrent');
 
@@ -22,13 +26,6 @@ const SIDECAR_EXTS = new Set(['.srt', '.vtt']);
 const METADATA_TIMEOUT_MS = 60_000;
 const STATS_INTERVAL_MS = 1000;
 const DHT_WAIT_MS = 10_000;
-
-const EPISODE_PATTERNS = [
-    /(?:\bS\d+|\d)E0*(\d+)/i,
-    /\b(?:EP?|Episode)\s?0*(\d+)\b/i,
-    /\s-\s0*(\d+)(?:v\d)?\b/,
-    /(?:^|\s)0*(\d{1,4})(?:v\d)?(?:\s|$)/,
-];
 
 let client: WebTorrent | null = null;
 let server: TorrentServer | null = null;
@@ -104,32 +101,79 @@ function stem(file: TorrentFile): string {
     return path.basename(file.name, path.extname(file.name));
 }
 
-function episodeNumber(name: string): number | null {
-    const normalized = name.replace(/\[[^\]]*\]|\([^)]*\)/g, ' ').replace(/[._]/g, ' ');
-    for (const pattern of EPISODE_PATTERNS) {
-        const match = normalized.match(pattern);
-        if (match) return Number(match[1]);
-    }
-    return null;
+type ParsedFile = { season: number | null; episode: number | null };
+
+function parseFile(file: TorrentFile): ParsedFile {
+    const parsed = parse(file.name);
+    const season = Number(parsed?.season);
+    return {
+        season: Number.isInteger(season) ? season : null,
+        episode: parsed?.episode.number ?? null,
+    };
 }
 
-function pickFiles(files: TorrentFile[], episode?: number) {
+// Releases number episodes per AniList entry, per TVDB season or across the whole series.
+// The most specific scheme that fits wins; a season that disagrees with TVDB is a weak match.
+function matchScore({ season, episode }: ParsedFile, target: EpisodeNumbers): number {
+    if (episode === null) return 0;
+    if (season !== null && target.season !== null && season !== target.season) {
+        return episode === target.number ? 1 : 0;
+    }
+    if (season !== null && episode === target.seasonEpisode) return 4;
+    if (episode === target.number) return 3;
+    if (episode === target.seasonEpisode || episode === target.absoluteNumber) return 2;
+    return 0;
+}
+
+function describeFile(file: TorrentFile, { season, episode } = parseFile(file)) {
+    return `${file.name} (season ${season ?? '-'}, episode ${episode ?? '-'})`;
+}
+
+function pickVideo(
+    videos: TorrentFile[],
+    target?: EpisodeNumbers
+): { video: TorrentFile; match: FileMatch } {
+    if (videos.length === 1) {
+        const parsed = parseFile(videos[0]);
+        log.info('Single video:', describeFile(videos[0], parsed));
+        if (target && matchScore(parsed, target) === 0) {
+            log.warn(`Single video doesn't look like ${describeEpisode(target)}`);
+        }
+        return { video: videos[0], match: 'single' };
+    }
+    if (!target) {
+        log.warn(`No episode given for ${videos.length} videos, using largest`);
+        return { video: videos[0], match: 'fallback' };
+    }
+
+    log.info(`Picking ${describeEpisode(target)} from ${videos.length} videos`);
+    let best = { video: videos[0], score: 0 };
+    for (const video of videos) {
+        const parsed = parseFile(video);
+        const score = matchScore(parsed, target);
+        if (score > 0) log.debug(`Score ${score}:`, describeFile(video, parsed));
+        if (score > best.score) best = { video, score };
+    }
+    if (best.score === 0) {
+        log.warn(`No file matched ${describeEpisode(target)}, using largest:`, videos[0].name);
+        return { video: videos[0], match: 'fallback' };
+    }
+    log.info(`Matched ${describeEpisode(target)} with score ${best.score}:`, best.video.name);
+    return { video: best.video, match: 'episode' };
+}
+
+function pickFiles(files: TorrentFile[], episode?: EpisodeNumbers) {
     const videos = files
         .filter((f) => VIDEO_EXTS.has(extension(f)))
         .sort((a, b) => b.length - a.length);
     if (videos.length === 0) throw new Error('No video file in torrent');
 
     const isBatch = videos.length > 1;
-    const matched =
-        isBatch && episode !== undefined
-            ? videos.find((f) => episodeNumber(stem(f)) === episode)
-            : undefined;
-    if (isBatch && !matched) log.warn(`No file matched episode ${episode}, using largest`);
-    const video = matched ?? videos[0];
+    const { video, match } = pickVideo(videos, episode);
 
     const subtitles = files.filter((f) => SIDECAR_EXTS.has(extension(f)));
     const matching = subtitles.filter((f) => f.name.startsWith(stem(video)));
-    return { video, sidecars: matching.length > 0 || isBatch ? matching : subtitles };
+    return { video, match, sidecars: matching.length > 0 || isBatch ? matching : subtitles };
 }
 
 function streamUrl(torrent: Torrent, file: TorrentFile): string {
@@ -153,8 +197,11 @@ function stats(torrent: Torrent, file: TorrentFile): StreamStats {
 function destroyTorrent(torrent: Torrent): Promise<void> {
     return new Promise((resolve) => {
         if (torrent.destroyed) return resolve();
+        const started = Date.now();
+        log.debug('Destroying torrent', torrent.infoHash);
         torrent.destroy({ destroyStore: !dbGetSettings().keepFiles }, (err) => {
             if (err) log.warn('Failed to destroy torrent:', err);
+            log.debug(`Destroyed torrent ${torrent.infoHash} in ${Date.now() - started}ms`);
             resolve();
         });
     });
@@ -198,14 +245,16 @@ async function stopActive() {
     await destroyTorrent(torrent);
 }
 
-export function startTorrent(magnet: string, episode?: number): Promise<StreamStartResult> {
+export function startTorrent(magnet: string, episode?: EpisodeNumbers): Promise<StreamStartResult> {
     cancelPending?.();
     return serialized(async () => {
         await initClient();
         await stopActive();
+        log.debug('Adding torrent', magnet.slice(0, 80));
         const torrent = await addTorrent(magnet);
+        log.debug(`Got metadata for ${torrent.infoHash}, ${torrent.files.length} files`);
         try {
-            const { video, sidecars } = pickFiles(torrent.files, episode);
+            const { video, match, sidecars } = pickFiles(torrent.files, episode);
             video.select();
             const subtitles = await SubtitleSession.open(torrent.infoHash, video, sidecars);
             const statsTimer = setInterval(
@@ -216,6 +265,7 @@ export function startTorrent(magnet: string, episode?: number): Promise<StreamSt
             log.debug('Streaming', video.name);
             return {
                 torrentId: torrent.infoHash,
+                match,
                 streamUrl: streamUrl(torrent, video),
                 tracks: subtitles.tracks,
                 audioTracks: subtitles.audioTracks,

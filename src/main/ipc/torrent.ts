@@ -1,8 +1,9 @@
 import { ipcMain } from 'electron';
+import type { EpisodeNumbers } from '../../shared/anizip/types';
 import { checkNetwork, startTorrent, stopTorrent } from '../torrent/torrent';
 
 export function registerTorrentHandlers() {
-    ipcMain.handle('stream:start', async (_event, magnet: string, episode?: number) =>
+    ipcMain.handle('stream:start', async (_event, magnet: string, episode?: EpisodeNumbers) =>
         startTorrent(magnet, episode)
     );
 

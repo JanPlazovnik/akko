@@ -8,7 +8,7 @@ import type {
     UpdateInfo,
 } from '../../main/extensions/types';
 import type { SubtitleEvent } from '../subtitles';
-import type { AniZipResponse } from '../anizip/types';
+import type { AniZipResponse, EpisodeNumbers } from '../anizip/types';
 
 export type SubtitleTrack = {
     id: string;
@@ -69,8 +69,12 @@ export type StreamStats = {
     size: number;
 };
 
+// single: the torrent has one video. fallback: none matched the episode, so the largest was used.
+export type FileMatch = 'single' | 'episode' | 'fallback';
+
 export type StreamStartResult = {
     torrentId: string;
+    match: FileMatch;
     streamUrl: string;
     tracks: SubtitleTrack[];
     audioTracks: AudioTrack[];
@@ -87,7 +91,7 @@ export type RendererEventListener<K extends keyof RendererEventMap> = (
 ) => void;
 
 export type AppApi = {
-    startStream: (magnet: string, episode?: number) => Promise<StreamStartResult>;
+    startStream: (magnet: string, episode?: EpisodeNumbers) => Promise<StreamStartResult>;
     stopStream: (torrentId: string | null) => Promise<void>;
     checkNetwork: () => Promise<NetworkCheck>;
     on: <K extends keyof RendererEventMap>(
