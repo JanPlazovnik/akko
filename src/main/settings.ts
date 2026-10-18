@@ -1,7 +1,12 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm, statfs, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { dialog, shell } from 'electron';
-import { LOG_LEVELS, type AppSettings, type SettingsPaths } from '../shared/ipc/api';
+import {
+    LOG_LEVELS,
+    type AppSettings,
+    type FolderCheck,
+    type SettingsPaths,
+} from '../shared/ipc/api';
 import { dbGetSettings, dbSaveSettings } from './db';
 import { configureLogger, getLogFilePath } from './logger';
 import { applyTorrentSettings } from './torrent/torrent';
@@ -31,6 +36,7 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
     if (patch.maxConnections !== undefined) {
         clean.maxConnections = clamp(patch.maxConnections, 1, 500);
     }
+    if (patch.onboarded !== undefined) clean.onboarded = Boolean(patch.onboarded);
     return clean;
 }
 
@@ -56,6 +62,19 @@ export async function chooseFolder(current: string): Promise<string | null> {
         properties: ['openDirectory', 'createDirectory'],
     });
     return result.canceled ? null : (result.filePaths[0] ?? null);
+}
+
+export async function checkFolder(folder: string): Promise<FolderCheck> {
+    try {
+        await mkdir(folder, { recursive: true });
+        const probe = path.join(folder, `.akko-write-test-${process.pid}`);
+        await writeFile(probe, '');
+        await rm(probe);
+        const { bavail, bsize } = await statfs(folder);
+        return { writable: true, freeBytes: bavail * bsize };
+    } catch (err) {
+        return { writable: false, error: err instanceof Error ? err.message : String(err) };
+    }
 }
 
 export async function openDownloads() {

@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { DragDropProvider } from '@dnd-kit/vue';
 import Header from './components/Header.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
-import { useSettingsStore } from './stores/settings';
 const route = useRoute();
-const settings = useSettingsStore();
-onMounted(() => void settings.load());
 const mainEl = ref<HTMLElement | null>(null);
 const scrollMemory = new Map<string, number>();
 const REMEMBER = new Set(['/']);
@@ -25,7 +22,10 @@ watch(
 </script>
 
 <template>
-    <DragDropProvider>
+    <div v-if="route.meta.bare" class="h-screen bg-canvas text-white select-none">
+        <RouterView />
+    </div>
+    <DragDropProvider v-else>
         <div class="flex h-screen flex-col bg-canvas text-white select-none">
             <Header />
             <main

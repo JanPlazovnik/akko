@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { AppSettings, SettingsPaths } from '@shared/ipc/api';
 import { toast } from 'vue3-toastify';
 import { errorMessage } from '../lib/format';
@@ -7,6 +7,10 @@ import { errorMessage } from '../lib/format';
 export const useSettingsStore = defineStore('settings', () => {
     const settings = ref<AppSettings | null>(null);
     const paths = ref<SettingsPaths | null>(null);
+
+    const downloadPath = computed(
+        () => settings.value?.downloadPath ?? paths.value?.defaultDownloadPath ?? ''
+    );
 
     async function load() {
         [settings.value, paths.value] = await Promise.all([
@@ -26,5 +30,10 @@ export const useSettingsStore = defineStore('settings', () => {
         }
     }
 
-    return { settings, paths, load, update };
+    async function chooseDownloadPath() {
+        const folder = await window.api.settings.chooseFolder(downloadPath.value);
+        if (folder) await update({ downloadPath: folder });
+    }
+
+    return { settings, paths, downloadPath, load, update, chooseDownloadPath };
 });

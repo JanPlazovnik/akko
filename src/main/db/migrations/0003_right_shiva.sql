@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `onboarded` integer DEFAULT false NOT NULL;

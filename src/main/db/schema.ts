@@ -10,6 +10,7 @@ export const settings = sqliteTable('settings', {
     downloadLimit: integer('download_limit').notNull().default(0),
     uploadLimit: integer('upload_limit').notNull().default(0),
     maxConnections: integer('max_connections').notNull().default(55),
+    onboarded: integer('onboarded', { mode: 'boolean' }).notNull().default(false),
 });
 
 export const extensions = sqliteTable('extensions', {

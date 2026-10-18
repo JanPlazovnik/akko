@@ -28,12 +28,21 @@ export type AppSettings = {
     downloadLimit: number;
     uploadLimit: number;
     maxConnections: number;
+    onboarded: boolean;
 };
 
 export type SettingsPaths = {
     defaultDownloadPath: string;
     logFile: string;
 };
+
+export type FolderCheck =
+    | { writable: true; freeBytes: number }
+    | { writable: false; error: string };
+
+export const HEALTHY_DHT_NODES = 8;
+
+export type NetworkCheck = { trackersReached: number; trackersTotal: number; dhtNodes: number };
 
 export type CachedResult<T> = {
     data: T;
@@ -80,6 +89,7 @@ export type RendererEventListener<K extends keyof RendererEventMap> = (
 export type AppApi = {
     startStream: (magnet: string, episode?: number) => Promise<StreamStartResult>;
     stopStream: (torrentId: string | null) => Promise<void>;
+    checkNetwork: () => Promise<NetworkCheck>;
     on: <K extends keyof RendererEventMap>(
         channel: K,
         listener: RendererEventListener<K>
@@ -102,6 +112,7 @@ export type AppApi = {
         update: (patch: Partial<AppSettings>) => Promise<AppSettings>;
         paths: () => Promise<SettingsPaths>;
         chooseFolder: (current: string) => Promise<string | null>;
+        checkFolder: (folder: string) => Promise<FolderCheck>;
         openDownloads: () => Promise<void>;
         openLogs: () => Promise<void>;
     };

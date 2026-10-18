@@ -70,15 +70,6 @@ const logLevelOptions = LOG_LEVELS.map((level) => ({
     label: level[0].toUpperCase() + level.slice(1),
 }));
 
-const downloadPath = computed(
-    () => settings.value?.downloadPath ?? store.paths?.defaultDownloadPath ?? ''
-);
-
-async function chooseDownloadPath() {
-    const folder = await window.api.settings.chooseFolder(downloadPath.value);
-    if (folder) await store.update({ downloadPath: folder });
-}
-
 const openDownloads = () => window.api.settings.openDownloads();
 const openLogs = () => window.api.settings.openLogs();
 
@@ -168,7 +159,7 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                     <SettingRow title="Download location">
                         <template #description>
                             <span class="font-mono text-[11px] break-all text-white/55">
-                                {{ downloadPath }}
+                                {{ store.downloadPath }}
                             </span>
                             <span v-if="!settings.downloadPath" class="ml-1.5">(default)</span>
                         </template>
@@ -183,7 +174,7 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                         <button :class="BUTTON" title="Open folder" @click="openDownloads">
                             <FolderOpen :size="14" />
                         </button>
-                        <button :class="BUTTON" @click="chooseDownloadPath">Change</button>
+                        <button :class="BUTTON" @click="store.chooseDownloadPath">Change</button>
                     </SettingRow>
                     <SettingRow
                         title="Keep downloaded episodes"

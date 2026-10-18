@@ -73,6 +73,7 @@ declare module 'webtorrent' {
         constructor(opts?: WebTorrentOptions);
         torrents: Torrent[];
         maxConns: number;
+        dht?: { nodes: { count(): number } };
         throttleDownload(rate: number): void;
         throttleUpload(rate: number): void;
         downloadSpeed: number;

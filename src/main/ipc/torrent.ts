@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { startTorrent, stopTorrent } from '../torrent/torrent';
+import { checkNetwork, startTorrent, stopTorrent } from '../torrent/torrent';
 
 export function registerTorrentHandlers() {
     ipcMain.handle('stream:start', async (_event, magnet: string, episode?: number) =>
@@ -9,4 +9,6 @@ export function registerTorrentHandlers() {
     ipcMain.handle('stream:stop', async (_event, torrentId: string | null) => {
         await stopTorrent(torrentId);
     });
+
+    ipcMain.handle('stream:check-network', () => checkNetwork());
 }

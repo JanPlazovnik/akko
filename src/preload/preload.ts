@@ -6,6 +6,7 @@ const api: AppApi = {
     startStream: (magnet: string, episode?: number) =>
         ipcRenderer.invoke('stream:start', magnet, episode),
     stopStream: (torrentId: string | null) => ipcRenderer.invoke('stream:stop', torrentId),
+    checkNetwork: () => ipcRenderer.invoke('stream:check-network'),
     on: (channel, listener) => {
         const handler = (_event: IpcRendererEvent, ...args: RendererEventMap[typeof channel]) =>
             listener(...args);
@@ -25,6 +26,7 @@ const api: AppApi = {
         update: (patch) => ipcRenderer.invoke('settings:update', patch),
         paths: () => ipcRenderer.invoke('settings:paths'),
         chooseFolder: (current) => ipcRenderer.invoke('settings:choose-folder', current),
+        checkFolder: (folder) => ipcRenderer.invoke('settings:check-folder', folder),
         openDownloads: () => ipcRenderer.invoke('settings:open-downloads'),
         openLogs: () => ipcRenderer.invoke('settings:open-logs'),
     },

@@ -1,12 +1,19 @@
 import path from 'node:path';
 import type WebTorrent from 'webtorrent';
 import type { Torrent, TorrentFile, TorrentServer } from 'webtorrent';
-import type { AppSettings, StreamStartResult, StreamStats } from '../../shared/ipc/api';
+import {
+    HEALTHY_DHT_NODES,
+    type AppSettings,
+    type NetworkCheck,
+    type StreamStartResult,
+    type StreamStats,
+} from '../../shared/ipc/api';
 import { sendToRenderer } from '../context';
 import { SubtitleSession } from '../subtitles/session';
 import { dbGetSettings } from '../db';
 import { defaultDownloadPath } from '../paths';
 import { createLogger } from '../logger';
+import { probeTrackers } from './network';
 
 const log = createLogger('torrent');
 
@@ -14,6 +21,7 @@ const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.webm', '.avi', '.mov']);
 const SIDECAR_EXTS = new Set(['.srt', '.vtt']);
 const METADATA_TIMEOUT_MS = 60_000;
 const STATS_INTERVAL_MS = 1000;
+const DHT_WAIT_MS = 10_000;
 
 const EPISODE_PATTERNS = [
     /(?:\bS\d+|\d)E0*(\d+)/i,
@@ -61,6 +69,25 @@ export function initClient(): Promise<void> {
 function getClient() {
     if (!client) throw new Error('Torrent client not initialized');
     return client;
+}
+
+async function waitForDht(): Promise<number> {
+    await initClient();
+    const dht = getClient().dht;
+    if (!dht) return 0;
+    const deadline = Date.now() + DHT_WAIT_MS;
+    while (dht.nodes.count() < HEALTHY_DHT_NODES && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return dht.nodes.count();
+}
+
+export async function checkNetwork(): Promise<NetworkCheck> {
+    const [trackers, dhtNodes] = await Promise.all([probeTrackers(), waitForDht()]);
+    log.info(
+        `Network check: ${trackers.reached}/${trackers.total} trackers, ${dhtNodes} DHT nodes`
+    );
+    return { trackersReached: trackers.reached, trackersTotal: trackers.total, dhtNodes };
 }
 
 function serialized<T>(task: () => Promise<T>): Promise<T> {
