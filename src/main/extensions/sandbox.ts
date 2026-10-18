@@ -170,7 +170,6 @@ export async function searchExtension(
     method: SearchMethod,
     params: SearchParams
 ): Promise<TorrentResult[]> {
-    log.debug(`running ${method}() with params:`, params);
     const raw: TorrentResult[] = (await call(instance, method, params, SEARCH_TIMEOUT_MS)) ?? [];
     return raw.map((r) => ({ ...r, date: String(r.date) }));
 }

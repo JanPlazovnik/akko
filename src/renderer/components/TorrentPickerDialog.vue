@@ -128,7 +128,7 @@ async function triggerSearch() {
         resolution: resolution.value,
         exclusions: [] as string[],
     };
-    log.debug('params:', JSON.stringify(params));
+    log.debug('params:', JSON.stringify({ ...params, media: undefined }));
 
     let extensions;
     try {
