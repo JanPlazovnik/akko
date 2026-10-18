@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
 import { Play, Star } from '@lucide/vue';
@@ -37,8 +37,11 @@ const fallbackThumbnail = computed(
 );
 const firstEpisode = computed(() => episodes.value.find((ep) => !isUnaired(ep)) ?? null);
 
-onMounted(async () => {
-    const id = routeMediaId.value;
+// The router reuses this page when only the id changes, so load on every id
+async function load(id: number) {
+    selectedEpisode.value = null;
+    dialogOpen.value = false;
+    descriptionExpanded.value = false;
     loadingBar.start();
     mediaStore.setSelectedMedia(id);
     try {
@@ -54,26 +57,26 @@ onMounted(async () => {
     } finally {
         loadingBar.finish();
     }
-    await nextTick();
-    observeTitle();
-});
+}
+
+watch(routeMediaId, (id) => void load(id), { immediate: true });
 
 const titleEl = ref<HTMLElement | null>(null);
 const stickyVisible = ref(false);
-let observer: IntersectionObserver | null = null;
+const observer = new IntersectionObserver(
+    ([entry]) => {
+        stickyVisible.value = !entry.isIntersecting;
+    },
+    { threshold: 0 }
+);
 
-onUnmounted(() => observer?.disconnect());
+watch(titleEl, (el) => {
+    observer.disconnect();
+    stickyVisible.value = false;
+    if (el) observer.observe(el);
+});
 
-function observeTitle() {
-    if (!titleEl.value) return;
-    observer = new IntersectionObserver(
-        ([entry]) => {
-            stickyVisible.value = !entry.isIntersecting;
-        },
-        { threshold: 0 }
-    );
-    observer.observe(titleEl.value);
-}
+onUnmounted(() => observer.disconnect());
 
 function openDialog(ep: Episode) {
     selectedEpisode.value = ep;
