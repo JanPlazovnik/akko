@@ -215,7 +215,7 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                 <SettingsSection id="playback" title="Playback">
                     <SettingRow
                         title="Preferred subtitles"
-                        description="Selected automatically when an episode starts. Signs & songs tracks are skipped."
+                        description="Selected automatically when an episode starts."
                     >
                         <SelectMenu
                             :model-value="settings.subtitleLanguage"
