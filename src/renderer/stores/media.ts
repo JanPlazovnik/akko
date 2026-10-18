@@ -6,6 +6,7 @@ import type { ResultOf, VariablesOf } from '../../shared/graphql/graphql';
 import { DashboardQuery, GetAnimeQuery, SearchQuery } from '../../shared/graphql/queries';
 import {
     matchStreaming,
+    applySchedule,
     normalizeEpisodes,
     placeholderEpisodes,
     type AiringEpisode,
@@ -81,7 +82,9 @@ export const useMediaStore = defineStore('media', () => {
             const id = Number(key);
             const streaming = streamingById.value[id];
             const normalized = normalizeEpisodes(data, streaming);
-            episodes[id] = normalized.length ? normalized : fallbackEpisodes(id, streaming);
+            episodes[id] = normalized.length
+                ? applySchedule(normalized, airingById.value[id] ?? [])
+                : fallbackEpisodes(id, streaming);
         }
         return episodes;
     });

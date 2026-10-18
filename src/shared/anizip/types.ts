@@ -158,6 +158,28 @@ function withStreaming(episodes: Episode[], streaming: StreamingEpisode[]): Epis
     });
 }
 
+function blankEpisode(number: number, airDate: string | null): Episode {
+    return {
+        key: String(number),
+        number,
+        season: null,
+        seasonEpisode: null,
+        absoluteNumber: null,
+        title: null,
+        overview: null,
+        image: null,
+        airDate,
+        runtime: null,
+        anidbEid: null,
+        tvdbId: null,
+    };
+}
+
+const scheduleDates = (airing: AiringEpisode[]) =>
+    new Map(
+        airing.map(({ episode, airingAt }) => [episode, new Date(airingAt * 1000).toISOString()])
+    );
+
 // AniZip has nothing for some shows (often ONAs and brand-new seasons), so fall back to AniList's
 // episode count and airing schedule. Without a schedule, everything counts as out since release.
 export function placeholderEpisodes(
@@ -166,24 +188,27 @@ export function placeholderEpisodes(
     released: string | null,
     streaming: StreamingEpisode[] = []
 ): Episode[] {
-    const airDates = new Map(
-        airing.map(({ episode, airingAt }) => [episode, new Date(airingAt * 1000).toISOString()])
+    const airDates = scheduleDates(airing);
+    const episodes = Array.from({ length: count }, (_, i) =>
+        blankEpisode(i + 1, airDates.get(i + 1) ?? released)
     );
-    const episodes = Array.from({ length: count }, (_, i) => ({
-        key: String(i + 1),
-        number: i + 1,
-        season: null,
-        seasonEpisode: null,
-        absoluteNumber: null,
-        title: null,
-        overview: null,
-        image: null,
-        airDate: airDates.get(i + 1) ?? released,
-        runtime: null,
-        anidbEid: null,
-        tvdbId: null,
-    }));
     return withStreaming(episodes, streaming);
+}
+
+// AniList's schedule follows delays and drives its own countdown, while AniZip's dates can lag
+// days behind and it only lists a few episodes ahead, so the schedule wins and fills the gaps
+export function applySchedule(episodes: Episode[], airing: AiringEpisode[]): Episode[] {
+    if (!airing.length) return episodes;
+    const airDates = scheduleDates(airing);
+    const known = new Set(episodes.map((episode) => episode.number));
+    const scheduled = episodes.map((episode) => {
+        const airDate = airDates.get(episode.number);
+        return airDate ? { ...episode, airDate } : episode;
+    });
+    const missing = [...airDates]
+        .filter(([number]) => !known.has(number))
+        .map(([number, airDate]) => blankEpisode(number, airDate));
+    return [...scheduled, ...missing].sort((a, b) => a.number - b.number);
 }
 
 export function normalizeEpisodes(
@@ -205,7 +230,7 @@ export function normalizeEpisodes(
                 title: title?.en || title?.['x-jat'] || title?.ja || null,
                 overview: episode.overview ?? episode.summary ?? null,
                 image: episode.image ?? null,
-                airDate: episode.airDate ?? episode.airdate ?? null,
+                airDate: episode.airDateUtc ?? episode.airDate ?? episode.airdate ?? null,
                 runtime: episode.runtime ?? episode.length ?? null,
                 anidbEid: episode.anidbEid ?? null,
                 tvdbId: episode.tvdbId ?? null,
