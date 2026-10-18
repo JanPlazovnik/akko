@@ -1,7 +1,9 @@
-import type { MatroskaSubtitle } from 'matroska-metadata';
 import type { SubtitleEvent } from '../../shared/subtitles';
+import type { MatroskaCue as Cue } from '../media/matroska';
 
-type Cue = Pick<MatroskaSubtitle, 'time' | 'duration' | 'text'>;
+type Fields = Partial<
+    Record<'layer' | 'style' | 'name' | 'marginL' | 'marginR' | 'marginV' | 'effect', string>
+>;
 
 const EVENTS = `[Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
@@ -44,7 +46,7 @@ export function assHeader(codecPrivate?: string): string {
     return `${(events >= 0 ? header.slice(0, events) : header).trimEnd()}\n\n${EVENTS}`;
 }
 
-function event(cue: Cue, fields: Partial<MatroskaSubtitle>, text: string): SubtitleEvent {
+function event(cue: Cue, fields: Fields, text: string): SubtitleEvent {
     return {
         start: cue.time,
         duration: cue.duration,
@@ -59,8 +61,9 @@ function event(cue: Cue, fields: Partial<MatroskaSubtitle>, text: string): Subti
     };
 }
 
-export function assEvent(sub: MatroskaSubtitle): SubtitleEvent {
-    return event(sub, sub, sub.text);
+export function assEvent(cue: Cue): SubtitleEvent {
+    const [, layer, style, name, marginL, marginR, marginV, effect, ...text] = cue.text.split(',');
+    return event(cue, { layer, style, name, marginL, marginR, marginV, effect }, text.join(','));
 }
 
 export function plainEvent(cue: Cue): SubtitleEvent {

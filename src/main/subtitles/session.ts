@@ -1,21 +1,24 @@
 import type { IncomingMessage } from 'node:http';
 import path from 'node:path';
-import Metadata from 'matroska-metadata';
-import type { MatroskaAttachment, MatroskaSubtitle } from 'matroska-metadata';
 import type { TorrentFile } from 'webtorrent';
 import type { AudioTrack, SubtitleBatch, SubtitleTrack } from '../../shared/ipc/api';
 import { dialogueLine, type SubtitleEvent } from '../../shared/subtitles';
 import { sendToRenderer } from '../context';
 import { createLogger } from '../logger';
-import { readAudioTracks } from '../media/audio';
+import { audioTracks } from '../media/audio';
 import { describeLanguage } from '../media/language';
+import {
+    isTextSubtitle,
+    MatroskaFile,
+    type MatroskaAttachment,
+    type MatroskaTrack,
+} from '../media/matroska';
 import { assEvent, assHeader, parseTextSubtitles, plainEvent, PLAIN_HEADER } from './format';
 
 const log = createLogger('subtitles');
 
 const FLUSH_MS = 250;
 const MATROSKA_EXTS = new Set(['.mkv', '.webm']);
-const ASS_TYPES = new Set(['ass', 'ssa']);
 const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 const SCAN_BYTES = 8 * 1024 * 1024;
 
@@ -31,6 +34,10 @@ function rangeStart(req: IncomingMessage): number {
 
 function stem(file: TorrentFile): string {
     return path.basename(file.name, path.extname(file.name));
+}
+
+function isAss(track: MatroskaTrack): boolean {
+    return /^S_TEXT\/(ASS|SSA)$/i.test(track.codecId);
 }
 
 function isFont(attachment: MatroskaAttachment): boolean {
@@ -59,7 +66,7 @@ export class SubtitleSession {
     tracks: SubtitleTrack[] = [];
     audioTracks: AudioTrack[] = [];
 
-    private metadata: Metadata | null = null;
+    private matroska: MatroskaFile | null = null;
     private onIterator: IteratorHandler | null = null;
     private scan: { start: number; end: number } | null = null;
     private seen = new Map<string, Set<string>>();
@@ -93,28 +100,20 @@ export class SubtitleSession {
     }
 
     private async openEmbedded(): Promise<SubtitleTrack[]> {
-        const metadata = new Metadata(this.video);
-        this.metadata = metadata;
-
-        const tracks = await metadata.getTracks();
-        this.audioTracks = await readAudioTracks(metadata);
-        const assTracks = new Set(
-            tracks.filter((t) => ASS_TYPES.has(t.type)).map((t) => String(t.number))
+        const matroska = await MatroskaFile.open(this.video, (track, cue) =>
+            this.add(`mkv:${track.number}`, isAss(track) ? assEvent(cue) : plainEvent(cue))
         );
-
-        metadata.on('subtitle', (sub: MatroskaSubtitle, number: string | number) => {
-            const id = String(number);
-            this.add(`mkv:${id}`, assTracks.has(id) ? assEvent(sub) : plainEvent(sub));
-        });
+        this.matroska = matroska;
+        this.audioTracks = audioTracks(matroska.tracks);
 
         this.onIterator = ({ iterator, req }, transform) => {
-            this.scanFrom(metadata, rangeStart(req));
-            transform(metadata.parseStream(iterator));
+            this.scanFrom(matroska, rangeStart(req));
+            transform(matroska.parseStream(iterator));
         };
         this.video.on('iterator', this.onIterator);
 
-        metadata
-            .getAttachments()
+        matroska
+            .attachments()
             .then((attachments) => {
                 const fonts = attachments.filter(isFont).map((a) => a.data);
                 if (fonts.length > 0 && !this.destroyed) {
@@ -123,10 +122,12 @@ export class SubtitleSession {
             })
             .catch((err) => log.warn('Failed to read attachments:', err));
 
-        return tracks.map((track) => ({
+        return matroska.tracks.filter(isTextSubtitle).map((track) => ({
             id: `mkv:${track.number}`,
-            ...describeLanguage(track.language ?? 'eng', track.name, `Track ${track.number}`),
-            header: assTracks.has(String(track.number)) ? assHeader(track.header) : PLAIN_HEADER,
+            ...describeLanguage(track.language, track.name, `Track ${track.number}`),
+            header: isAss(track)
+                ? assHeader(track.codecPrivate && Buffer.from(track.codecPrivate).toString())
+                : PLAIN_HEADER,
         }));
     }
 
@@ -141,22 +142,22 @@ export class SubtitleSession {
         return { id, ...describeLanguage(code, undefined, stem(file)), header: PLAIN_HEADER };
     }
 
-    private scanFrom(metadata: Metadata, offset: number) {
+    private scanFrom(matroska: MatroskaFile, offset: number) {
         if (this.scan && offset >= this.scan.start && offset <= this.scan.end) return;
         const scan = { start: offset, end: Math.min(offset + SCAN_BYTES, this.video.length) - 1 };
         this.scan = scan;
-        this.runScan(metadata, scan).catch((err) => log.warn('Subtitle scan failed:', err));
+        this.runScan(matroska, scan).catch((err) => log.warn('Subtitle scan failed:', err));
     }
 
-    private async runScan(metadata: Metadata, scan: { start: number; end: number }) {
+    private async runScan(matroska: MatroskaFile, scan: { start: number; end: number }) {
         const chunks = this.video[Symbol.asyncIterator]({ start: scan.start, end: scan.end });
-        const parser = metadata.parseStream(chunks)[Symbol.asyncIterator]();
+        const parser = matroska.parseStream(chunks);
         try {
             while (this.scan === scan && !this.destroyed) {
                 if ((await parser.next()).done) return;
             }
         } finally {
-            await parser.return?.();
+            await parser.return(undefined);
         }
     }
 
@@ -182,6 +183,6 @@ export class SubtitleSession {
         this.destroyed = true;
         if (this.timer) clearTimeout(this.timer);
         if (this.onIterator) this.video.removeListener('iterator', this.onIterator);
-        this.metadata?.destroy();
+        this.matroska?.destroy();
     }
 }
