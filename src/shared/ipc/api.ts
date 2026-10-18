@@ -100,6 +100,8 @@ export type AudioTrack = {
     support: AudioSupport;
 };
 
+export type Chapter = { start: number; end: number; title: string };
+
 export type SubtitleBatch = Record<string, SubtitleEvent[]>;
 
 export type StreamStats = {
@@ -125,6 +127,7 @@ export type StreamStartResult = {
 export type RendererEventMap = {
     'stream:subtitles': [torrentId: string, batch: SubtitleBatch];
     'stream:fonts': [torrentId: string, fonts: Uint8Array[]];
+    'stream:chapters': [torrentId: string, chapters: Chapter[]];
     'stream:stats': [torrentId: string, stats: StreamStats];
     'accounts:changed': [accounts: Accounts];
     'anilist:outage': [outage: string | null];

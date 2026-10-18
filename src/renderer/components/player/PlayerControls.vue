@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
     ChevronLeft,
@@ -37,6 +38,23 @@ const finding = (episode: Episode | null) => Boolean(episode && queue.finding ==
 const RATE_BUTTON =
     "w-auto px-3 text-sm font-semibold tabular-nums after:content-[attr(data-rate)_'×']";
 const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto';
+
+const chapterMarks = computed(() =>
+    player.duration
+        ? player.chapters.filter((c) => c.start > 0).map((c) => (c.start / player.duration) * 100)
+        : []
+);
+
+const hoverTime = ref(0);
+const hoverChapter = computed(
+    () => player.chapters.find((c) => hoverTime.value >= c.start && hoverTime.value < c.end)?.title
+);
+
+function onSliderPointer(event: PointerEvent) {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const fraction = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
+    hoverTime.value = fraction * player.duration;
+}
 </script>
 
 <template>
@@ -80,6 +98,7 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
         >
             <media-time-slider
                 class="group/slider relative flex h-5 cursor-pointer items-center outline-none"
+                @pointermove="onSliderPointer"
             >
                 <media-slider-track
                     class="relative block h-1 w-full overflow-hidden rounded-full bg-white/20 transition-[height] duration-150 group-hover/slider:h-1.5"
@@ -90,6 +109,12 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
                     <media-slider-fill
                         class="absolute inset-y-0 left-0 block w-(--media-slider-fill) bg-accent"
                     />
+                    <span
+                        v-for="mark in chapterMarks"
+                        :key="mark"
+                        class="absolute inset-y-0 block w-0.5 -translate-x-1/2 bg-black/70"
+                        :style="{ left: `${mark}%` }"
+                    />
                 </media-slider-track>
                 <media-slider-thumb
                     class="absolute top-1/2 left-(--media-slider-fill) block size-3.5 -translate-1/2 scale-0 rounded-full bg-white shadow-md transition-transform group-hover/slider:scale-100 group-data-dragging/slider:scale-100"
@@ -97,10 +122,15 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
                 <div
                     class="pointer-events-none absolute bottom-full left-(--media-slider-pointer) mb-2 -translate-x-1/2 opacity-0 transition-opacity group-hover/slider:opacity-100 group-data-dragging/slider:opacity-100"
                 >
-                    <media-slider-value
-                        type="pointer"
-                        class="block rounded-md bg-black/85 px-2 py-1 text-xs font-medium tabular-nums"
-                    />
+                    <div class="rounded-md bg-black/85 px-2 py-1 text-center text-xs">
+                        <span
+                            v-if="hoverChapter"
+                            class="block max-w-48 truncate font-medium text-white/60"
+                        >
+                            {{ hoverChapter }}
+                        </span>
+                        <media-slider-value type="pointer" class="block font-medium tabular-nums" />
+                    </div>
                 </div>
             </media-time-slider>
 

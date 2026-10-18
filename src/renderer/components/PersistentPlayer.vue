@@ -18,6 +18,7 @@ import PlayerStatus from './player/PlayerStatus.vue';
 import MiniPlayerOverlay from './player/MiniPlayerOverlay.vue';
 import UpNext from './player/UpNext.vue';
 import PlayerContextMenu from './player/PlayerContextMenu.vue';
+import SkipChapter from './player/SkipChapter.vue';
 import TorrentPickerDialog from './TorrentPickerDialog.vue';
 
 type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -138,6 +139,11 @@ async function copyScreenshot() {
     } catch (err) {
         toast.error(`Couldn't copy the screenshot: ${errorMessage(err)}`);
     }
+}
+
+function seek(time: number) {
+    const v = getVideo();
+    if (v) v.currentTime = time;
 }
 
 function toggleFullscreen() {
@@ -316,6 +322,7 @@ onUnmounted(() => audioBridge?.dispose());
                         />
                         <PlayerControls :fullscreen="isFullscreen" />
                         <UpNext />
+                        <SkipChapter @seek="seek" />
                     </template>
                     <MiniPlayerOverlay v-else />
                     <PlayerStatus v-if="isPlayerRoute" />

@@ -1,6 +1,6 @@
 import { inflateSync } from 'node:zlib';
 import { createLogger } from '../../logger';
-import { child, children, readHeader, readVint, text, uint, UNKNOWN_SIZE } from './ebml';
+import { child, children, float, readHeader, readVint, text, uint, UNKNOWN_SIZE } from './ebml';
 
 const log = createLogger('matroska');
 
@@ -13,6 +13,7 @@ const ID = {
     SeekPosition: 0x53ac,
     Info: 0x1549a966,
     TimestampScale: 0x2ad7b1,
+    Duration: 0x4489,
     Tracks: 0x1654ae6b,
     TrackEntry: 0xae,
     TrackNumber: 0xd7,
@@ -35,6 +36,16 @@ const ID = {
     FileName: 0x466e,
     FileMimeType: 0x4660,
     FileData: 0x465c,
+    Chapters: 0x1043a770,
+    EditionEntry: 0x45b9,
+    EditionFlagDefault: 0x45db,
+    ChapterAtom: 0xb6,
+    ChapterTimeStart: 0x91,
+    ChapterTimeEnd: 0x92,
+    ChapterFlagHidden: 0x98,
+    ChapterFlagEnabled: 0x4598,
+    ChapterDisplay: 0x80,
+    ChapString: 0x85,
     Cluster: 0x1f43b675,
     Timestamp: 0xe7,
     BlockGroup: 0xa0,
@@ -67,6 +78,7 @@ export type MatroskaTrack = {
 
 export type MatroskaAttachment = { filename: string; mimetype: string; data: Uint8Array };
 export type MatroskaCue = { time: number; duration: number; text: string };
+export type MatroskaChapter = { start: number; end: number; title: string };
 export type SubtitleHandler = (track: MatroskaTrack, cue: MatroskaCue) => void;
 
 type Decode = (data: Uint8Array) => Uint8Array;
@@ -90,6 +102,15 @@ async function readElement(source: ByteSource, pos: number): Promise<Uint8Array 
     const header = readHeader(await read(source, pos, 12), 0);
     if (!header || header.size === UNKNOWN_SIZE) return undefined;
     return read(source, pos + header.length, header.size);
+}
+
+function readAt(
+    source: ByteSource,
+    positions: Map<number, number>,
+    id: number
+): Promise<Uint8Array | undefined> {
+    const pos = positions.get(id);
+    return pos === undefined ? Promise.resolve(undefined) : readElement(source, pos);
 }
 
 async function locate(source: ByteSource): Promise<Map<number, number>> {
@@ -164,6 +185,31 @@ function parseTracks(data: Uint8Array | undefined, decoders: Map<number, Decode>
         });
     }
     return tracks;
+}
+
+function parseChapters(data: Uint8Array | undefined, duration?: number): MatroskaChapter[] {
+    const editions = [...children(data)].filter((e) => e.id === ID.EditionEntry).map((e) => e.data);
+    const edition = editions.find((e) => uint(child(e, ID.EditionFlagDefault))) ?? editions[0];
+    const atoms = [...children(edition)]
+        .filter(({ id }) => id === ID.ChapterAtom)
+        .map(({ data: atom }) => ({
+            atom,
+            start: (uint(child(atom, ID.ChapterTimeStart)) ?? 0) / 1e6,
+        }))
+        .filter(
+            ({ atom }) =>
+                !uint(child(atom, ID.ChapterFlagHidden)) &&
+                (uint(child(atom, ID.ChapterFlagEnabled)) ?? 1)
+        )
+        .sort((a, b) => a.start - b.start);
+    return atoms.map(({ atom, start }, i) => {
+        const end = uint(child(atom, ID.ChapterTimeEnd));
+        return {
+            start,
+            end: end !== undefined ? end / 1e6 : (atoms[i + 1]?.start ?? duration ?? start),
+            title: text(child(child(atom, ID.ChapterDisplay), ID.ChapString)) ?? '',
+        };
+    });
 }
 
 function findCluster(buf: Uint8Array, from: number): { pos: number; found: boolean } {
@@ -271,40 +317,41 @@ class ClusterReader {
 
 export class MatroskaFile {
     readonly textTracks: Map<number, MatroskaTrack>;
+    readonly decoders = new Map<number, Decode>();
+    readonly tracks: MatroskaTrack[];
+    readonly timestampScale: number;
+    private readonly duration?: number;
     private destroyed = false;
 
     private constructor(
         private readonly source: ByteSource,
         private readonly positions: Map<number, number>,
         private readonly onSubtitle: SubtitleHandler,
-        readonly tracks: MatroskaTrack[],
-        readonly decoders: Map<number, Decode>,
-        readonly timestampScale: number
+        info: Uint8Array | undefined,
+        tracks: Uint8Array | undefined
     ) {
-        this.textTracks = new Map(tracks.filter(isTextSubtitle).map((t) => [t.number, t]));
+        this.timestampScale = (uint(child(info, ID.TimestampScale)) ?? 1e6) / 1e6;
+        const duration = float(child(info, ID.Duration));
+        if (duration !== undefined) this.duration = duration * this.timestampScale;
+        this.tracks = parseTracks(tracks, this.decoders);
+        this.textTracks = new Map(this.tracks.filter(isTextSubtitle).map((t) => [t.number, t]));
     }
 
     static async open(source: ByteSource, onSubtitle: SubtitleHandler): Promise<MatroskaFile> {
         const positions = await locate(source);
-        const element = (id: number) => {
-            const pos = positions.get(id);
-            return pos === undefined ? undefined : readElement(source, pos);
-        };
-        const [info, tracks] = await Promise.all([element(ID.Info), element(ID.Tracks)]);
-        const decoders = new Map<number, Decode>();
-        return new MatroskaFile(
-            source,
-            positions,
-            onSubtitle,
-            parseTracks(tracks, decoders),
-            decoders,
-            (uint(child(info, ID.TimestampScale)) ?? 1e6) / 1e6
-        );
+        const [info, tracks] = await Promise.all([
+            readAt(source, positions, ID.Info),
+            readAt(source, positions, ID.Tracks),
+        ]);
+        return new MatroskaFile(source, positions, onSubtitle, info, tracks);
+    }
+
+    async chapters(): Promise<MatroskaChapter[]> {
+        return parseChapters(await readAt(this.source, this.positions, ID.Chapters), this.duration);
     }
 
     async attachments(): Promise<MatroskaAttachment[]> {
-        const pos = this.positions.get(ID.Attachments);
-        const data = pos === undefined ? undefined : await readElement(this.source, pos);
+        const data = await readAt(this.source, this.positions, ID.Attachments);
         return [...children(data)]
             .filter(({ id }) => id === ID.AttachedFile)
             .map(({ data: file }) => ({

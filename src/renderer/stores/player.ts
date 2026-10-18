@@ -4,6 +4,7 @@ import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
 import type {
     AudioTrack,
+    Chapter,
     FileMatch,
     StreamStats,
     SubtitleBatch,
@@ -26,6 +27,8 @@ export type PickerContext = {
 type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
 
 const log = createLogger('player');
+
+const SKIPPABLE_CHAPTER = /\b(op|ed|opening|ending|intro|outro|credits|preview)\b/i;
 
 function defaultTrackId(tracks: SubtitleTrack[], lang: string): string {
     const preferred = tracks.filter((t) => t.lang === lang);
@@ -56,6 +59,8 @@ export const usePlayerStore = defineStore('player', () => {
     const audioTracks = ref<AudioTrack[]>([]);
     const activeTrackId = ref('');
     const fonts = shallowRef<Uint8Array[]>([]);
+    const chapters = shallowRef<Chapter[]>([]);
+    let earlyChapters: { id: string; chapters: Chapter[] } | null = null;
     const cues = new Map<string, SubtitleEvent[]>();
     const early = new Map<string, (() => void)[]>();
     const cueListeners = new Set<CueListener>();
@@ -68,6 +73,16 @@ export const usePlayerStore = defineStore('player', () => {
     const audioBridgeFailed = ref(false);
     const unsupportedAudio = computed(
         () => audioSupport.value === 'none' || audioBridgeFailed.value
+    );
+
+    const skippableChapter = computed(
+        () =>
+            chapters.value.find(
+                (c) =>
+                    SKIPPABLE_CHAPTER.test(c.title) &&
+                    currentTime.value >= c.start &&
+                    currentTime.value < c.end - 1
+            ) ?? null
     );
 
     const activeTrack = computed(
@@ -106,6 +121,12 @@ export const usePlayerStore = defineStore('player', () => {
     }
 
     window.api.on('stream:fonts', (id, data) => forStream(id, () => (fonts.value = data)));
+
+    // can arrive before startStream resolves with the torrent id
+    window.api.on('stream:chapters', (id, data) => {
+        if (id === torrentId.value) chapters.value = data;
+        else if (loading.value) earlyChapters = { id, chapters: data };
+    });
 
     function addCues(batch: SubtitleBatch) {
         for (const [trackId, events] of Object.entries(batch)) {
@@ -156,6 +177,8 @@ export const usePlayerStore = defineStore('player', () => {
         activeTrackId.value = '';
         lastTrackId = '';
         fonts.value = [];
+        chapters.value = [];
+        earlyChapters = null;
         cues.clear();
         early.clear();
     }
@@ -197,6 +220,7 @@ export const usePlayerStore = defineStore('player', () => {
             tracks.value = result.tracks;
             audioTracks.value = result.audioTracks;
             fileMatch.value = result.match;
+            if (earlyChapters?.id === result.torrentId) chapters.value = earlyChapters.chapters;
             activeTrackId.value = subtitleLanguage()
                 ? defaultTrackId(result.tracks, subtitleLanguage())
                 : '';
@@ -241,6 +265,8 @@ export const usePlayerStore = defineStore('player', () => {
         activeTrackId,
         activeTrack,
         fonts,
+        chapters,
+        skippableChapter,
         onCues,
         trackContent,
         toggleSubtitles,

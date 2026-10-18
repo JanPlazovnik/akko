@@ -122,6 +122,19 @@ export class SubtitleSession {
             })
             .catch((err) => log.warn('Failed to read attachments:', err));
 
+        matroska
+            .chapters()
+            .then((chapters) => {
+                if (chapters.length === 0 || this.destroyed) return;
+                const seconds = chapters.map((c) => ({
+                    ...c,
+                    start: c.start / 1000,
+                    end: c.end / 1000,
+                }));
+                sendToRenderer('stream:chapters', this.torrentId, seconds);
+            })
+            .catch((err) => log.warn('Failed to read chapters:', err));
+
         return matroska.tracks.filter(isTextSubtitle).map((track) => ({
             id: `mkv:${track.number}`,
             ...describeLanguage(track.language, track.name, `Track ${track.number}`),

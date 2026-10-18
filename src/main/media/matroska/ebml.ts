@@ -63,6 +63,12 @@ export function uint(data: Uint8Array | undefined): number | undefined {
     return value;
 }
 
+export function float(data: Uint8Array | undefined): number | undefined {
+    if (data?.length !== 4 && data?.length !== 8) return undefined;
+    const view = new DataView(data.buffer, data.byteOffset, data.length);
+    return data.length === 4 ? view.getFloat32(0) : view.getFloat64(0);
+}
+
 export function text(data: Uint8Array | undefined): string | undefined {
     return data && decoder.decode(data).replace(/\0+$/, '');
 }
