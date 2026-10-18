@@ -7,6 +7,8 @@ import { DashboardQuery, GetAnimeQuery, SearchQuery } from '../../shared/graphql
 import {
     matchStreaming,
     normalizeEpisodes,
+    placeholderEpisodes,
+    type AiringEpisode,
     type AniZipResponse,
     type Episode,
     type StreamingEpisode,
@@ -15,6 +17,7 @@ import type { Media } from '../../shared/graphql/queries';
 import router from '../router';
 
 type DashboardData = ResultOf<typeof DashboardQuery>;
+type FuzzyDate = Media['startDate'];
 
 const log = createLogger('media');
 
@@ -26,6 +29,12 @@ const MAX_AGE = {
     search: 10 * MINUTE,
 };
 type SearchVars = VariablesOf<typeof SearchQuery>;
+
+function releaseDate(date: FuzzyDate): string | null {
+    if (!date?.year || !date.month || !date.day) return null;
+    const released = Date.UTC(date.year, date.month - 1, date.day);
+    return released <= Date.now() ? new Date(released).toISOString() : null;
+}
 
 function getCurrentSeason(): VariablesOf<typeof DashboardQuery> {
     const month = new Date().getMonth() + 1;
@@ -46,6 +55,7 @@ export const useMediaStore = defineStore('media', () => {
 
     const anizipById = ref<Record<number, AniZipResponse | null>>({});
     const streamingById = ref<Record<number, StreamingEpisode[]>>({});
+    const airingById = ref<Record<number, AiringEpisode[]>>({});
     const episodesLoadingByMediaId = ref<Record<number, boolean>>({});
     const episodesErrorByMediaId = ref<Record<number, Error | null>>({});
 
@@ -66,11 +76,23 @@ export const useMediaStore = defineStore('media', () => {
 
     const episodesById = computed(() => {
         const episodes: Record<number, Episode[]> = {};
-        for (const [id, data] of Object.entries(anizipById.value)) {
-            episodes[Number(id)] = normalizeEpisodes(data, streamingById.value[Number(id)]);
+        for (const [key, data] of Object.entries(anizipById.value)) {
+            const id = Number(key);
+            const streaming = streamingById.value[id];
+            const normalized = normalizeEpisodes(data, streaming);
+            episodes[id] = normalized.length ? normalized : fallbackEpisodes(id, streaming);
         }
         return episodes;
     });
+
+    // While AniList doesn't know the total, the airing schedule tells how many are planned
+    function fallbackEpisodes(id: number, streaming?: StreamingEpisode[]): Episode[] {
+        const media = mediaFor(id);
+        const airing = airingById.value[id];
+        if (!media || !airing) return [];
+        const count = media.episodes ?? Math.max(0, ...airing.map((a) => a.episode));
+        return placeholderEpisodes(count, airing, releaseDate(media.startDate), streaming);
+    }
 
     function rememberMedia(item: Media) {
         mediaById.value = { ...mediaById.value, [item.id]: item };
@@ -161,6 +183,10 @@ export const useMediaStore = defineStore('media', () => {
             ...streamingById.value,
             [id]: (media.streamingEpisodes ?? []).flatMap((e) => (e ? [e] : [])),
         };
+        airingById.value = {
+            ...airingById.value,
+            [id]: (media.airingSchedule?.nodes ?? []).flatMap((e) => (e ? [e] : [])),
+        };
         logMapping(id);
         logStreaming(id);
     }
@@ -201,7 +227,7 @@ export const useMediaStore = defineStore('media', () => {
 
         const data = anizipById.value[id];
         const name = `AniList ${id} "${media.title?.userPreferred}"`;
-        if (!data) return log.warn(`${name} has no AniZip data, episode numbers are unavailable`);
+        if (!data) return log.warn(`${name} has no AniZip data, using AniList's episode count`);
 
         const { anilist_id, anidb_id, thetvdb_id, mal_id } = data.mappings;
         const episodeCount = data.episodeCount ?? 0;
@@ -209,7 +235,8 @@ export const useMediaStore = defineStore('media', () => {
             `${name} maps to AniDB ${anidb_id}, TVDB ${thetvdb_id}, MAL ${mal_id};`,
             `${episodeCount} episodes, AniList has ${media.episodes ?? 'unknown'}`
         );
-        if (!episodeCount) log.warn(`${name} has no AniZip episodes, the episode list is empty`);
+        if (!episodeCount)
+            log.warn(`${name} has no AniZip episodes, using AniList's episode count`);
         if (anilist_id !== id) log.warn(`${name} got AniZip data for AniList ${anilist_id}`);
         if (media.idMal && mal_id && media.idMal !== mal_id) {
             log.warn(`${name} has MAL ${media.idMal} but AniZip maps it to MAL ${mal_id}`);

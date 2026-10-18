@@ -12,6 +12,12 @@ export const GetAnimeQuery = graphql(
                     airingAt
                     timeUntilAiring
                 }
+                airingSchedule(perPage: 50) {
+                    nodes {
+                        episode
+                        airingAt
+                    }
+                }
                 trailer {
                     id
                     site

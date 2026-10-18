@@ -54,6 +54,11 @@ export interface StreamingEpisode {
     thumbnail?: string | null;
 }
 
+export interface AiringEpisode {
+    episode: number;
+    airingAt: number;
+}
+
 // number is AniDB's, which splits seasons the same way AniList does, so it lines up with list
 // progress. season and seasonEpisode are TVDB's, which often continues numbering across cours.
 export interface EpisodeNumbers {
@@ -139,6 +144,48 @@ export function matchStreaming(
     return null;
 }
 
+function withStreaming(episodes: Episode[], streaming: StreamingEpisode[]): Episode[] {
+    const streamed = matchStreaming(episodes, streaming)?.byKey;
+    if (!streamed) return episodes;
+    return episodes.map((episode) => {
+        const extra = streamed.get(episode.key);
+        if (!extra) return episode;
+        return {
+            ...episode,
+            title: episode.title ?? extra.title,
+            image: episode.image ?? extra.thumbnail,
+        };
+    });
+}
+
+// AniZip has nothing for some shows (often ONAs and brand-new seasons), so fall back to AniList's
+// episode count and airing schedule. Without a schedule, everything counts as out since release.
+export function placeholderEpisodes(
+    count: number,
+    airing: AiringEpisode[],
+    released: string | null,
+    streaming: StreamingEpisode[] = []
+): Episode[] {
+    const airDates = new Map(
+        airing.map(({ episode, airingAt }) => [episode, new Date(airingAt * 1000).toISOString()])
+    );
+    const episodes = Array.from({ length: count }, (_, i) => ({
+        key: String(i + 1),
+        number: i + 1,
+        season: null,
+        seasonEpisode: null,
+        absoluteNumber: null,
+        title: null,
+        overview: null,
+        image: null,
+        airDate: airDates.get(i + 1) ?? released,
+        runtime: null,
+        anidbEid: null,
+        tvdbId: null,
+    }));
+    return withStreaming(episodes, streaming);
+}
+
 export function normalizeEpisodes(
     data: AniZipResponse | null,
     streaming: StreamingEpisode[] = []
@@ -165,16 +212,5 @@ export function normalizeEpisodes(
             };
         })
         .sort((a, b) => a.number - b.number);
-
-    const streamed = matchStreaming(episodes, streaming)?.byKey;
-    if (!streamed) return episodes;
-    return episodes.map((episode) => {
-        const extra = streamed.get(episode.key);
-        if (!extra) return episode;
-        return {
-            ...episode,
-            title: episode.title ?? extra.title,
-            image: episode.image ?? extra.thumbnail,
-        };
-    });
+    return withStreaming(episodes, streaming);
 }
