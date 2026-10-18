@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `title_language` text DEFAULT 'ANILIST' NOT NULL;

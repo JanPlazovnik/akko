@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { FolderOpen, RotateCcw, UserRound } from '@lucide/vue';
-import { LOG_LEVELS, type AppSettings } from '@shared/ipc/api';
+import { LOG_LEVELS, TITLE_LANGUAGES, type AppSettings } from '@shared/ipc/api';
 import { useSettingsStore } from '../stores/settings';
 import { useAccountsStore } from '../stores/accounts';
 import SettingsSection from '../components/settings/SettingsSection.vue';
@@ -13,6 +13,7 @@ import NumberField from '../components/ui/NumberField.vue';
 
 const SECTIONS = [
     { id: 'accounts', label: 'Accounts' },
+    { id: 'client', label: 'Client' },
     { id: 'playback', label: 'Playback' },
     { id: 'torrents', label: 'Torrents' },
     { id: 'extensions', label: 'Extensions' },
@@ -84,6 +85,24 @@ async function clearCache() {
     cacheCount.value = 0;
 }
 const setLogLevel = (level: string) => store.update({ logLevel: level as AppSettings['logLevel'] });
+
+const TITLE_LANGUAGE_LABELS: Record<string, string> = {
+    ROMAJI: 'Romaji',
+    ENGLISH: 'English',
+    NATIVE: 'Native',
+};
+const titleLanguageOptions = computed(() =>
+    TITLE_LANGUAGES.map((value) => {
+        const fromAccount = TITLE_LANGUAGE_LABELS[accounts.anilist?.titleLanguage ?? 'ROMAJI'];
+        const label =
+            value === 'ANILIST'
+                ? `AniList (${accounts.anilist ? fromAccount : 'romaji when not connected'})`
+                : TITLE_LANGUAGE_LABELS[value];
+        return { value, label };
+    })
+);
+const setTitleLanguage = (value: string) =>
+    store.update({ titleLanguage: value as AppSettings['titleLanguage'] });
 
 const toMegabytes = (kilobytes: number) => Math.round((kilobytes / 1024) * 10) / 10;
 const toKilobytes = (megabytes: number) => Math.round(megabytes * 1024);
@@ -210,6 +229,21 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             </button>
                         </div>
                     </div>
+                </SettingsSection>
+
+                <SettingsSection id="client" title="Client">
+                    <SettingRow
+                        title="Title language"
+                        description="How anime titles are shown. AniList follows your account's setting."
+                    >
+                        <SelectMenu
+                            :model-value="settings.titleLanguage"
+                            :options="titleLanguageOptions"
+                            placeholder="Title language"
+                            required
+                            @update:model-value="setTitleLanguage"
+                        />
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection id="playback" title="Playback">

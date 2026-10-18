@@ -47,7 +47,11 @@ function parseExtension(row: ExtensionRow): InstalledExtension {
 
 export function dbGetSettings(): AppSettings {
     const { id, ...row } = getDb().select().from(settings).get()!;
-    return { ...row, logLevel: row.logLevel as AppSettings['logLevel'] };
+    return {
+        ...row,
+        logLevel: row.logLevel as AppSettings['logLevel'],
+        titleLanguage: row.titleLanguage as AppSettings['titleLanguage'],
+    };
 }
 
 export function dbGetCache(key: string): { value: string; fetchedAt: number } | undefined {

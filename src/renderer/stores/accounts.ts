@@ -5,6 +5,7 @@ import type { AnilistAccount } from '@shared/ipc/api';
 import { mediaTitle } from '@shared/media/types';
 import { errorMessage, formatRelativeDate } from '../lib/format';
 import router from '../router';
+import { useSettingsStore } from './settings';
 
 const EXPIRY_WARNING_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -22,6 +23,7 @@ function expiryOf(account: AnilistAccount): Expiry {
 }
 
 export const useAccountsStore = defineStore('accounts', () => {
+    const settings = useSettingsStore();
     const anilist = ref<AnilistAccount | null>(null);
     const connecting = ref(false);
     let loading: Promise<void> | null = null;
@@ -39,8 +41,12 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     const anilistExpiry = () => (anilist.value ? expiryOf(anilist.value) : null);
 
-    const titleOf = (media: Parameters<typeof mediaTitle>[0]) =>
-        mediaTitle(media, anilist.value?.titleLanguage);
+    const titleLanguage = () => {
+        const chosen = settings.settings?.titleLanguage ?? 'ANILIST';
+        return chosen === 'ANILIST' ? anilist.value?.titleLanguage : chosen;
+    };
+
+    const titleOf = (media: Parameters<typeof mediaTitle>[0]) => mediaTitle(media, titleLanguage());
 
     async function warnIfExpiring() {
         await load();

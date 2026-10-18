@@ -18,6 +18,7 @@ export type SubtitleTrack = {
 };
 
 export const LOG_LEVELS = ['error', 'warn', 'info', 'verbose', 'debug', 'silly'] as const;
+export const TITLE_LANGUAGES = ['ANILIST', 'ROMAJI', 'ENGLISH', 'NATIVE'] as const;
 
 export type AppSettings = {
     logLevel: (typeof LOG_LEVELS)[number];
@@ -29,6 +30,7 @@ export type AppSettings = {
     uploadLimit: number;
     maxConnections: number;
     onboarded: boolean;
+    titleLanguage: (typeof TITLE_LANGUAGES)[number];
 };
 
 export type SettingsPaths = {

@@ -11,6 +11,7 @@ export const settings = sqliteTable('settings', {
     uploadLimit: integer('upload_limit').notNull().default(0),
     maxConnections: integer('max_connections').notNull().default(55),
     onboarded: integer('onboarded', { mode: 'boolean' }).notNull().default(false),
+    titleLanguage: text('title_language').notNull().default('ANILIST'),
 });
 
 export const extensions = sqliteTable('extensions', {

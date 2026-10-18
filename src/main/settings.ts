@@ -3,6 +3,7 @@ import path from 'node:path';
 import { dialog, shell } from 'electron';
 import {
     LOG_LEVELS,
+    TITLE_LANGUAGES,
     type AppSettings,
     type FolderCheck,
     type SettingsPaths,
@@ -39,6 +40,9 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
         clean.maxConnections = clamp(patch.maxConnections, 1, 500);
     }
     if (patch.onboarded !== undefined) clean.onboarded = Boolean(patch.onboarded);
+    if (patch.titleLanguage !== undefined && TITLE_LANGUAGES.includes(patch.titleLanguage)) {
+        clean.titleLanguage = patch.titleLanguage;
+    }
     return clean;
 }
 
