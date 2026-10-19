@@ -11,13 +11,14 @@ import {
     DialogRoot,
     DialogTitle,
 } from 'reka-ui';
-import { usePlayerStore } from '../stores/player';
+import { usePlayerStore, type PickerContext } from '../stores/player';
 import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
 import { createLogger } from '../lib/logger';
 import { errorMessage, formatBytes, formatRelativeDate } from '../lib/format';
+import { parseTitle, searchParams, selectionFor, torrentId } from '../lib/torrents';
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
-import { episodeToSummary, mediaToSummary } from '@shared/media/types';
+import { mediaToSummary } from '@shared/media/types';
 import type { TorrentResult } from '../../main/extensions/types';
 
 type Source = {
@@ -93,20 +94,13 @@ function sortResults(results: TorrentResult[]): TorrentResult[] {
     );
 }
 
-function parseTitle(title: string) {
-    const group = title.match(/^\[([^\]]+)\]\s*/);
-    return {
-        group: group?.[1] ?? null,
-        name: group ? title.slice(group[0].length) : title,
-        resolution: title.match(/\b(\d{3,4})p\b/)?.[1] ?? null,
-    };
-}
-
-// Sources return a magnet, a .torrent URL (which WebTorrent downloads itself) or a bare info hash
-function torrentId(link: string, hash: string): string {
-    if (link.startsWith('magnet:') || /^https?:\/\//.test(link)) return link;
-    return `magnet:?xt=urn:btih:${link || hash}`;
-}
+const context = computed<PickerContext>(() => ({
+    episode: props.episode,
+    anilistId: props.anilistId,
+    titles: props.titles,
+    episodeCount: props.episodeCount,
+    mappings: props.mappings,
+}));
 
 async function triggerSearch() {
     const current = ++searchId;
@@ -114,22 +108,11 @@ async function triggerSearch() {
     listed.value = false;
     sources.value = [];
 
-    const media = mediaStore.mediaFor(props.anilistId);
-    const params = {
-        media: media ? JSON.parse(JSON.stringify(media)) : undefined,
-        anilistId: props.anilistId,
-        anidbEid: props.episode.anidbEid?.toString() ?? undefined,
-        anidbAid: props.mappings?.anidb_id?.toString() ?? undefined,
-        tvdbId: props.mappings?.thetvdb_id ?? undefined,
-        tvdbEId: props.episode.tvdbId ?? undefined,
-        tmdbId: props.mappings?.themoviedb_id?.toString() ?? undefined,
-        imdbId: props.mappings?.imdb_id ?? undefined,
-        titles: props.titles,
-        episode: episodeNumber.value,
-        episodeCount: props.episodeCount ?? undefined,
-        resolution: resolution.value,
-        exclusions: [] as string[],
-    };
+    const params = searchParams(
+        context.value,
+        mediaStore.mediaFor(props.anilistId),
+        resolution.value
+    );
     log.debug('params:', JSON.stringify({ ...params, media: undefined }));
 
     let extensions;
@@ -195,30 +178,14 @@ async function pick(result: TorrentResult) {
     selecting.value = true;
     try {
         const media = mediaStore.mediaFor(props.anilistId);
-        void player.startStream(
-            {
-                media: media
-                    ? mediaToSummary(media, accounts.titleOf(media))
-                    : {
-                          anilistId: props.anilistId,
-                          title: props.titles[0] ?? 'Unknown title',
-                          episodeCount: props.episodeCount,
-                      },
-                episode: episodeToSummary(props.episode),
-                torrent: {
-                    title: result.title,
-                    infoHash: result.hash || undefined,
-                    magnet: torrentId(result.link, result.hash),
-                },
-            },
-            {
-                episode: props.episode,
-                anilistId: props.anilistId,
-                titles: props.titles,
-                episodeCount: props.episodeCount,
-                mappings: props.mappings,
-            }
-        );
+        const summary = media
+            ? mediaToSummary(media, accounts.titleOf(media))
+            : {
+                  anilistId: props.anilistId,
+                  title: props.titles[0] ?? 'Unknown title',
+                  episodeCount: props.episodeCount,
+              };
+        void player.startStream(selectionFor(summary, context.value, result), context.value);
         emit('update:open', false);
         await router.push('/player');
     } finally {

@@ -2,16 +2,21 @@
 import { useRouter } from 'vue-router';
 import {
     ChevronLeft,
+    Loader2,
     Maximize,
     Minimize,
     Pause,
     Play,
     RotateCcw,
     RotateCw,
+    SkipBack,
+    SkipForward,
     Volume2,
     VolumeX,
 } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
+import { useQueueStore } from '../../stores/queue';
+import type { Episode } from '@shared/anizip/types';
 import EpisodeLabel from './EpisodeLabel.vue';
 import { goBack } from '../../lib/navigation';
 import WindowControls from '../WindowControls.vue';
@@ -24,6 +29,10 @@ defineProps<{ fullscreen: boolean }>();
 
 const router = useRouter();
 const player = usePlayerStore();
+const queue = useQueueStore();
+
+const EPISODE_BUTTON = 'disabled:cursor-default disabled:opacity-35';
+const finding = (episode: Episode | null) => Boolean(episode && queue.finding === episode);
 
 const RATE_BUTTON =
     "w-auto px-3 text-sm font-semibold tabular-nums after:content-[attr(data-rate)_'×']";
@@ -86,6 +95,15 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
             </media-time-slider>
 
             <div class="mt-1 flex items-center gap-1">
+                <button
+                    :class="[CONTROL_BUTTON, EPISODE_BUTTON]"
+                    title="Previous episode (Shift+P)"
+                    :disabled="!queue.previous || !!queue.finding"
+                    @click="queue.previous && queue.play(queue.previous)"
+                >
+                    <Loader2 v-if="finding(queue.previous)" :size="18" class="animate-spin" />
+                    <SkipBack v-else :size="18" fill="currentColor" />
+                </button>
                 <media-play-button :class="[CONTROL_BUTTON, 'group/play']" title="Play/Pause (k)">
                     <Play
                         :size="20"
@@ -94,6 +112,15 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
                     />
                     <Pause :size="20" fill="currentColor" class="group-data-paused/play:hidden" />
                 </media-play-button>
+                <button
+                    :class="[CONTROL_BUTTON, EPISODE_BUTTON]"
+                    title="Next episode (Shift+N)"
+                    :disabled="!queue.next || !!queue.finding"
+                    @click="queue.next && queue.play(queue.next)"
+                >
+                    <Loader2 v-if="finding(queue.next)" :size="18" class="animate-spin" />
+                    <SkipForward v-else :size="18" fill="currentColor" />
+                </button>
                 <!-- Bound, so the element gets a number rather than a string it would concatenate -->
                 <media-seek-button :seconds="-10" :class="CONTROL_BUTTON" title="Back 10s (j)">
                     <RotateCcw :size="18" />

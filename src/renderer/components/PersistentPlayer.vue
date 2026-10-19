@@ -7,12 +7,14 @@ import '@videojs/html/base.css';
 import { toast } from 'vue3-toastify';
 import { usePlayerStore } from '../stores/player';
 import { useProgressStore } from '../stores/progress';
+import { useQueueStore } from '../stores/queue';
 import { formatTimestamp } from '../lib/watching';
 import { useSubtitleRenderer } from '../lib/subtitles';
 import { AudioBridge } from '../lib/audio-bridge';
 import PlayerControls from './player/PlayerControls.vue';
 import PlayerStatus from './player/PlayerStatus.vue';
 import MiniPlayerOverlay from './player/MiniPlayerOverlay.vue';
+import UpNext from './player/UpNext.vue';
 import TorrentPickerDialog from './TorrentPickerDialog.vue';
 
 type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -41,6 +43,7 @@ const route = useRoute();
 const router = useRouter();
 const player = usePlayerStore();
 const progress = useProgressStore();
+const queue = useQueueStore();
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
@@ -136,15 +139,20 @@ function onKeydown(event: KeyboardEvent) {
         return;
     }
     if (!isPlayerRoute.value || target?.closest('input, textarea, [contenteditable]')) return;
-    if (event.key.toLowerCase() === 'c' && !event.ctrlKey && !event.metaKey) {
-        player.toggleSubtitles();
-    }
+    if (event.ctrlKey || event.metaKey) return;
+    if (event.key.toLowerCase() === 'c') player.toggleSubtitles();
+    const episode = event.key === 'N' ? queue.next : event.key === 'P' ? queue.previous : null;
+    if (episode) void queue.play(episode);
 }
 
 onMounted(() => {
     const v = getVideo();
     if (v) {
-        v.addEventListener('play', () => (player.isPlaying = true));
+        v.addEventListener('play', () => {
+            player.isPlaying = true;
+            queue.cancelCountdown();
+        });
+        v.addEventListener('ended', () => queue.startCountdown());
         v.addEventListener('pause', () => (player.isPlaying = false));
         v.addEventListener('timeupdate', () => (player.currentTime = v.currentTime));
         v.addEventListener('durationchange', () => (player.duration = v.duration));
@@ -246,6 +254,7 @@ onUnmounted(() => audioBridge?.dispose());
                         target="document"
                     />
                     <PlayerControls :fullscreen="isFullscreen" />
+                    <UpNext />
                 </template>
                 <MiniPlayerOverlay v-else />
                 <PlayerStatus v-if="isPlayerRoute" />
