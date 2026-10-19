@@ -27,6 +27,10 @@ const isWindows = process.platform === 'win32';
 // and shows Electron's icon in the taskbar. Packaged builds get their identity from the installer.
 if (isWindows && !app.isPackaged) app.setAppUserModelId('akko.dev');
 
+// Chromium pauses hidden videos it thinks have no audio, which includes AC-3 releases played
+// through the audio bridge, so covering or minimizing the window would stop the episode
+app.commandLine.appendSwitch('disable-features', 'BackgroundVideoPauseOptimization');
+
 const createWindow = () => {
     const mainWindow = new BrowserWindow({
         width: 1280,
