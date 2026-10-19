@@ -94,10 +94,11 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
                     />
                     <Pause :size="20" fill="currentColor" class="group-data-paused/play:hidden" />
                 </media-play-button>
-                <media-seek-button seconds="-10" :class="CONTROL_BUTTON" title="Back 10s (j)">
+                <!-- Bound, so the element gets a number rather than a string it would concatenate -->
+                <media-seek-button :seconds="-10" :class="CONTROL_BUTTON" title="Back 10s (j)">
                     <RotateCcw :size="18" />
                 </media-seek-button>
-                <media-seek-button seconds="10" :class="CONTROL_BUTTON" title="Forward 10s (l)">
+                <media-seek-button :seconds="10" :class="CONTROL_BUTTON" title="Forward 10s (l)">
                     <RotateCw :size="18" />
                 </media-seek-button>
 
