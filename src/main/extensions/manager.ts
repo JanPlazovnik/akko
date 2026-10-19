@@ -235,9 +235,9 @@ export async function searchOne(
     method: SearchMethod,
     params: SearchParams
 ): Promise<TorrentResult[]> {
-    const instance = instances.get(id);
-    if (!instance) throw new Error(`Extension ${id} not active`);
-    return search(id, instance, method, params);
+    const extension = dbGetEnabledExtensions().find((ext) => ext.id === id);
+    if (!extension) throw new Error(`Extension ${id} is not enabled`);
+    return search(id, await ensureActive(id, extension.cachedCode), method, params);
 }
 
 export async function searchAll(
