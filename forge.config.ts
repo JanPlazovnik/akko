@@ -26,7 +26,7 @@ const config: ForgeConfig = {
         icon: 'assets/icon',
         appCopyright: `Copyright © ${new Date().getFullYear()} relevantcroissant`,
         // The Vite plugin only packages .vite/ by default. Externalized runtime dependencies
-        // (webtorrent, better-sqlite3, koffi) also need node_modules; devDependencies are pruned.
+        // (webtorrent, better-sqlite3) also need node_modules; devDependencies are pruned.
         // Prebuilds for other platforms are dropped, rpm's strip step fails on foreign binaries.
         ignore: (file) => {
             if (!file) return false;

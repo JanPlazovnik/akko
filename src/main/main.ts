@@ -10,7 +10,6 @@ import { initExtensions } from './extensions/manager';
 import { createLogger } from './logger';
 import { applySettings } from './settings';
 import { pruneCache } from './cache';
-import { useBorderlessFullscreen } from './fullscreen';
 import { removeLegacyDownloads } from './paths';
 import { refreshAnilistAccount } from './accounts/anilist';
 import { checkPeriodically, updateOnLaunch } from './updater';
@@ -41,7 +40,6 @@ const createWindow = () => {
         frame: false,
         show: false,
         backgroundColor: '#07070a',
-        fullscreenable: !isWindows,
         icon: app.isPackaged
             ? undefined
             : path.join(app.getAppPath(), isWindows ? 'assets/icon.ico' : 'assets/icon.png'),
@@ -58,7 +56,6 @@ const createWindow = () => {
         );
     }
 
-    if (isWindows) useBorderlessFullscreen(mainWindow);
     mainWindow.once('ready-to-show', () => mainWindow.show());
 
     if (!app.isPackaged) {

@@ -77,7 +77,6 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
-    "koffi": "^3.3.3",
     "webtorrent": "^2.8.5"
   },
   "lint-staged": {

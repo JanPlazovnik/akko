@@ -16,7 +16,7 @@ export default defineConfig({
     },
     build: {
         rollupOptions: {
-            external: ['webtorrent', 'better-sqlite3', 'koffi'],
+            external: ['webtorrent', 'better-sqlite3'],
         },
     },
 });
