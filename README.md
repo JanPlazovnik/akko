@@ -12,6 +12,13 @@ with full ASS subtitle rendering. Nothing has to finish downloading before playb
 
 The name comes from Atsuko "Akko" Kagari from _Little Witch Academia_, hence the hat.
 
+## Install
+
+Download the installer for your platform from
+[Releases](https://github.com/JanPlazovnik/akko/releases). The Windows installer keeps akko up
+to date on its own: new versions are downloaded and installed when the app starts. The Linux
+AppImage, `.deb` and `.rpm` have to be updated by downloading the new release.
+
 ## Features
 
 - Browse trending, seasonal and popular anime, search with filters, and view show pages
@@ -25,6 +32,8 @@ The name comes from Atsuko "Akko" Kagari from _Little Witch Academia_, hence the
   live torrent stats (speed, peers, progress).
 - A release picker that searches all enabled extensions at once, grouped by source and
   sorted by seeders.
+- Connect an AniList account to see your lists in a library page, edit list entries from a
+  show's page, and optionally sync watch progress as you watch.
 - Settings for the download location, keeping or deleting downloaded files, speed limits,
   connection count, preferred subtitle language and logging.
 
@@ -45,10 +54,11 @@ databases. AniZip's `mappings` provide the bridge for each show:
 - **TheTVDB** show and episode IDs
 - **TheMovieDB**, **IMDb**, **MyAnimeList** and other IDs
 
-AniZip combines AniDB, TheTVDB and community-maintained mapping data, so coverage varies. Recently started shows often have no TVDB mapping for the first weeks. In
-that case AniZip only returns AniDB episode data (no thumbnails, synopses or absolute
-episode numbers), and akko falls back to AniList's streaming thumbnails or the show's
-banner. Every extension receives whichever IDs are available.
+AniZip combines AniDB, TheTVDB and community-maintained mapping data, so coverage varies.
+Recently started shows often have no TVDB mapping for the first weeks. In that case AniZip
+only returns AniDB episode data (no thumbnails, synopses or absolute episode numbers), and
+akko falls back to AniList's streaming thumbnails or the show's banner. Every extension
+receives whichever IDs are available.
 
 ### Caching
 
@@ -61,8 +71,7 @@ cached. The cache can be cleared under Settings → Advanced.
 ## Extensions
 
 Torrent sources are JavaScript extensions installed from a repository URL in Settings. The
-extension format is compatible with Hayase extensions: an
-extension exports an object with a `test()` method and `single`, `batch` and/or `movie`
+extension format is compatible with Hayase extensions: an extension exports an object with a `test()` method and `single`, `batch` and/or `movie`
 search methods, which receive the show's titles, episode number, AniList/AniDB/TVDB/TMDB IDs
 and a `fetch` function.
 
@@ -75,17 +84,18 @@ extensions you install.
 
 ## Where things are stored
 
-| What                                           | Location                                                                                                                 |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Settings, installed extensions, metadata cache | `akko.db` in the app data folder (`%APPDATA%\akko` on Windows)                                                           |
-| Downloaded episodes                            | `<temp>/akko` by default, configurable in Settings. Deleted when playback stops unless "Keep downloaded episodes" is on. |
-| Logs                                           | Only written when enabled in Settings → Advanced                                                                         |
+| What                                           | Location                                                                                                                                                                           |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings, installed extensions, metadata cache | `akko.db` in the app data folder (`%APPDATA%\akko` on Windows)                                                                                                                     |
+| Downloaded episodes                            | `%LOCALAPPDATA%\akko\downloads` on Windows and `~/.cache/akko` on Linux by default, configurable in Settings. Deleted when playback stops unless "Keep downloaded episodes" is on. |
+| Logs                                           | `logs/main.log` in the app data folder, only written when enabled in Settings → Advanced                                                                                           |
 
 ## Known limitations
 
-- **Dolby and DTS audio:** Chromium can't decode AC3, E-AC3, DTS or TrueHD. Releases whose
-  only audio tracks use these codecs play without sound. akko detects this, warns in the
-  player, and flags likely affected releases in the picker.
+- **Dolby and DTS audio:** Chromium can't decode AC3, E-AC3, DTS or TrueHD. AC3 and E-AC3
+  tracks are decoded by akko itself instead, but their pitch shifts at playback speeds other
+  than 1x. Releases whose only audio is DTS or TrueHD play without sound; akko warns in the
+  player and flags likely affected releases in the picker.
 - **Absolute episode numbers** are only available when AniZip has TVDB data. Searches for
   long-running sequels without it use the per-season number.
 - Developed and tested on Windows 11.
@@ -106,27 +116,6 @@ Other scripts:
 
 - `npm run db:generate`: generate a database migration after changing `src/main/db/schema.ts`
 - `npm run generate:schema`: refresh the AniList GraphQL schema used for typed queries
-
-### Stack
-
-Electron, Vue 3, Pinia and Tailwind CSS on the frontend, with Video.js 10 for player
-controls and [JASSUB](https://github.com/ThaUnknown/jassub) (libass compiled to WebAssembly)
-for subtitles. Torrents are handled by [WebTorrent](https://webtorrent.io), subtitles are
-read from MKV streams with `matroska-metadata`, and data is stored with SQLite
-(`better-sqlite3` and Drizzle ORM). AniList queries are typed with `gql.tada`.
-
-### Project layout
-
-```
-src/
-  main/       Electron main process: torrent streaming, subtitle extraction, extension
-              sandbox, metadata fetching and cache, database, settings
-  preload/    The typed API exposed to the renderer
-  renderer/   Vue app: pages, components, stores, player
-  shared/     Types and helpers used by both sides (IPC contract, GraphQL queries,
-              AniZip types and episode normalization)
-assets/       App icon (source SVG plus generated PNG and ICO)
-```
 
 ## License
 
