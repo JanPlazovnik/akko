@@ -43,7 +43,12 @@ const config: ForgeConfig = {
     },
     rebuildConfig: {},
     makers: [
-        new MakerSquirrel({ setupIcon: 'assets/icon.ico', loadingGif: 'assets/installing.gif' }),
+        new MakerSquirrel({
+            setupIcon: 'assets/icon.ico',
+            // Shown in Windows' installed apps list, Squirrel downloads it during install
+            iconUrl: 'https://raw.githubusercontent.com/JanPlazovnik/akko/main/assets/icon.ico',
+            loadingGif: 'assets/installing.gif',
+        }),
         new MakerZIP({}, ['darwin']),
         new MakerRpm({ options: { icon: 'assets/icon.png' } }),
         new MakerDeb({ options: { icon: 'assets/icon.png' } }),
