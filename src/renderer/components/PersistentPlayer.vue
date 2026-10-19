@@ -150,9 +150,9 @@ onMounted(() => {
     if (v) {
         v.addEventListener('play', () => {
             player.isPlaying = true;
-            queue.cancelCountdown();
+            queue.dismissUpNext();
         });
-        v.addEventListener('ended', () => queue.startCountdown());
+        v.addEventListener('ended', () => queue.episodeEnded());
         v.addEventListener('pause', () => (player.isPlaying = false));
         v.addEventListener('timeupdate', () => (player.currentTime = v.currentTime));
         v.addEventListener('durationchange', () => (player.duration = v.duration));

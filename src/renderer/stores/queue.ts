@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, shallowRef, toRaw, watch } from 'vue';
+import { computed, ref, shallowRef, toRaw, watch } from 'vue';
 import type { Episode } from '@shared/anizip/types';
 import { episodeToSummary, type WatchSelection } from '@shared/media/types';
 import { useCountdown } from '../lib/countdown';
@@ -10,6 +10,7 @@ import { finishedAt, isUnaired } from '../lib/watching';
 import { useMediaStore } from './media';
 import { usePlayerStore, type PickerContext } from './player';
 import { useProgressStore } from './progress';
+import { useSettingsStore } from './settings';
 
 export const COUNTDOWN_S = 10;
 
@@ -19,6 +20,7 @@ export const useQueueStore = defineStore('queue', () => {
     const player = usePlayerStore();
     const mediaStore = useMediaStore();
     const progress = useProgressStore();
+    const settingsStore = useSettingsStore();
 
     const anilistId = computed(() => player.selection?.media.anilistId ?? null);
 
@@ -35,10 +37,11 @@ export const useQueueStore = defineStore('queue', () => {
     const next = computed(() => neighbour(1));
     const previous = computed(() => neighbour(-1));
     const finding = shallowRef<Episode | null>(null);
+    const upNext = ref(false);
     const {
         remaining: countdown,
         start: startTimer,
-        stop: cancelCountdown,
+        stop: stopTimer,
     } = useCountdown(() => {
         if (next.value) void play(next.value);
     });
@@ -109,7 +112,7 @@ export const useQueueStore = defineStore('queue', () => {
     }
 
     async function play(episode: Episode) {
-        cancelCountdown();
+        dismissUpNext();
         const magnet = player.selection?.torrent.magnet;
         finding.value = episode;
         try {
@@ -126,8 +129,18 @@ export const useQueueStore = defineStore('queue', () => {
         }
     }
 
-    function startCountdown() {
-        if (next.value && countdown.value === null) startTimer(COUNTDOWN_S);
+    // Up next shows when an episode ends, and only counts down with autoplay on
+    function episodeEnded() {
+        if (!next.value) return;
+        upNext.value = true;
+        if (settingsStore.settings?.autoplayNext && countdown.value === null) {
+            startTimer(COUNTDOWN_S);
+        }
+    }
+
+    function dismissUpNext() {
+        upNext.value = false;
+        stopTimer();
     }
 
     watch(anilistId, (id) => {
@@ -137,7 +150,7 @@ export const useQueueStore = defineStore('queue', () => {
 
     watch(
         () => player.selection,
-        () => cancelCountdown()
+        () => dismissUpNext()
     );
 
     // Look the next release up once the episode counts as watched, before the credits end
@@ -154,7 +167,8 @@ export const useQueueStore = defineStore('queue', () => {
         finding,
         countdown,
         play,
-        startCountdown,
-        cancelCountdown,
+        upNext,
+        episodeEnded,
+        dismissUpNext,
     };
 });

@@ -10,7 +10,11 @@ const queue = useQueueStore();
 
 const episode = computed(() => queue.next);
 const finding = computed(() => Boolean(episode.value && queue.finding === episode.value));
-const visible = computed(() => episode.value && (queue.countdown !== null || finding.value));
+const visible = computed(() => episode.value && (queue.upNext || finding.value));
+const status = computed(() => {
+    if (finding.value) return 'Finding a release…';
+    return queue.countdown ? `Next episode in ${queue.countdown}` : 'Up next';
+});
 const thumbnail = computed(
     () => episode.value?.image ?? player.selection?.media.bannerImage ?? null
 );
@@ -37,7 +41,7 @@ const thumbnail = computed(
             </div>
             <div class="p-4">
                 <p class="text-xs font-medium text-white/50">
-                    {{ finding ? 'Finding a release…' : `Next episode in ${queue.countdown}` }}
+                    {{ status }}
                 </p>
                 <p class="mt-0.5 truncate text-sm font-semibold">
                     {{ episode.title || `Episode ${episode.number}` }}
@@ -59,9 +63,9 @@ const thumbnail = computed(
                     <button
                         v-if="!finding"
                         class="h-9 cursor-pointer rounded-full bg-white/10 px-4 text-sm font-medium text-white/85 transition-colors hover:bg-white/20 hover:text-white"
-                        @click="queue.cancelCountdown()"
+                        @click="queue.dismissUpNext()"
                     >
-                        Cancel
+                        {{ queue.countdown ? 'Cancel' : 'Close' }}
                     </button>
                 </div>
             </div>
