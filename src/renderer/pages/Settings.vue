@@ -463,6 +463,10 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             {{ copied ? 'Copied' : 'Copy' }}
                         </span>
                     </button>
+                    <p class="px-5 py-4 text-xs leading-relaxed text-white/45">
+                        Title logos come from TMDB. This product uses the TMDB API but is not
+                        endorsed or certified by TMDB.
+                    </p>
                 </SettingsSection>
             </div>
         </div>

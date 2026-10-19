@@ -134,6 +134,17 @@ export const useMediaStore = defineStore('media', () => {
         return anizipById.value[id]?.mappings ?? null;
     }
 
+    const logos = ref<Record<number, string | null>>({});
+
+    const logoFor = (id: number) => logos.value[id] ?? null;
+
+    async function fetchLogo(id: number) {
+        if (id in logos.value) return;
+        logos.value = { ...logos.value, [id]: null };
+        const logo = await window.api.metadata.logo(id).catch(() => null);
+        logos.value = { ...logos.value, [id]: logo };
+    }
+
     function episodesLoadingFor(id: number) {
         return episodesLoadingByMediaId.value[id] ?? false;
     }
@@ -384,6 +395,8 @@ export const useMediaStore = defineStore('media', () => {
         mediaFor,
         episodesFor,
         mappingsFor,
+        logoFor,
+        fetchLogo,
         episodesLoadingFor,
         fetchDashboard,
         fetchMedia,

@@ -22,6 +22,7 @@ const api: AppApi = {
         anilistMutate: (query, variables) => ipcRenderer.invoke('anilist:mutate', query, variables),
         anizipEpisodes: (anilistId, maxAge) =>
             ipcRenderer.invoke('anizip:episodes', anilistId, maxAge),
+        logo: (anilistId) => ipcRenderer.invoke('metadata:logo', anilistId),
         cacheCount: () => ipcRenderer.invoke('cache:count'),
         clearCache: () => ipcRenderer.invoke('cache:clear'),
     },

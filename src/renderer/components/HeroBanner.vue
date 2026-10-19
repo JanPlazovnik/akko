@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Play, Star } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import { useMediaStore } from '../stores/media';
@@ -18,6 +18,18 @@ const heroIndex = ref(0);
 const paused = ref(false);
 
 const current = computed(() => props.items[heroIndex.value]);
+const brokenLogos = ref(new Set<string>());
+const logo = computed(() => {
+    const url = current.value && mediaStore.logoFor(current.value.id);
+    return url && !brokenLogos.value.has(url) ? url : null;
+});
+
+// Load every slide's logo up front, so they don't pop in over the text title
+watch(
+    () => props.items.map((item) => item.id),
+    (ids) => ids.forEach((id) => void mediaStore.fetchLogo(id)),
+    { immediate: true }
+);
 
 function go(index: number) {
     if (!props.items.length) return;
@@ -61,8 +73,17 @@ function go(index: number) {
                     Trending #{{ heroIndex + 1 }}
                 </p>
 
+                <h2 v-if="logo">
+                    <img
+                        :src="logo"
+                        :alt="accounts.titleOf(current)"
+                        class="max-h-32 max-w-md object-contain object-left drop-shadow-lg"
+                        @error="brokenLogos = new Set(brokenLogos).add(logo)"
+                    />
+                </h2>
                 <!-- The padding keeps line-clamp from clipping descenders on the last line -->
                 <h2
+                    v-else
                     class="line-clamp-2 pb-1 font-display text-5xl leading-[1.1] font-bold tracking-tight text-balance"
                 >
                     {{ accounts.titleOf(current) }}

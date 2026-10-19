@@ -156,6 +156,7 @@ export type AppApi = {
             anilistId: number,
             maxAge: number
         ) => Promise<CachedResult<AniZipResponse | null>>;
+        logo: (anilistId: number) => Promise<string | null>;
         cacheCount: () => Promise<number>;
         clearCache: () => Promise<void>;
     };
