@@ -7,10 +7,12 @@ import { useListStore } from '../stores/list';
 import { useAccountsStore } from '../stores/accounts';
 import { accentStyle } from '../lib/accent';
 import { listLabel, mediaMeta, stripHtml } from '../lib/media-labels';
+import type { ContinueItem } from '../stores/progress';
 
 const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
 
-const props = defineProps<{ item: Media; actionLabel?: string }>();
+const props = defineProps<{ item: Media; actionLabel?: string; continueItem?: ContinueItem }>();
+const emit = defineEmits<{ play: [] }>();
 const mediaStore = useMediaStore();
 const list = useListStore();
 const accounts = useAccountsStore();
@@ -21,6 +23,31 @@ const coverImage = computed(() => props.item.coverImage?.large ?? null);
 const synopsis = computed(() => stripHtml(props.item.description));
 const meta = computed(() => mediaMeta(props.item));
 const accent = computed(() => accentStyle(props.item.coverImage?.color));
+
+const single = computed(() => props.item.format === 'MOVIE' || props.item.episodes === 1);
+const watched = computed(() => {
+    const record = props.continueItem?.record;
+    return record ? Math.min(1, record.position / record.duration) : null;
+});
+const continueLabel = computed(() => {
+    const item = props.continueItem;
+    if (!item) return null;
+    const left = item.record && Math.ceil((item.record.duration - item.record.position) / 60);
+    const episode = single.value ? null : `EP ${item.episode}`;
+    return [episode, left && `${left}m left`].filter(Boolean).join(' · ') || null;
+});
+const playLabel = computed(() => {
+    const item = props.continueItem;
+    if (!item) return props.actionLabel ?? 'Watch now';
+    const verb = item.record ? 'Resume' : 'Watch';
+    return single.value ? verb : `${verb} episode ${item.episode}`;
+});
+
+function play() {
+    if (!props.continueItem) return navigate();
+    onLeave();
+    emit('play');
+}
 
 const hovered = ref(false);
 const pressing = ref(false);
@@ -142,10 +169,10 @@ function navigate() {
                     <div class="mt-3 flex items-center gap-2">
                         <button
                             class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-white/85"
-                            @click.stop="navigate()"
+                            @click.stop="play()"
                         >
                             <Play :size="12" fill="currentColor" />
-                            {{ actionLabel ?? 'Watch now' }}
+                            {{ playLabel }}
                         </button>
                         <span
                             v-for="genre in (item.genres ?? []).filter(Boolean).slice(0, 2)"
@@ -180,11 +207,17 @@ function navigate() {
                     {{ item.averageScore }}
                 </span>
                 <span
-                    v-if="listEntry"
-                    class="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-black/65 px-1.5 py-0.5 text-[11px] font-medium backdrop-blur-sm"
+                    v-if="continueLabel ?? listEntry"
+                    :class="[
+                        'absolute left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-black/65 px-1.5 py-0.5 text-[11px] font-medium backdrop-blur-sm',
+                        watched === null ? 'bottom-2' : 'bottom-3.5',
+                    ]"
                 >
-                    {{ listLabel(listEntry) }}
+                    {{ continueLabel ?? listLabel(listEntry!) }}
                 </span>
+                <div v-if="watched !== null" class="absolute inset-x-0 bottom-0 h-1 bg-white/20">
+                    <div class="h-full bg-accent" :style="{ width: `${watched * 100}%` }" />
+                </div>
             </div>
 
             <div class="mt-2.5 px-0.5">

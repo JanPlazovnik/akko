@@ -4,8 +4,10 @@ import { vAutoAnimate } from '@formkit/auto-animate/vue';
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import MediaCard from './MediaCard.vue';
 import type { Media } from '@shared/graphql/queries';
+import type { ContinueItem } from '../stores/progress';
 
-defineProps<{ title: string; items: Media[] }>();
+defineProps<{ title: string; items: Media[]; continueItems?: Map<number, ContinueItem> }>();
+const emit = defineEmits<{ play: [item: ContinueItem] }>();
 
 const isScrolling = ref(false);
 provide('rowScrolling', isScrolling);
@@ -105,7 +107,13 @@ function onClickCapture(e: MouseEvent) {
                 v-auto-animate
                 class="grid w-max grid-flow-col auto-cols-[168px] gap-4 px-8 pt-2 pb-2"
             >
-                <MediaCard v-for="item in items" :key="item.id" :item="item" />
+                <MediaCard
+                    v-for="item in items"
+                    :key="item.id"
+                    :item="item"
+                    :continue-item="continueItems?.get(item.id)"
+                    @play="emit('play', continueItems!.get(item.id)!)"
+                />
             </div>
         </div>
     </section>
