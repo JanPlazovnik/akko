@@ -61,8 +61,9 @@ function go(index: number) {
                     Trending #{{ heroIndex + 1 }}
                 </p>
 
+                <!-- The padding keeps line-clamp from clipping descenders on the last line -->
                 <h2
-                    class="line-clamp-2 font-display text-5xl leading-[1.05] font-bold tracking-tight text-balance"
+                    class="line-clamp-2 pb-1 font-display text-5xl leading-[1.1] font-bold tracking-tight text-balance"
                 >
                     {{ accounts.titleOf(current) }}
                 </h2>
