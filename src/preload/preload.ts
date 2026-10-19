@@ -43,6 +43,11 @@ const api: AppApi = {
     maximizeWindow: () => ipcRenderer.send('window:maximize'),
     closeWindow: () => ipcRenderer.send('window:close'),
     appInfo: () => ipcRenderer.invoke('app:info'),
+    progress: {
+        all: () => ipcRenderer.invoke('progress:all'),
+        // Fire and forget, so the last save still goes out while the window is closing
+        save: (progress) => ipcRenderer.send('progress:save', progress),
+    },
 
     extensions: {
         list: () => ipcRenderer.invoke('extension:list'),

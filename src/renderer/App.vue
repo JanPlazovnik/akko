@@ -7,6 +7,7 @@ import PersistentPlayer from './components/PersistentPlayer.vue';
 import { useAccountsStore } from './stores/accounts';
 import { useListStore } from './stores/list';
 import { useTrackingStore } from './stores/tracking';
+import { useProgressStore } from './stores/progress';
 const route = useRoute();
 const mainEl = ref<HTMLElement | null>(null);
 const scrollMemory = new Map<string, number>();
@@ -14,6 +15,7 @@ const REMEMBER = new Set(['/', '/library']);
 const accounts = useAccountsStore();
 useListStore();
 useTrackingStore();
+useProgressStore();
 
 onMounted(() => void accounts.warnIfExpiring());
 

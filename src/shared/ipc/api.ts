@@ -9,6 +9,7 @@ import type {
 } from '../../main/extensions/types';
 import type { SubtitleEvent } from '../subtitles';
 import type { AniZipResponse, EpisodeNumbers } from '../anizip/types';
+import type { WatchSelection } from '../media/types';
 
 export type SubtitleTrack = {
     id: string;
@@ -42,6 +43,16 @@ export type AppInfo = {
     os: string;
     electron: string;
     chrome: string;
+};
+
+export type WatchProgress = {
+    anilistId: number;
+    episode: number;
+    position: number;
+    duration: number;
+    finished: boolean;
+    selection: WatchSelection;
+    updatedAt: number;
 };
 
 export type SettingsPaths = {
@@ -164,6 +175,10 @@ export type AppApi = {
     maximizeWindow: () => void;
     closeWindow: () => void;
     appInfo: () => Promise<AppInfo>;
+    progress: {
+        all: () => Promise<WatchProgress[]>;
+        save: (progress: WatchProgress) => void;
+    };
     extensions: {
         list: () => Promise<InstalledExtension[]>;
         fetchRepository: (url: string) => Promise<ExtensionManifest[]>;

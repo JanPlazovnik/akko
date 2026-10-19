@@ -4,7 +4,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDraggable, useDragDropMonitor } from '@dnd-kit/vue';
 import '@videojs/html/video/ui';
 import '@videojs/html/base.css';
+import { toast } from 'vue3-toastify';
 import { usePlayerStore } from '../stores/player';
+import { useProgressStore } from '../stores/progress';
+import { formatTimestamp } from '../lib/watching';
 import { useSubtitleRenderer } from '../lib/subtitles';
 import { AudioBridge } from '../lib/audio-bridge';
 import PlayerControls from './player/PlayerControls.vue';
@@ -37,6 +40,7 @@ const HOTKEYS = [
 const route = useRoute();
 const router = useRouter();
 const player = usePlayerStore();
+const progress = useProgressStore();
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
@@ -167,6 +171,14 @@ watch(
         if (!v) return;
         if (url) {
             v.src = url;
+            // Set before the metadata loads, this becomes the position playback starts from
+            const resumeAt = progress.resumePosition(player.selection);
+            if (resumeAt) {
+                v.currentTime = resumeAt;
+                toast.info(`Resumed at ${formatTimestamp(resumeAt)}. Click to start over.`, {
+                    onClick: () => (v.currentTime = 0),
+                });
+            }
             v.play().catch(() => undefined);
         } else {
             v.removeAttribute('src');

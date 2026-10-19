@@ -1,4 +1,4 @@
-import { blob, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const settings = sqliteTable('settings', {
     id: integer('id').primaryKey(),
@@ -50,3 +50,18 @@ export const accounts = sqliteTable('accounts', {
     token: blob('token', { mode: 'buffer' }).notNull(),
     expiresAt: integer('expires_at').notNull(),
 });
+
+export const watchProgress = sqliteTable(
+    'watch_progress',
+    {
+        anilistId: integer('anilist_id').notNull(),
+        episode: integer('episode').notNull(),
+        position: real('position').notNull(),
+        duration: real('duration').notNull(),
+        finished: integer('finished', { mode: 'boolean' }).notNull().default(false),
+        // The WatchSelection as JSON, so the same release can be resumed without searching again
+        selection: text('selection').notNull(),
+        updatedAt: integer('updated_at').notNull(),
+    },
+    (t) => [primaryKey({ columns: [t.anilistId, t.episode] })]
+);

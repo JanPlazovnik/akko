@@ -3,6 +3,7 @@ import { watch } from 'vue';
 import { toast } from 'vue3-toastify';
 import type { ListEntry } from '@shared/graphql/queries';
 import { createLogger } from '../lib/logger';
+import { finishedAt } from '../lib/watching';
 import { useAccountsStore } from './accounts';
 import { useListStore, type EntryPatch } from './list';
 import { useMediaStore } from './media';
@@ -14,11 +15,6 @@ const log = createLogger('tracking');
 // Only real playback counts, so opening the wrong episode or skimming doesn't start a show
 const START_AFTER_S = 5 * 60;
 const MAX_TICK_S = 2;
-
-// Hayase's rule: the last 3 minutes or 10% is usually just the ending. At least half has to
-// play out, or short videos would count as finished right away.
-const finishedAt = (duration: number) =>
-    Math.max(duration / 2, duration - Math.max(180, duration * 0.1));
 
 export const useTrackingStore = defineStore('tracking', () => {
     const player = usePlayerStore();

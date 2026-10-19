@@ -57,6 +57,13 @@
       "when": 1792343769174,
       "tag": "0007_strong_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792422287495,
+      "tag": "0008_foamy_midnight",
+      "breakpoints": true
     }
   ]
 }

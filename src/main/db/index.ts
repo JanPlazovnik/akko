@@ -3,10 +3,10 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { count, eq, like, lt } from 'drizzle-orm';
 import path from 'node:path';
 import { app } from 'electron';
-import { accounts, cache, settings, extensions } from './schema';
+import { accounts, cache, settings, extensions, watchProgress } from './schema';
 import { runMigrations } from './migrator';
 import type { ExtensionManifest, InstalledExtension } from '../extensions/types';
-import type { AppSettings } from '../../shared/ipc/api';
+import type { AppSettings, WatchProgress } from '../../shared/ipc/api';
 
 type ExtensionRow = typeof extensions.$inferSelect;
 export type AccountRow = typeof accounts.$inferSelect;
@@ -179,4 +179,21 @@ export function dbSaveAccount(row: AccountRow): void {
 
 export function dbDeleteAccount(provider: string): void {
     getDb().delete(accounts).where(eq(accounts.provider, provider)).run();
+}
+
+export function dbGetWatchProgress(): WatchProgress[] {
+    return getDb()
+        .select()
+        .from(watchProgress)
+        .all()
+        .map((row) => ({ ...row, selection: JSON.parse(row.selection) }));
+}
+
+export function dbSaveWatchProgress(progress: WatchProgress): void {
+    const row = { ...progress, selection: JSON.stringify(progress.selection) };
+    getDb()
+        .insert(watchProgress)
+        .values(row)
+        .onConflictDoUpdate({ target: [watchProgress.anilistId, watchProgress.episode], set: row })
+        .run();
 }

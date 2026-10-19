@@ -5,6 +5,7 @@ import { registerSettingsHandlers } from './settings';
 import { registerMetadataHandlers } from './metadata';
 import { registerAccountHandlers } from './accounts';
 import { registerAppHandlers } from './app';
+import { registerProgressHandlers } from './progress';
 
 export function registerAllHandlers() {
     registerAppHandlers();
@@ -14,4 +15,5 @@ export function registerAllHandlers() {
     registerSettingsHandlers();
     registerMetadataHandlers();
     registerAccountHandlers();
+    registerProgressHandlers();
 }
