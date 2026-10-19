@@ -2,7 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue3-toastify';
-import { Pencil, Play, Plus, Star } from '@lucide/vue';
+import { Check, Pencil, Play, Plus, Star } from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
 import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import ListEntryDialog from '../components/ListEntryDialog.vue';
@@ -12,7 +12,10 @@ import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
 import { useListStore } from '../stores/list';
 import { useLoadingStore } from '../stores/loading';
+import { useProgressStore } from '../stores/progress';
+import { isUnaired } from '../lib/watching';
 import type { Episode } from '@shared/anizip/types';
+import type { WatchProgress } from '@shared/ipc/api';
 
 const STATUS_DOT: Record<string, string> = {
     RELEASING: 'bg-emerald-400',
@@ -26,6 +29,7 @@ const mediaStore = useMediaStore();
 const loadingBar = useLoadingStore();
 const accounts = useAccountsStore();
 const list = useListStore();
+const progress = useProgressStore();
 
 const routeMediaId = computed(() => Number(route.params.id));
 const media = computed(() => mediaStore.mediaFor(routeMediaId.value));
@@ -42,28 +46,57 @@ const description = computed(() => stripHtml(media.value?.description));
 const fallbackThumbnail = computed(
     () => media.value?.bannerImage ?? media.value?.coverImage?.large ?? null
 );
-// Continues from list progress; finished shows start over, movies have no episode to name
-const watchAction = computed<{ episode: Episode | null; label: string }>(() => {
+type WatchAction = { episode: Episode | null; label: string; resume?: WatchProgress | null };
+
+// Continues from whichever is newer, local playback or list progress. Finished shows start over,
+// movies have no episode to name.
+const watchAction = computed<WatchAction>(() => {
     const aired = episodes.value.filter((ep) => !isUnaired(ep));
     if (!aired.length) return { episode: null, label: 'Not available yet' };
 
-    const entry = list.entryFor(routeMediaId.value);
-    const progress = entry?.progress ?? 0;
+    const id = routeMediaId.value;
+    const entry = list.entryFor(id);
+    const local = progress.continuePoint(id);
+    const watched = local ? local.episode - 1 : (entry?.progress ?? 0);
     const single = media.value?.format === 'MOVIE' || episodes.value.length === 1;
     const finished =
-        entry?.status === 'COMPLETED' || (progress > 0 && progress >= episodes.value.length);
+        (!local && entry?.status === 'COMPLETED') ||
+        (watched > 0 && watched >= episodes.value.length);
     if (finished) {
         return { episode: aired[0], label: single ? 'Rewatch' : 'Rewatch from episode 1' };
     }
 
-    const next = progress ? episodes.value.find((ep) => ep.number === progress + 1) : aired[0];
+    const next = watched ? episodes.value.find((ep) => ep.number === watched + 1) : aired[0];
     if (!next) return { episode: null, label: 'All caught up' };
     if (isUnaired(next)) {
         const when = next.airDate ? ` ${formatAirDate(next.airDate)}` : ' soon';
         return { episode: null, label: `Episode ${next.number} airs${when}` };
     }
-    return { episode: next, label: single ? 'Watch' : `Watch episode ${next.number}` };
+    const resume = progress.resumable(id, next.number);
+    const verb = resume ? 'Resume' : 'Watch';
+    return { episode: next, label: single ? verb : `${verb} episode ${next.number}`, resume };
 });
+
+function startWatching(action: WatchAction) {
+    if (action.resume && media.value) void progress.resume(media.value, action.resume);
+    else if (action.episode) openDialog(action.episode);
+}
+
+function watchedFraction(ep: Episode): number | null {
+    const record = progress.forEpisode(routeMediaId.value, ep.number);
+    if (!record) return null;
+    return record.finished ? 1 : Math.min(1, record.position / record.duration);
+}
+
+// Local playback decides when it's newer than the list entry, so a rewatch un-greys the episode
+function isWatched(ep: Episode): boolean {
+    const record = progress.forEpisode(routeMediaId.value, ep.number);
+    const entry = listEntry.value;
+    if (record && (!entry?.updatedAt || record.updatedAt > entry.updatedAt * 1000)) {
+        return record.finished;
+    }
+    return ep.number <= (entry?.progress ?? 0);
+}
 
 // The router reuses this page when only the id changes, so load on every id
 async function load(id: number) {
@@ -112,11 +145,6 @@ function openDialog(ep: Episode) {
     dialogOpen.value = true;
 }
 
-function isUnaired(ep: Episode) {
-    if (!ep.airDate) return !ep.title;
-    return Date.parse(ep.airDate) > Date.now();
-}
-
 const formatAirDate = (date: string) =>
     new Date(date).toLocaleDateString(undefined, {
         month: 'short',
@@ -144,7 +172,7 @@ const formatAirDate = (date: string) =>
                     <button
                         v-if="watchAction.episode"
                         class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-white/85"
-                        @click="openDialog(watchAction.episode)"
+                        @click="startWatching(watchAction)"
                     >
                         <Play :size="12" fill="currentColor" /> {{ watchAction.label }}
                     </button>
@@ -236,7 +264,7 @@ const formatAirDate = (date: string) =>
                         <button
                             class="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:bg-white/85 active:scale-[0.97] disabled:cursor-default disabled:opacity-40"
                             :disabled="!watchAction.episode"
-                            @click="watchAction.episode && openDialog(watchAction.episode)"
+                            @click="startWatching(watchAction)"
                         >
                             <Play v-if="watchAction.episode" :size="15" fill="currentColor" />
                             {{ watchAction.label }}
@@ -309,6 +337,8 @@ const formatAirDate = (date: string) =>
                             :class="[
                                 'relative aspect-video overflow-hidden rounded-xl bg-raised ring-1 ring-white/5 transition group-enabled:group-hover:ring-accent/60',
                                 isUnaired(ep) && 'opacity-40',
+                                isWatched(ep) &&
+                                    'opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0',
                             ]"
                         >
                             <img
@@ -344,8 +374,29 @@ const formatAirDate = (date: string) =>
                             >
                                 {{ ep.runtime }}m
                             </span>
+                            <span
+                                v-if="isWatched(ep)"
+                                class="absolute top-2 right-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold"
+                            >
+                                <Check :size="12" :stroke-width="3" />
+                                Watched
+                            </span>
+                            <div
+                                v-else-if="watchedFraction(ep) !== null"
+                                class="absolute inset-x-0 bottom-0 h-1 bg-white/20"
+                            >
+                                <div
+                                    class="h-full bg-accent"
+                                    :style="{ width: `${watchedFraction(ep)! * 100}%` }"
+                                />
+                            </div>
                         </div>
-                        <p class="mt-2.5 truncate text-sm font-medium">
+                        <p
+                            :class="[
+                                'mt-2.5 truncate text-sm font-medium',
+                                isWatched(ep) && 'text-white/50',
+                            ]"
+                        >
                             {{ ep.title || `Episode ${ep.number}` }}
                         </p>
                         <p
