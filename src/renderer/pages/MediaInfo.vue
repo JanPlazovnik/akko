@@ -82,20 +82,17 @@ function startWatching(action: WatchAction) {
     else if (action.episode) openDialog(action.episode);
 }
 
+// Only for an episode in progress, finished ones get the watched badge
 function watchedFraction(ep: Episode): number | null {
     const record = progress.forEpisode(routeMediaId.value, ep.number);
-    if (!record) return null;
-    return record.finished ? 1 : Math.min(1, record.position / record.duration);
+    if (!record || record.finished) return null;
+    return Math.min(1, record.position / record.duration);
 }
 
-// Local playback decides when it's newer than the list entry, so a rewatch un-greys the episode
+// A rewatch keeps the episode watched, and shows its progress on top
 function isWatched(ep: Episode): boolean {
     const record = progress.forEpisode(routeMediaId.value, ep.number);
-    const entry = listEntry.value;
-    if (record && (!entry?.updatedAt || record.updatedAt > entry.updatedAt * 1000)) {
-        return record.finished;
-    }
-    return ep.number <= (entry?.progress ?? 0);
+    return ep.number <= (listEntry.value?.progress ?? 0) || Boolean(record?.finished);
 }
 
 // The router reuses this page when only the id changes, so load on every id
@@ -382,7 +379,7 @@ const formatAirDate = (date: string) =>
                                 Watched
                             </span>
                             <div
-                                v-else-if="watchedFraction(ep) !== null"
+                                v-if="watchedFraction(ep) !== null"
                                 class="absolute inset-x-0 bottom-0 h-1 bg-white/20"
                             >
                                 <div

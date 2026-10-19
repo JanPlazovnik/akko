@@ -60,13 +60,30 @@ export const useProgressStore = defineStore('progress', () => {
         return record && !record.finished && record.position >= RESUME_MIN_S ? record : null;
     }
 
-    // Where to pick a show back up from local playback, or null when the AniList entry is newer
-    // (edited or watched elsewhere since) and its progress should decide instead
+    function furthestFinished(anilistId: number) {
+        let furthest = 0;
+        for (const record of Object.values(records.value)) {
+            if (record.anilistId === anilistId && record.finished) {
+                furthest = Math.max(furthest, record.episode);
+            }
+        }
+        return furthest;
+    }
+
+    // Where to pick a show back up from local playback, or null when the list entry should decide:
+    // it's newer (edited or watched elsewhere since), or local playback was a rewatch of an episode
+    // it already counts. Rewatching never moves a show back, starting over resets the list instead.
     function continuePoint(anilistId: number) {
         const latest = latestByShow.value.get(anilistId);
         if (!latest) return null;
-        const updatedAt = list.entryFor(anilistId)?.updatedAt;
-        if (updatedAt && updatedAt * 1000 > latest.updatedAt) return null;
+        const entry = list.entryFor(anilistId);
+        if (entry?.updatedAt && entry.updatedAt * 1000 > latest.updatedAt) return null;
+        const counted = entry ? (entry.progress ?? 0) : furthestFinished(anilistId);
+        if (latest.episode <= counted) {
+            return entry
+                ? null
+                : { episode: counted + 1, record: resumable(anilistId, counted + 1) };
+        }
         return latest.finished
             ? { episode: latest.episode + 1, record: null }
             : { episode: latest.episode, record: resumable(anilistId, latest.episode) };
