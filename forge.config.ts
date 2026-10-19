@@ -10,7 +10,8 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-const PREBUILD = /[/\\]prebuilds[/\\]([^/\\]+)/;
+// prebuilds/<platform>-<arch>/… folders, or prebuilds/<platform>-<arch>.node files (better-sqlite3)
+const PREBUILD = /[/\\]prebuilds[/\\]([^/\\]+?)(?:\.node)?(?=$|[/\\])/;
 const KEEP_LOCALES = new Set(['en-US.pak']);
 
 // The UI is English only; Chromium falls back to en-US for its own strings
