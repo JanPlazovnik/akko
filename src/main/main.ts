@@ -76,6 +76,10 @@ const createWindow = () => {
 };
 
 app.on('ready', () => {
+    // Squirrel launches the app on install and update only to run its hooks. Starting up anyway
+    // gets the extension host torn down mid-load, which fails and disables every extension
+    if (started) return;
+
     initDb();
     pruneCache();
     applySettings(dbGetSettings());
