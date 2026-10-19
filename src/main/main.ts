@@ -13,6 +13,7 @@ import { pruneCache } from './cache';
 import { useBorderlessFullscreen } from './fullscreen';
 import { removeLegacyDownloads } from './paths';
 import { refreshAnilistAccount } from './accounts/anilist';
+import { checkPeriodically, updateOnLaunch } from './updater';
 
 log.initialize();
 const logger = createLogger('main');
@@ -75,10 +76,13 @@ const createWindow = () => {
     return mainWindow;
 };
 
-app.on('ready', () => {
+app.on('ready', async () => {
     // Squirrel launches the app on install and update only to run its hooks. Starting up anyway
     // gets the extension host torn down mid-load, which fails and disables every extension
     if (started) return;
+
+    const update = await updateOnLaunch();
+    if (update.installing) return;
 
     initDb();
     pruneCache();
@@ -88,12 +92,16 @@ app.on('ready', () => {
     );
 
     logger.info('App ready, creating window');
-    initContext({ window: createWindow() });
+    const window = createWindow();
+    // Closing the update window first would leave no windows open and quit the app
+    window.once('ready-to-show', update.close);
+    initContext({ window });
     registerAllHandlers();
 
     initClient().catch((err) => logger.error('Torrent client failed to start:', err));
     initExtensions().catch((err) => logger.error('Extensions failed to start:', err));
     void refreshAnilistAccount();
+    checkPeriodically();
 });
 
 app.on('window-all-closed', () => {

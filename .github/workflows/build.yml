@@ -33,6 +33,8 @@ jobs:
                   name: akko-${{ runner.os }}
                   path: |
                       out/make/**/*.exe
+                      out/make/**/*.nupkg
+                      out/make/**/RELEASES
                       out/make/**/*.deb
                       out/make/**/*.rpm
                       out/make/**/*.AppImage

@@ -26,7 +26,7 @@
         "import/no-unresolved": [
             "error",
             {
-                "ignore": ["^@shared/", "\\?(url|worker)"]
+                "ignore": ["^@shared/", "\\?(url|worker|raw)"]
             }
         ]
     }
