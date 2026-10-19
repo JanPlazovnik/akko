@@ -42,6 +42,7 @@ const api: AppApi = {
     minimizeWindow: () => ipcRenderer.send('window:minimize'),
     maximizeWindow: () => ipcRenderer.send('window:maximize'),
     closeWindow: () => ipcRenderer.send('window:close'),
+    appInfo: () => ipcRenderer.invoke('app:info'),
 
     extensions: {
         list: () => ipcRenderer.invoke('extension:list'),

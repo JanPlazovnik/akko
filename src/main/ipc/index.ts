@@ -4,8 +4,10 @@ import { registerExtensionHandlers } from './extensions';
 import { registerSettingsHandlers } from './settings';
 import { registerMetadataHandlers } from './metadata';
 import { registerAccountHandlers } from './accounts';
+import { registerAppHandlers } from './app';
 
 export function registerAllHandlers() {
+    registerAppHandlers();
     registerTorrentHandlers();
     registerWindowHandlers();
     registerExtensionHandlers();

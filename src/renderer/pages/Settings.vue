@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { FolderOpen, RotateCcw, UserRound } from '@lucide/vue';
-import { LOG_LEVELS, TITLE_LANGUAGES, type AppSettings } from '@shared/ipc/api';
+import { Check, Copy, FolderOpen, RotateCcw, UserRound } from '@lucide/vue';
+import { LOG_LEVELS, TITLE_LANGUAGES, type AppInfo, type AppSettings } from '@shared/ipc/api';
 import { useSettingsStore } from '../stores/settings';
 import { useAccountsStore } from '../stores/accounts';
 import SettingsSection from '../components/settings/SettingsSection.vue';
@@ -18,6 +18,7 @@ const SECTIONS = [
     { id: 'torrents', label: 'Torrents' },
     { id: 'extensions', label: 'Extensions' },
     { id: 'advanced', label: 'Advanced' },
+    { id: 'about', label: 'About' },
 ];
 
 const SUBTITLE_LANGUAGES = [
@@ -104,6 +105,26 @@ const titleLanguageOptions = computed(() =>
 const setTitleLanguage = (value: string) =>
     store.update({ titleLanguage: value as AppSettings['titleLanguage'] });
 
+const info = ref<AppInfo | null>(null);
+const copied = ref(false);
+const infoLines = computed(() => {
+    const i = info.value;
+    if (!i) return [];
+    return [
+        `akko ${i.version} (${i.commit})`,
+        `${i.platform} ${i.os} ${i.arch}`,
+        `Electron ${i.electron}, Chromium ${i.chrome}`,
+    ];
+});
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+async function copyInfo() {
+    await navigator.clipboard.writeText(infoLines.value.join('\n'));
+    copied.value = true;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => (copied.value = false), 1500);
+}
+
 const toMegabytes = (kilobytes: number) => Math.round((kilobytes / 1024) * 10) / 10;
 const toKilobytes = (megabytes: number) => Math.round(megabytes * 1024);
 
@@ -128,6 +149,7 @@ function updateActiveSection() {
 
 onMounted(async () => {
     window.api.metadata.cacheCount().then((count) => (cacheCount.value = count));
+    window.api.appInfo().then((value) => (info.value = value));
     await Promise.all([store.load(), accounts.load()]);
     scroller = document.querySelector('main');
     scroller?.addEventListener('scroll', updateActiveSection, { passive: true });
@@ -387,6 +409,40 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             Clear
                         </button>
                     </SettingRow>
+                </SettingsSection>
+
+                <SettingsSection id="about" title="About">
+                    <button
+                        v-if="info"
+                        class="group flex w-full cursor-pointer items-center gap-6 px-5 py-4 text-left"
+                        title="Copy version info"
+                        @click="copyInfo"
+                    >
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium">
+                                akko {{ info.version }}
+                                <span class="ml-1 font-mono text-xs font-normal text-white/40">
+                                    {{ info.commit }}
+                                </span>
+                            </p>
+                            <p
+                                class="mt-0.5 text-xs leading-relaxed text-white/45 [font-feature-settings:'calt'_0]"
+                            >
+                                {{ infoLines[1] }} · {{ infoLines[2] }}
+                            </p>
+                        </div>
+                        <span
+                            :class="[
+                                'flex shrink-0 items-center gap-1.5 text-xs transition-colors',
+                                copied
+                                    ? 'text-white/70'
+                                    : 'text-white/30 group-hover:text-white/60',
+                            ]"
+                        >
+                            <component :is="copied ? Check : Copy" :size="14" />
+                            {{ copied ? 'Copied' : 'Copy' }}
+                        </span>
+                    </button>
                 </SettingsSection>
             </div>
         </div>

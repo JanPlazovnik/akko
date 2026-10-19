@@ -34,6 +34,16 @@ export type AppSettings = {
     syncProgress: boolean;
 };
 
+export type AppInfo = {
+    version: string;
+    commit: string;
+    platform: string;
+    arch: string;
+    os: string;
+    electron: string;
+    chrome: string;
+};
+
 export type SettingsPaths = {
     defaultDownloadPath: string;
     logFile: string;
@@ -153,6 +163,7 @@ export type AppApi = {
     minimizeWindow: () => void;
     maximizeWindow: () => void;
     closeWindow: () => void;
+    appInfo: () => Promise<AppInfo>;
     extensions: {
         list: () => Promise<InstalledExtension[]>;
         fetchRepository: (url: string) => Promise<ExtensionManifest[]>;
