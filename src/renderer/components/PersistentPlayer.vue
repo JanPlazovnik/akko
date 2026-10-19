@@ -24,6 +24,7 @@ const MINI_H = 180;
 const HEADER_H = 56;
 const MARGIN = 20;
 const SURFACE_TAGS = new Set(['VIDEO', 'CANVAS', 'MEDIA-CONTROLS']);
+const DOUBLE_CLICK_MS = 250;
 
 const HOTKEYS = [
     { keys: 'Space', action: 'togglePaused' },
@@ -116,11 +117,14 @@ function toggleFullscreen() {
     else void mediaContainerRef.value?.requestFullscreen();
 }
 
+// A single click waits to see if it becomes a double click, so going fullscreen doesn't pause
+let clickTimer: ReturnType<typeof setTimeout> | undefined;
+
 function onSurfaceClick(event: MouseEvent) {
     if (!isPlayerRoute.value || !SURFACE_TAGS.has((event.target as Element).tagName)) return;
-    if (event.detail > 2) return;
-    togglePaused();
-    if (event.detail === 2) toggleFullscreen();
+    clearTimeout(clickTimer);
+    if (event.detail === 1) clickTimer = setTimeout(togglePaused, DOUBLE_CLICK_MS);
+    else if (event.detail === 2) toggleFullscreen();
 }
 
 // ─── window and keyboard ──────────────────────────────────────────────────────
