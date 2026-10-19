@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { AlertCircle, ArrowUp, Loader2, Play, RefreshCw, X } from '@lucide/vue';
 import {
@@ -14,9 +14,20 @@ import {
 import { usePlayerStore, type PickerContext } from '../stores/player';
 import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
+import { useProgressStore } from '../stores/progress';
+import { useSettingsStore } from '../stores/settings';
+import { useCountdown } from '../lib/countdown';
+import CountdownButton from './ui/CountdownButton.vue';
 import { createLogger } from '../lib/logger';
 import { errorMessage, formatBytes, formatRelativeDate } from '../lib/format';
-import { parseTitle, searchParams, selectionFor, torrentId } from '../lib/torrents';
+import {
+    hasUnsupportedAudio,
+    parseTitle,
+    searchParams,
+    selectionFor,
+    topPick,
+    torrentId,
+} from '../lib/torrents';
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
 import { mediaToSummary } from '@shared/media/types';
 import type { TorrentResult } from '../../main/extensions/types';
@@ -46,8 +57,11 @@ const router = useRouter();
 const player = usePlayerStore();
 const mediaStore = useMediaStore();
 const accounts = useAccountsStore();
+const progress = useProgressStore();
+const settingsStore = useSettingsStore();
 
 const RESOLUTIONS = ['1080', '720', '480'] as const;
+const AUTO_PICK_S = 6;
 const ACCURACY_DOT: Record<TorrentResult['accuracy'], string> = {
     high: 'bg-emerald-400',
     medium: 'bg-amber-400',
@@ -75,14 +89,8 @@ const orderedSources = computed(() =>
 const searching = computed(() => sources.value.some((s) => s.status === 'loading'));
 const totalResults = computed(() => sources.value.reduce((n, s) => n + s.results.length, 0));
 
-const UNSUPPORTED_AUDIO = /(?:^|[^a-z])(?:DTS|TrueHD)/i;
-
 function isPlaying(result: TorrentResult): boolean {
     return player.selection?.torrent.magnet === torrentId(result.link, result.hash);
-}
-
-function hasUnsupportedAudio(result: TorrentResult): boolean {
-    return UNSUPPORTED_AUDIO.test(result.title);
 }
 
 function sortResults(results: TorrentResult[]): TorrentResult[] {
@@ -152,9 +160,51 @@ async function triggerSearch() {
     }
 }
 
+// The group last watched for this show comes first, so a series stays on one release
+const best = computed(() => {
+    if (searching.value) return null;
+    const last = progress.latestFor(props.anilistId)?.selection.torrent.title;
+    const results = sources.value.flatMap((s) => s.results);
+    return topPick(results, last ? parseTitle(last).group : null);
+});
+const bestSource = computed(() => sources.value.find((s) => s.id === best.value?.extensionId));
+
+// Swapping the release of what's already playing is always a manual choice
+const replacing = computed(
+    () =>
+        player.selection?.media.anilistId === props.anilistId &&
+        player.selection.episode.number === props.episode.number
+);
+
+let browsed = false;
+const {
+    remaining: autoPickIn,
+    start: startAutoPick,
+    stop: stopAutoPick,
+} = useCountdown(() => {
+    if (best.value) void pick(best.value);
+});
+
+function browse() {
+    browsed = true;
+    stopAutoPick();
+}
+
+watch(best, (result) => {
+    stopAutoPick();
+    const enabled = settingsStore.settings?.autoPickRelease;
+    if (result && props.open && enabled && !browsed && !replacing.value) {
+        startAutoPick(AUTO_PICK_S);
+    }
+});
+
+onUnmounted(stopAutoPick);
+
 watch(
     () => props.open,
     (open) => {
+        browsed = false;
+        stopAutoPick();
         if (open) void triggerSearch();
         else {
             searchId++;
@@ -273,7 +323,12 @@ async function pick(result: TorrentResult) {
                     </DialogClose>
                 </header>
 
-                <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+                <div
+                    class="min-h-0 flex-1 overflow-y-auto px-3 pb-3"
+                    @wheel.passive="browse"
+                    @pointerdown="browse"
+                    @keydown="browse"
+                >
                     <p v-if="listError" class="px-3 py-12 text-center text-sm text-red-300">
                         {{ listError }}
                     </p>
@@ -289,6 +344,52 @@ async function pick(result: TorrentResult) {
                         >
                             Manage extensions
                         </button>
+                    </div>
+
+                    <div
+                        v-if="best"
+                        class="mt-4 flex items-center gap-4 rounded-xl bg-accent/8 px-4 py-3 ring-1 ring-accent/25"
+                    >
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold text-accent">
+                                Top pick
+                                <span v-if="autoPickIn" class="font-medium text-white/50">
+                                    · starts in {{ autoPickIn }}s
+                                </span>
+                            </p>
+                            <p class="mt-1 truncate text-sm text-white/90">
+                                <span
+                                    v-if="parseTitle(best.title).group"
+                                    class="mr-1.5 font-semibold"
+                                >
+                                    {{ parseTitle(best.title).group }}
+                                </span>
+                                {{ parseTitle(best.title).name }}
+                            </p>
+                            <p class="mt-1 text-[11px] text-white/45">
+                                {{
+                                    [
+                                        bestSource?.name,
+                                        best.size && formatBytes(best.size),
+                                        best.seeders && `${best.seeders} seeders`,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')
+                                }}
+                            </p>
+                        </div>
+                        <CountdownButton
+                            :duration="autoPickIn ? AUTO_PICK_S : null"
+                            :class="[
+                                'h-9 shrink-0 rounded-full px-5 text-sm font-semibold text-black disabled:opacity-40',
+                                autoPickIn ? 'bg-white/70' : 'bg-white',
+                            ]"
+                            :disabled="selecting"
+                            @click="pick(best)"
+                        >
+                            <Play :size="13" fill="currentColor" />
+                            Play
+                        </CountdownButton>
                     </div>
 
                     <section v-for="source in orderedSources" :key="source.id" class="mt-1">

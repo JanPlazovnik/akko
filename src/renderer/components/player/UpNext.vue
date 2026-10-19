@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Loader2, Play } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
 import { COUNTDOWN_S, useQueueStore } from '../../stores/queue';
+import CountdownButton from '../ui/CountdownButton.vue';
 
 const player = usePlayerStore();
 const queue = useQueueStore();
@@ -42,22 +43,19 @@ const thumbnail = computed(
                     {{ episode.title || `Episode ${episode.number}` }}
                 </p>
                 <div class="mt-3 flex gap-2">
-                    <button
-                        class="relative flex h-9 flex-1 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full bg-white/70 text-sm font-semibold text-black disabled:cursor-default"
+                    <CountdownButton
+                        :duration="finding ? null : COUNTDOWN_S"
+                        :class="[
+                            'h-9 flex-1 rounded-full text-sm font-semibold text-black disabled:cursor-default',
+                            finding ? 'bg-white' : 'bg-white/70',
+                        ]"
                         :disabled="finding"
                         @click="queue.play(episode)"
                     >
-                        <span
-                            :class="[
-                                'absolute inset-y-0 left-0 bg-white',
-                                finding ? 'w-full' : 'countdown-fill',
-                            ]"
-                            :style="{ '--countdown': `${COUNTDOWN_S}s` }"
-                        />
-                        <Loader2 v-if="finding" :size="15" class="relative animate-spin" />
-                        <Play v-else :size="14" fill="currentColor" class="relative" />
-                        <span class="relative">Play now</span>
-                    </button>
+                        <Loader2 v-if="finding" :size="15" class="animate-spin" />
+                        <Play v-else :size="14" fill="currentColor" />
+                        Play now
+                    </CountdownButton>
                     <button
                         v-if="!finding"
                         class="h-9 cursor-pointer rounded-full bg-white/10 px-4 text-sm font-medium text-white/85 transition-colors hover:bg-white/20 hover:text-white"
@@ -70,18 +68,3 @@ const thumbnail = computed(
         </div>
     </Transition>
 </template>
-
-<style>
-.countdown-fill {
-    animation: countdown-fill var(--countdown) linear forwards;
-}
-
-@keyframes countdown-fill {
-    from {
-        width: 0;
-    }
-    to {
-        width: 100%;
-    }
-}
-</style>

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
-import { computed, ref, shallowRef, toRaw, watch } from 'vue';
+import { computed, shallowRef, toRaw, watch } from 'vue';
 import type { Episode } from '@shared/anizip/types';
 import { episodeToSummary, type WatchSelection } from '@shared/media/types';
+import { useCountdown } from '../lib/countdown';
 import { errorMessage } from '../lib/format';
 import { createLogger } from '../lib/logger';
 import { matchRelease, parseTitle, searchParams, selectionFor } from '../lib/torrents';
@@ -34,7 +35,13 @@ export const useQueueStore = defineStore('queue', () => {
     const next = computed(() => neighbour(1));
     const previous = computed(() => neighbour(-1));
     const finding = shallowRef<Episode | null>(null);
-    const countdown = ref<number | null>(null);
+    const {
+        remaining: countdown,
+        start: startTimer,
+        stop: cancelCountdown,
+    } = useCountdown(() => {
+        if (next.value) void play(next.value);
+    });
 
     // A batch has the other episodes too, otherwise look for the same group and resolution
     async function findRelease(
@@ -119,23 +126,8 @@ export const useQueueStore = defineStore('queue', () => {
         }
     }
 
-    let timer: ReturnType<typeof setInterval> | undefined;
-
     function startCountdown() {
-        if (!next.value || countdown.value !== null) return;
-        countdown.value = COUNTDOWN_S;
-        timer = setInterval(() => {
-            countdown.value = (countdown.value ?? 0) - 1;
-            if (countdown.value > 0) return;
-            const episode = next.value;
-            cancelCountdown();
-            if (episode) void play(episode);
-        }, 1000);
-    }
-
-    function cancelCountdown() {
-        clearInterval(timer);
-        countdown.value = null;
+        if (next.value && countdown.value === null) startTimer(COUNTDOWN_S);
     }
 
     watch(anilistId, (id) => {

@@ -50,6 +50,8 @@ export const useProgressStore = defineStore('progress', () => {
             .slice(0, CONTINUE_LIMIT)
     );
 
+    const latestFor = (anilistId: number) => latestByShow.value.get(anilistId) ?? null;
+
     const forEpisode = (anilistId: number, episode: number) =>
         records.value[keyOf(anilistId, episode)] ?? null;
 
@@ -207,6 +209,7 @@ export const useProgressStore = defineStore('progress', () => {
         .catch((err) => log.warn('Failed to load watch progress:', err));
 
     return {
+        latestFor,
         forEpisode,
         resumable,
         continuePoint,

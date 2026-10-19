@@ -57,6 +57,34 @@ export function selectionFor(
     };
 }
 
+const UNSUPPORTED_AUDIO = /(?:^|[^a-z])(?:DTS|TrueHD)/i;
+const HEALTHY_SEEDERS = 10;
+
+export const hasUnsupportedAudio = (result: TorrentResult) => UNSUPPORTED_AUDIO.test(result.title);
+
+const sameGroup = (title: string, group: string) =>
+    parseTitle(title).group?.toLowerCase() === group.toLowerCase();
+
+// Earlier criteria win. Low accuracy is never picked on its own.
+export function topPick(results: TorrentResult[], preferredGroup: string | null) {
+    const criteria = (result: TorrentResult) => [
+        hasUnsupportedAudio(result),
+        !(preferredGroup && sameGroup(result.title, preferredGroup)),
+        result.type !== 'best' && result.type !== 'alt',
+        result.seeders < HEALTHY_SEEDERS,
+        result.accuracy !== 'high',
+    ];
+    const ranked = results
+        .filter((result) => result.accuracy !== 'low')
+        .map((result) => ({ result, criteria: criteria(result) }))
+        .sort((a, b) => {
+            const index = a.criteria.findIndex((value, i) => value !== b.criteria[i]);
+            if (index !== -1) return Number(a.criteria[index]) - Number(b.criteria[index]);
+            return b.result.seeders - a.result.seeders;
+        });
+    return ranked[0]?.result ?? null;
+}
+
 // The show's name without the group, tags, episode number and extension
 function releaseName(title: string) {
     return parseTitle(title)
