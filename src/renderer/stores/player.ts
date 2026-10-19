@@ -154,6 +154,12 @@ export const usePlayerStore = defineStore('player', () => {
         cues.clear();
     }
 
+    // The picker renders outside the player, so it can't show over fullscreen video
+    function pickAnotherRelease() {
+        if (document.fullscreenElement) void document.exitFullscreen();
+        pickerOpen.value = true;
+    }
+
     let generation = 0;
 
     async function startStream(next: WatchSelection, context: PickerContext | null = null) {
@@ -230,6 +236,7 @@ export const usePlayerStore = defineStore('player', () => {
         onCues,
         trackContent,
         toggleSubtitles,
+        pickAnotherRelease,
         startStream,
         stopStream,
     };

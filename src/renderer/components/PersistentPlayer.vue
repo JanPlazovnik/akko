@@ -11,10 +11,12 @@ import { useQueueStore } from '../stores/queue';
 import { formatTimestamp } from '../lib/watching';
 import { useSubtitleRenderer } from '../lib/subtitles';
 import { AudioBridge } from '../lib/audio-bridge';
+import { errorMessage } from '../lib/format';
 import PlayerControls from './player/PlayerControls.vue';
 import PlayerStatus from './player/PlayerStatus.vue';
 import MiniPlayerOverlay from './player/MiniPlayerOverlay.vue';
 import UpNext from './player/UpNext.vue';
+import PlayerContextMenu from './player/PlayerContextMenu.vue';
 import TorrentPickerDialog from './TorrentPickerDialog.vue';
 
 type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -110,6 +112,30 @@ function onMiniClick() {
 function togglePaused() {
     const v = getVideo();
     if (v) v.paused ? void v.play() : v.pause();
+}
+
+// The frame at its own resolution, with the subtitles JASSUB draws over the video picture
+async function copyScreenshot() {
+    const v = getVideo();
+    if (!v?.videoWidth) return;
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('No canvas context');
+        context.drawImage(v, 0, 0);
+        const subtitles = player.activeTrackId
+            ? mediaContainerRef.value?.querySelector('canvas')
+            : null;
+        if (subtitles?.width) context.drawImage(subtitles, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve));
+        if (!blob) throw new Error('Could not encode the frame');
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+        toast.success('Screenshot copied');
+    } catch (err) {
+        toast.error(`Couldn't copy the screenshot: ${errorMessage(err)}`);
+    }
 }
 
 function toggleFullscreen() {
@@ -243,36 +269,45 @@ onUnmounted(() => audioBridge?.dispose());
         @click="onMiniClick"
     >
         <video-player>
-            <media-container
-                ref="mediaContainerRef"
-                :class="[
-                    'relative block size-full bg-black outline-none',
-                    !isPlayerRoute && 'rounded-xl',
-                    isPlayerRoute && '[&:not(:has(media-controls[data-visible]))]:cursor-none',
-                ]"
-                @click="onSurfaceClick"
+            <PlayerContextMenu
+                :enabled="isPlayerRoute"
+                :container="mediaContainerRef"
+                :fullscreen="isFullscreen"
+                @toggle-play="togglePaused"
+                @screenshot="copyScreenshot"
+                @toggle-fullscreen="toggleFullscreen"
             >
-                <video
-                    ref="videoRef"
-                    :class="['object-contain', !isPlayerRoute && 'rounded-xl']"
-                    playsinline
-                    crossorigin="anonymous"
-                />
-                <template v-if="isPlayerRoute">
-                    <media-hotkey
-                        v-for="hotkey in HOTKEYS"
-                        :key="hotkey.keys"
-                        :keys="hotkey.keys"
-                        :action="hotkey.action"
-                        :value="hotkey.value"
-                        target="document"
+                <media-container
+                    ref="mediaContainerRef"
+                    :class="[
+                        'relative block size-full bg-black outline-none',
+                        !isPlayerRoute && 'rounded-xl',
+                        isPlayerRoute && '[&:not(:has(media-controls[data-visible]))]:cursor-none',
+                    ]"
+                    @click="onSurfaceClick"
+                >
+                    <video
+                        ref="videoRef"
+                        :class="['object-contain', !isPlayerRoute && 'rounded-xl']"
+                        playsinline
+                        crossorigin="anonymous"
                     />
-                    <PlayerControls :fullscreen="isFullscreen" />
-                    <UpNext />
-                </template>
-                <MiniPlayerOverlay v-else />
-                <PlayerStatus v-if="isPlayerRoute" />
-            </media-container>
+                    <template v-if="isPlayerRoute">
+                        <media-hotkey
+                            v-for="hotkey in HOTKEYS"
+                            :key="hotkey.keys"
+                            :keys="hotkey.keys"
+                            :action="hotkey.action"
+                            :value="hotkey.value"
+                            target="document"
+                        />
+                        <PlayerControls :fullscreen="isFullscreen" />
+                        <UpNext />
+                    </template>
+                    <MiniPlayerOverlay v-else />
+                    <PlayerStatus v-if="isPlayerRoute" />
+                </media-container>
+            </PlayerContextMenu>
         </video-player>
         <TorrentPickerDialog
             v-if="player.pickerContext"
