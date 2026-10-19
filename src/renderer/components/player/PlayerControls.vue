@@ -52,13 +52,13 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
             <button :class="[CONTROL_BUTTON, 'no-drag mt-3']" title="Back" @click="goBack(router)">
                 <ChevronLeft :size="24" />
             </button>
-            <div class="mt-3 min-w-0">
+            <div class="mt-3 min-w-0 flex-1">
                 <p class="truncate text-xs font-medium text-white/60">{{ player.title }}</p>
                 <h1 class="truncate font-display text-xl font-semibold">
                     <EpisodeLabel />
                 </h1>
             </div>
-            <StreamStats class="no-drag mt-4 ml-auto shrink-0" />
+            <StreamStats class="no-drag mt-4 shrink-0" />
             <WindowControls v-if="!fullscreen" class="h-11" />
         </div>
 
