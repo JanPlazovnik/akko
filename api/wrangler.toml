@@ -1,0 +1,6 @@
+name = "akko-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+routes = [{ pattern = "api.akko.odstrani.se", custom_domain = true }]
+
+# The TMDB read access token is a secret: npx wrangler secret put TMDB_TOKEN

@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# Local state from wrangler dev
+.wrangler/
