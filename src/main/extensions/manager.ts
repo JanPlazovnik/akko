@@ -47,6 +47,27 @@ function activate(id: string, instance: ExtensionInstance) {
     instances.set(id, instance);
 }
 
+const loading = new Map<string, Promise<ExtensionInstance>>();
+
+// A failed startup test is often just the site or network being down, so the extension stays
+// enabled and is loaded again when it's next searched
+function ensureActive(id: string, code: string): Promise<ExtensionInstance> {
+    const instance = instances.get(id);
+    if (instance) return Promise.resolve(instance);
+    let pending = loading.get(id);
+    if (!pending) {
+        pending = loadTested(code)
+            .then((loaded) => {
+                if (!loaded) throw new Error('test() failed');
+                activate(id, loaded);
+                return loaded;
+            })
+            .finally(() => loading.delete(id));
+        loading.set(id, pending);
+    }
+    return pending;
+}
+
 async function search(
     id: string,
     instance: ExtensionInstance,
@@ -72,20 +93,11 @@ export async function initExtensions() {
     const extensions = dbGetEnabledExtensions();
 
     await Promise.allSettled(
-        extensions.map(async (ext) => {
-            try {
-                const instance = await loadTested(ext.cachedCode);
-                if (instance) {
-                    activate(ext.id, instance);
-                } else {
-                    log.warn(`${ext.id} test() returned false - disabling`);
-                    dbSetEnabled(ext.id, false);
-                }
-            } catch (err) {
-                log.warn(`${ext.id} failed startup test:`, err);
-                dbSetEnabled(ext.id, false);
-            }
-        })
+        extensions.map((ext) =>
+            ensureActive(ext.id, ext.cachedCode).catch((err) =>
+                log.warn(`${ext.id} failed startup test, retrying on next search:`, err)
+            )
+        )
     );
 
     log.info(`${instances.size}/${extensions.length} extensions active`);
@@ -233,14 +245,16 @@ export async function searchAll(
     params: SearchParams
 ): Promise<ExtensionSearchResult[]> {
     log.debug(`running searchAll() with method ${method}`);
-    const active = [...instances.entries()];
+    const enabled = dbGetEnabledExtensions();
     const results = await Promise.allSettled(
-        active.map(([id, instance]) => search(id, instance, method, params))
+        enabled.map(async ({ id, cachedCode }) =>
+            search(id, await ensureActive(id, cachedCode), method, params)
+        )
     );
 
     log.debug(`searchAll() results:`, results);
     return results.map((r, i) => {
-        const id = active[i][0];
+        const id = enabled[i].id;
         if (r.status === 'fulfilled') return { extensionId: id, results: r.value };
         log.warn(`${id} search() failed:`, r.reason);
         return { extensionId: id, results: [], error: String(r.reason) };
