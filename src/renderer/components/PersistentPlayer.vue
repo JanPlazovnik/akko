@@ -168,14 +168,23 @@ function onResize() {
     viewport.value = { width: window.innerWidth, height: window.innerHeight };
 }
 
+type KeyboardLock = { lock(keys?: string[]): Promise<void>; unlock(): void };
+
+// Electron leaves fullscreen on Esc before the page sees the key. Locking it hands Esc to
+// onKeydown, so an open dialog or menu closes first; holding Esc still leaves fullscreen.
 function onFullscreenChange() {
     isFullscreen.value = Boolean(document.fullscreenElement);
+    const keyboard = (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
+    if (isFullscreen.value) void keyboard?.lock(['Escape']).catch(() => undefined);
+    else keyboard?.unlock();
 }
 
 function onKeydown(event: KeyboardEvent) {
     const target = event.target as HTMLElement | null;
     if (event.key === 'Escape' && document.fullscreenElement) {
-        void document.exitFullscreen();
+        // A dialog or menu over the video closes first; it's still in the DOM during this event
+        const layer = document.fullscreenElement.querySelector('[role="dialog"], [role="menu"]');
+        if (!layer) void document.exitFullscreen();
         return;
     }
     if (!isPlayerRoute.value || target?.closest('input, textarea, [contenteditable]')) return;
