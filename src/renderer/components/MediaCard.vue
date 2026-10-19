@@ -168,19 +168,22 @@ function navigate() {
 
                     <div class="mt-3 flex items-center gap-2">
                         <button
-                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-white/85"
+                            class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold whitespace-nowrap text-black transition-colors hover:bg-white/85"
                             @click.stop="play()"
                         >
                             <Play :size="12" fill="currentColor" />
                             {{ playLabel }}
                         </button>
-                        <span
-                            v-for="genre in (item.genres ?? []).filter(Boolean).slice(0, 2)"
-                            :key="genre!"
-                            class="rounded-full bg-white/6 px-2.5 py-1 text-[11px] text-white/50"
-                        >
-                            {{ genre }}
-                        </span>
+                        <!-- Tags that don't fit wrap onto a hidden second line -->
+                        <div class="flex h-6 min-w-0 flex-wrap gap-2 overflow-hidden">
+                            <span
+                                v-for="genre in (item.genres ?? []).filter(Boolean).slice(0, 2)"
+                                :key="genre!"
+                                class="rounded-full bg-white/6 px-2.5 py-1 text-[11px] whitespace-nowrap text-white/50"
+                            >
+                                {{ genre }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
