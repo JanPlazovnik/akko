@@ -293,6 +293,26 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             @update:model-value="store.update({ subtitleLanguage: $event })"
                         />
                     </SettingRow>
+                    <SettingRow
+                        title="Pick releases automatically"
+                        description="Plays the top pick a few seconds after the search finishes, unless you start browsing the results."
+                    >
+                        <Toggle
+                            :model-value="settings.autoPickRelease"
+                            label="Pick releases automatically"
+                            @update:model-value="store.update({ autoPickRelease: $event })"
+                        />
+                    </SettingRow>
+                    <SettingRow
+                        title="Autoplay next episode"
+                        description="Counts down when an episode ends, then plays the next one."
+                    >
+                        <Toggle
+                            :model-value="settings.autoplayNext"
+                            label="Autoplay next episode"
+                            @update:model-value="store.update({ autoplayNext: $event })"
+                        />
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection

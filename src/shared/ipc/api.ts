@@ -33,6 +33,8 @@ export type AppSettings = {
     onboarded: boolean;
     titleLanguage: (typeof TITLE_LANGUAGES)[number];
     syncProgress: boolean;
+    autoPickRelease: boolean;
+    autoplayNext: boolean;
 };
 
 export type AppInfo = {

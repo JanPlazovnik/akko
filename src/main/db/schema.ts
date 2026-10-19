@@ -13,6 +13,8 @@ export const settings = sqliteTable('settings', {
     onboarded: integer('onboarded', { mode: 'boolean' }).notNull().default(false),
     titleLanguage: text('title_language').notNull().default('ANILIST'),
     syncProgress: integer('sync_progress', { mode: 'boolean' }).notNull().default(true),
+    autoPickRelease: integer('auto_pick_release', { mode: 'boolean' }).notNull().default(true),
+    autoplayNext: integer('autoplay_next', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const extensions = sqliteTable('extensions', {
