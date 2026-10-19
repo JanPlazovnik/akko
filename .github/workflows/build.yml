@@ -10,7 +10,9 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                os: [windows-latest, ubuntu-latest]
+                # windows-latest ships Visual Studio 2026, which forge 7's node-gyp can't find yet;
+                # better-sqlite3 compiles on install, so stay on 2022 until forge 8
+                os: [windows-2022, ubuntu-latest]
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v4
