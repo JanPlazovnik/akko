@@ -10,6 +10,7 @@ import ExtensionsSettings from '../components/settings/ExtensionsSettings.vue';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import Toggle from '../components/ui/Toggle.vue';
 import NumberField from '../components/ui/NumberField.vue';
+import { openShortcuts } from '../lib/shortcuts';
 
 const SECTIONS = [
     { id: 'accounts', label: 'Accounts' },
@@ -276,6 +277,12 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             required
                             @update:model-value="setTitleLanguage"
                         />
+                    </SettingRow>
+                    <SettingRow
+                        title="Keyboard shortcuts"
+                        description="Press ? anywhere to see them."
+                    >
+                        <button :class="BUTTON" @click="openShortcuts">View</button>
                     </SettingRow>
                 </SettingsSection>
 

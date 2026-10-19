@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { DragDropProvider } from '@dnd-kit/vue';
 import Header from './components/Header.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
+import ShortcutsDialog from './components/ShortcutsDialog.vue';
 import { useAccountsStore } from './stores/accounts';
 import { useListStore } from './stores/list';
 import { useTrackingStore } from './stores/tracking';
@@ -46,6 +47,7 @@ watch(
                 <RouterView />
             </main>
             <PersistentPlayer />
+            <ShortcutsDialog />
         </div>
     </DragDropProvider>
 </template>
