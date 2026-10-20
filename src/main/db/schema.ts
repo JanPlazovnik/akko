@@ -15,6 +15,7 @@ export const settings = sqliteTable('settings', {
     syncProgress: integer('sync_progress', { mode: 'boolean' }).notNull().default(true),
     autoPickRelease: integer('auto_pick_release', { mode: 'boolean' }).notNull().default(true),
     autoplayNext: integer('autoplay_next', { mode: 'boolean' }).notNull().default(true),
+    showStreamStats: integer('show_stream_stats', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const extensions = sqliteTable('extensions', {

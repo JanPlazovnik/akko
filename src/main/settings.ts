@@ -31,6 +31,9 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
         clean.autoPickRelease = Boolean(patch.autoPickRelease);
     }
     if (patch.autoplayNext !== undefined) clean.autoplayNext = Boolean(patch.autoplayNext);
+    if (patch.showStreamStats !== undefined) {
+        clean.showStreamStats = Boolean(patch.showStreamStats);
+    }
     if (patch.subtitleLanguage !== undefined) {
         clean.subtitleLanguage = String(patch.subtitleLanguage).slice(0, 16);
     }

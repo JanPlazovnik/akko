@@ -41,25 +41,35 @@ const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto
 
 <template>
     <media-controls
-        class="group/controls absolute inset-0 z-20 flex flex-col justify-between opacity-0 transition-opacity duration-300 data-visible:opacity-100"
+        class="group/controls absolute inset-0 z-20 flex flex-col justify-between opacity-0 transition-opacity duration-300 will-change-[opacity] data-visible:opacity-100"
     >
         <div
-            :class="[
-                BAR,
-                'drag flex items-start gap-3 bg-linear-to-b from-black/75 via-black/30 to-transparent pb-24 pl-3',
-            ]"
+            class="pointer-events-none bg-linear-to-b from-black/75 via-black/30 to-transparent pb-24"
         >
-            <button :class="[CONTROL_BUTTON, 'no-drag mt-3']" title="Back" @click="goBack(router)">
-                <ChevronLeft :size="24" />
-            </button>
-            <div class="mt-3 min-w-0 flex-1">
-                <p class="truncate text-xs font-medium text-white/60">{{ player.title }}</p>
-                <h1 class="truncate font-display text-xl font-semibold">
-                    <EpisodeLabel />
-                </h1>
+            <div :class="[BAR, 'drag grid grid-cols-[1fr_auto_1fr] items-start gap-3 pb-2']">
+                <div class="flex min-w-0 items-start gap-3 pl-3">
+                    <button
+                        :class="[CONTROL_BUTTON, 'no-drag mt-3']"
+                        title="Back"
+                        @click="goBack(router)"
+                    >
+                        <ChevronLeft :size="24" />
+                    </button>
+                    <div class="mt-3 min-w-0 flex-1">
+                        <p class="truncate text-xs font-medium text-white/60">{{ player.title }}</p>
+                        <h1 class="truncate font-display text-xl font-semibold">
+                            <EpisodeLabel />
+                        </h1>
+                    </div>
+                </div>
+                <!-- Wrapped so the window controls keep the last column when the stats are hidden -->
+                <div class="mt-4">
+                    <StreamStats class="no-drag" />
+                </div>
+                <div class="flex justify-end">
+                    <WindowControls v-if="!fullscreen" class="h-11" />
+                </div>
             </div>
-            <StreamStats class="no-drag mt-4 shrink-0" />
-            <WindowControls v-if="!fullscreen" class="h-11" />
         </div>
 
         <div

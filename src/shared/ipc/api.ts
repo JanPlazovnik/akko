@@ -35,6 +35,7 @@ export type AppSettings = {
     syncProgress: boolean;
     autoPickRelease: boolean;
     autoplayNext: boolean;
+    showStreamStats: boolean;
 };
 
 export type AppInfo = {

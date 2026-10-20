@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `show_stream_stats` integer DEFAULT true NOT NULL;

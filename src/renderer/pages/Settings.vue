@@ -320,6 +320,16 @@ onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
                             @update:model-value="store.update({ autoplayNext: $event })"
                         />
                     </SettingRow>
+                    <SettingRow
+                        title="Show torrent stats"
+                        description="Download and upload speed, peers and how much of the episode has downloaded, at the top of the player."
+                    >
+                        <Toggle
+                            :model-value="settings.showStreamStats"
+                            label="Show torrent stats"
+                            @update:model-value="store.update({ showStreamStats: $event })"
+                        />
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection

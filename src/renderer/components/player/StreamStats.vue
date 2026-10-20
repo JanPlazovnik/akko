@@ -2,9 +2,11 @@
 import { computed } from 'vue';
 import { ArrowDown, ArrowUp, Users } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
+import { useSettingsStore } from '../../stores/settings';
 import { formatBytes, formatPercent, formatSpeed } from '../../lib/format';
 
 const player = usePlayerStore();
+const settingsStore = useSettingsStore();
 
 const items = computed(() => {
     const stats = player.stats;
@@ -19,7 +21,7 @@ const items = computed(() => {
 
 <template>
     <div
-        v-if="player.stats"
+        v-if="player.stats && settingsStore.settings?.showStreamStats"
         class="flex items-center gap-4 rounded-full bg-black/40 px-4 py-2 text-xs tabular-nums text-white/75 backdrop-blur-md"
     >
         <span

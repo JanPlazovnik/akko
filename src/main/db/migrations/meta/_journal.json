@@ -71,6 +71,13 @@
       "when": 1792432611145,
       "tag": "0009_bright_alex_wilder",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792524806183,
+      "tag": "0010_large_mandrill",
+      "breakpoints": true
     }
   ]
 }
