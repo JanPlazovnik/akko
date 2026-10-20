@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from '@lucide/vue';
 import { dismissToast, MAX_VISIBLE_TOASTS, toasts, type Toast } from '../lib/toast';
 
@@ -12,27 +11,23 @@ const TINTS = {
     warn: 'text-amber-400',
 };
 
-const route = useRoute();
 const STACK_DEPTH = 2;
 const STACK_OFFSET_PX = 10;
 const STACK_SCALE = 0.05;
 
-// Toasts past the newest few fold into a stack peeking out above them
-const layers = computed(() => {
-    const firstVisible = toasts.length - MAX_VISIBLE_TOASTS;
-    return toasts
-        .map((toast, index) => ({ toast, depth: Math.max(0, firstVisible - index) }))
-        .filter(({ depth }) => depth <= STACK_DEPTH);
-});
+// Newest first; toasts past the newest few fold into a stack peeking out below them
+const layers = computed(() =>
+    [...toasts]
+        .reverse()
+        .map((toast, index) => ({ toast, depth: Math.max(0, index - MAX_VISIBLE_TOASTS + 1) }))
+        .filter(({ depth }) => depth <= STACK_DEPTH)
+);
 
 // Only the fullscreen element renders while fullscreen, so the stack moves into it
 const fullscreenElement = ref<Element | null>(document.fullscreenElement);
 const onFullscreenChange = () => (fullscreenElement.value = document.fullscreenElement);
 onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
 onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
-
-// Clear of the player controls, which sit along the bottom edge
-const overPlayer = computed(() => route.path === '/player' || fullscreenElement.value !== null);
 
 // Hovering the stack holds every toast so it can be read and clicked
 type Timer = { remaining: number; startedAt: number; handle?: ReturnType<typeof setTimeout> };
@@ -75,7 +70,7 @@ function release() {
     for (const [id, timer] of timers) run(id, timer);
 }
 
-// The closing toast folds its height away as it fades, so the ones above slide down into the gap
+// The closing toast folds its height away as it fades, so the ones below slide up into the gap
 const LEAVE_MS = 200;
 
 function collapse(el: Element, done: () => void) {
@@ -105,11 +100,8 @@ function onAction(t: Toast) {
     <Teleport :to="fullscreenElement ?? 'body'">
         <TransitionGroup
             tag="ol"
-            :class="[
-                'pointer-events-none fixed left-1/2 z-[100] flex w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 flex-col items-stretch gap-2 transition-[bottom] duration-200',
-                overPlayer ? 'bottom-28' : 'bottom-6',
-            ]"
-            enter-from-class="translate-y-2 scale-[0.97] opacity-0"
+            class="pointer-events-none fixed top-18 right-5 z-50 flex w-[min(24rem,calc(100vw-2.5rem))] flex-col items-stretch gap-2"
+            enter-from-class="-translate-y-2 scale-[0.97] opacity-0"
             enter-active-class="transition duration-200 ease-out"
             move-class="transition-transform duration-200"
             @leave="collapse"
@@ -125,7 +117,7 @@ function onAction(t: Toast) {
                     'rounded-xl shadow-2xl ring-1 shadow-black/60 ring-white/10',
                     depth
                         ? [
-                              'absolute inset-x-0 top-0 h-14 ring-white/15 transition-[translate,scale,opacity] duration-200',
+                              'absolute inset-x-0 bottom-0 h-14 origin-bottom ring-white/15 transition-[translate,scale,opacity] duration-200',
                               depth === 1 ? 'bg-raised' : 'bg-surface',
                           ]
                         : 'pointer-events-auto flex min-h-14 items-center gap-3 bg-overlay/95 py-2.5 pr-2.5 pl-4 text-sm text-white/90 backdrop-blur-md',
@@ -133,7 +125,7 @@ function onAction(t: Toast) {
                 :style="
                     depth
                         ? {
-                              translate: `0 -${depth * STACK_OFFSET_PX}px`,
+                              translate: `0 ${depth * STACK_OFFSET_PX}px`,
                               scale: 1 - depth * STACK_SCALE,
                               zIndex: -depth,
                           }
