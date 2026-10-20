@@ -129,11 +129,16 @@ export const useQueueStore = defineStore('queue', () => {
         }
     }
 
-    // Up next shows when an episode ends, and only counts down with autoplay on
-    function episodeEnded() {
+    // Up next shows when an episode ends, and only counts down with autoplay on and the full
+    // player in view, so the mini player never moves on by itself
+    function episodeEnded(inView: boolean) {
         if (!next.value) return;
         upNext.value = true;
-        if (settingsStore.settings?.autoplayNext && countdown.value === null) {
+        if (inView) startCountdown();
+    }
+
+    function startCountdown() {
+        if (upNext.value && settingsStore.settings?.autoplayNext && countdown.value === null) {
             startTimer(COUNTDOWN_S);
         }
     }
@@ -169,6 +174,8 @@ export const useQueueStore = defineStore('queue', () => {
         play,
         upNext,
         episodeEnded,
+        startCountdown,
+        stopCountdown: stopTimer,
         dismissUpNext,
     };
 });

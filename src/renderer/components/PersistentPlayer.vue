@@ -201,7 +201,7 @@ onMounted(() => {
             player.isPlaying = true;
             queue.dismissUpNext();
         });
-        v.addEventListener('ended', () => queue.episodeEnded());
+        v.addEventListener('ended', () => queue.episodeEnded(isPlayerRoute.value));
         v.addEventListener('pause', () => (player.isPlaying = false));
         v.addEventListener('timeupdate', () => (player.currentTime = v.currentTime));
         v.addEventListener('durationchange', () => (player.duration = v.duration));
@@ -218,6 +218,8 @@ onUnmounted(() => {
 });
 
 watch(isPlayerRoute, (onPlayer) => {
+    if (onPlayer) queue.startCountdown();
+    else queue.stopCountdown();
     if (!onPlayer && document.fullscreenElement) void document.exitFullscreen();
 });
 
