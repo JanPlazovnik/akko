@@ -100,6 +100,7 @@ function onAction(t: Toast) {
     <Teleport :to="fullscreenElement ?? 'body'">
         <TransitionGroup
             tag="ol"
+            data-toasts
             class="pointer-events-none fixed top-18 right-5 z-50 flex w-[min(24rem,calc(100vw-2.5rem))] flex-col items-stretch gap-2"
             enter-from-class="-translate-y-2 scale-[0.97] opacity-0"
             enter-active-class="transition duration-200 ease-out"

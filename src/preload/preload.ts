@@ -43,6 +43,7 @@ const api: AppApi = {
     minimizeWindow: () => ipcRenderer.send('window:minimize'),
     maximizeWindow: () => ipcRenderer.send('window:maximize'),
     closeWindow: () => ipcRenderer.send('window:close'),
+    cursorPosition: () => ipcRenderer.invoke('window:cursor'),
     appInfo: () => ipcRenderer.invoke('app:info'),
     progress: {
         all: () => ipcRenderer.invoke('progress:all'),

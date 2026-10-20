@@ -10,6 +10,7 @@ import { useProgressStore } from '../stores/progress';
 import { useQueueStore } from '../stores/queue';
 import { formatTimestamp } from '../lib/watching';
 import { useSubtitleRenderer } from '../lib/subtitles';
+import { useControlsHover } from '../lib/controls-hover';
 import { AudioBridge } from '../lib/audio-bridge';
 import { errorMessage } from '../lib/format';
 import PlayerControls from './player/PlayerControls.vue';
@@ -59,6 +60,7 @@ const isPlayerRoute = computed(() => route.path === '/player');
 const isVisible = computed(() => isPlayerRoute.value || Boolean(player.streamUrl));
 
 useSubtitleRenderer(getVideo);
+useControlsHover(() => mediaContainerRef.value);
 
 // ─── corner-snap positioning ──────────────────────────────────────────────────
 const corner = ref<Corner>('bottom-right');

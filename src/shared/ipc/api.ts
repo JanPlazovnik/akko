@@ -178,6 +178,7 @@ export type AppApi = {
     minimizeWindow: () => void;
     maximizeWindow: () => void;
     closeWindow: () => void;
+    cursorPosition: () => Promise<{ x: number; y: number } | null>;
     appInfo: () => Promise<AppInfo>;
     progress: {
         all: () => Promise<WatchProgress[]>;
