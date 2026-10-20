@@ -1,353 +1,580 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { RefreshCw, FlaskConical } from '@lucide/vue';
-import { toast } from '../lib/toast';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { FlaskConical, RefreshCw } from '@lucide/vue';
+import { episodeToSummary, mediaToSummary, type WatchSelection } from '@shared/media/types';
+import { formatTimestamp, finishedAt } from '../lib/watching';
+import { errorMessage } from '../lib/format';
+import { toast, toasts } from '../lib/toast';
+import { useAccountsStore } from '../stores/accounts';
+import { useExtensionStore } from '../stores/extensions';
 import { useLoadingStore } from '../stores/loading';
 import { useMediaStore } from '../stores/media';
-import { useExtensionStore } from '../stores/extensions';
+import { usePlayerStore } from '../stores/player';
+import { useSettingsStore } from '../stores/settings';
+import SectionSidebar from '../components/SectionSidebar.vue';
+import SettingsSection from '../components/settings/SettingsSection.vue';
+import SettingRow from '../components/settings/SettingRow.vue';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
+import Toggle from '../components/ui/Toggle.vue';
+import NumberField from '../components/ui/NumberField.vue';
+import CountdownButton from '../components/ui/CountdownButton.vue';
+import Badge from '../components/ui/Badge.vue';
+import { BUTTON } from '../components/ui/styles';
 import LogoMark from '../components/LogoMark.vue';
 import appIcon from '../../../assets/icon.svg?url';
 
-const LOGO_SIZES = [16, 20, 28, 48, 96, 192];
-const LOGO_BACKGROUNDS = [
-    { label: 'Dark', class: 'bg-canvas text-white' },
-    { label: 'Light', class: 'bg-neutral-200 text-neutral-900' },
+const SECTIONS = [
+    { id: 'player', label: 'Player' },
+    { id: 'feedback', label: 'Toasts and loading' },
+    { id: 'components', label: 'Components' },
+    { id: 'extensions', label: 'Extensions' },
+    { id: 'logo', label: 'Logo' },
+    { id: 'general', label: 'App' },
 ];
 
-const selectVal = ref('');
-const multiVal = ref<string[]>([]);
-const DEMO_OPTIONS = [
-    { value: 'a', label: 'Option A' },
-    { value: 'b', label: 'Option B' },
-    { value: 'c', label: 'Option C' },
-    { value: 'd', label: 'Option D' },
-];
-const DEMO_MULTI = [
-    { value: 'action', label: 'Action' },
-    { value: 'comedy', label: 'Comedy' },
-    { value: 'drama', label: 'Drama' },
-    { value: 'fantasy', label: 'Fantasy' },
-    { value: 'horror', label: 'Horror' },
-];
-
-const loadingBar = useLoadingStore();
+const router = useRouter();
+const player = usePlayerStore();
 const mediaStore = useMediaStore();
+const accounts = useAccountsStore();
+const settingsStore = useSettingsStore();
 const extensions = useExtensionStore();
+const loadingBar = useLoadingStore();
 
-onMounted(() => extensions.refresh());
+onMounted(() => {
+    void extensions.refresh();
+    if (!mediaStore.dashboard) void mediaStore.fetchDashboard();
+});
 
-async function testLoadingBar() {
+// ─── test clip ────────────────────────────────────────────────────────────────
+const showId = ref('');
+const episodeNumber = ref(1);
+const clipName = ref<string | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+let clipUrl: string | null = null;
+
+const showOptions = computed(() =>
+    (mediaStore.dashboard?.trending?.media ?? [])
+        .filter((media) => media !== null)
+        .map((media) => ({ value: String(media.id), label: accounts.titleOf(media) }))
+);
+
+async function selectionFor(fileName: string): Promise<WatchSelection> {
+    const torrent = { title: fileName, magnet: 'playground' };
+    const media = showId.value ? mediaStore.mediaFor(Number(showId.value)) : null;
+    if (!media) {
+        return {
+            media: { anilistId: 0, title: 'Test clip' },
+            episode: {
+                key: 'playground',
+                number: episodeNumber.value,
+                season: null,
+                seasonEpisode: null,
+                absoluteNumber: null,
+                source: 'anizip',
+            },
+            torrent,
+        };
+    }
+    await mediaStore.preloadMedia(media.id);
+    const episode = mediaStore
+        .episodesFor(media.id)
+        .find((ep) => ep.number === episodeNumber.value);
+    if (!episode)
+        throw new Error(`${accounts.titleOf(media)} has no episode ${episodeNumber.value}`);
+    return {
+        media: mediaToSummary(media, accounts.titleOf(media)),
+        episode: episodeToSummary(episode),
+        torrent,
+    };
+}
+
+async function playClip(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+        const selection = await selectionFor(file.name);
+        await player.stopStream();
+        if (clipUrl) URL.revokeObjectURL(clipUrl);
+        clipUrl = URL.createObjectURL(file);
+        player.selection = selection;
+        // Treated like a release whose file didn't match the episode, so watch progress isn't
+        // saved and nothing is synced to AniList
+        player.fileMatch = 'fallback';
+        player.streamUrl = clipUrl;
+        clipName.value = file.name;
+    } catch (err) {
+        toast.error(`Couldn't play the clip: ${errorMessage(err)}`);
+    }
+}
+
+async function stopClip() {
+    await player.stopStream();
+    clipName.value = null;
+    fakeStats.value = false;
+}
+
+const nowPlaying = computed(() => {
+    if (!player.selection) return 'Nothing is playing.';
+    const { media, episode } = player.selection;
+    const position = player.duration
+        ? ` · ${formatTimestamp(player.currentTime)} of ${formatTimestamp(player.duration)}`
+        : '';
+    return `${media.title}, episode ${episode.number}${position}`;
+});
+
+// The player's own video element, which keeps playing in the mini player on this page
+function seekTo(time: number) {
+    const video = document.querySelector<HTMLVideoElement>('media-container video');
+    if (video) video.currentTime = Math.max(0, time);
+}
+
+// ─── fake torrent stats ───────────────────────────────────────────────────────
+const FAKE_SIZE = 1.4e9;
+const fakeStats = ref(false);
+let statsTimer: ReturnType<typeof setInterval> | undefined;
+
+function tickStats() {
+    const progress = Math.min(1, (player.stats?.progress ?? 0.08) + 0.012);
+    player.stats = {
+        downloadSpeed: 1.5e6 + Math.random() * 7e6,
+        uploadSpeed: 8e4 + Math.random() * 6e5,
+        peers: 18 + Math.floor(Math.random() * 40),
+        progress,
+        downloaded: FAKE_SIZE * progress,
+        size: FAKE_SIZE,
+    };
+}
+
+watch(fakeStats, (on) => {
+    clearInterval(statsTimer);
+    if (!on) {
+        player.stats = null;
+        return;
+    }
+    tickStats();
+    statsTimer = setInterval(tickStats, 1000);
+});
+
+onUnmounted(() => clearInterval(statsTimer));
+
+function showStatus(state: 'loading' | 'error' | null) {
+    player.loading = state === 'loading';
+    player.error = state === 'error' ? 'No peers found for this release after 60 seconds.' : null;
+}
+
+// ─── toasts and loading ───────────────────────────────────────────────────────
+const SAMPLE_TOASTS = [
+    () => toast.success('Marked Frieren as watching'),
+    () => toast.info('All extensions up to date'),
+    () => toast.warn('Your AniList login expires in 3 days. Reconnect it to renew it.'),
+    () => toast.error("Couldn't update your list: Network request failed"),
+];
+
+function toastWithAction() {
+    toast.success('Updated progress to episode 7', {
+        action: { label: 'Undo', onClick: () => toast.info('Undone') },
+    });
+}
+
+function burst() {
+    SAMPLE_TOASTS.concat(SAMPLE_TOASTS.slice(0, 2)).forEach((show, i) => setTimeout(show, i * 150));
+}
+
+async function simulateLoad() {
     loadingBar.start();
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     loadingBar.finish();
 }
 
-// --- Extension update checker ---
+// ─── components ───────────────────────────────────────────────────────────────
+const DEMO_OPTIONS = [
+    { value: 'sub', label: 'Subbed' },
+    { value: 'dub', label: 'Dubbed' },
+    { value: 'raw', label: 'Raw' },
+];
+const DEMO_GENRES = ['Action', 'Comedy', 'Drama', 'Fantasy', 'Romance'].map((genre) => ({
+    value: genre,
+    label: genre,
+}));
+const selectValue = ref('sub');
+const genres = ref<string[]>(['Fantasy']);
+const toggleValue = ref(true);
+const numberValue = ref(12);
+const countdownKey = ref(0);
 
-type UpdateStatus = 'idle' | 'checking' | 'up-to-date' | { version: string } | { error: string };
+// ─── extensions ───────────────────────────────────────────────────────────────
+type CheckState = 'checking' | 'current' | { version: string } | { error: string };
+type TestState = 'running' | 'passed' | 'failed' | { error: string };
 
-const updateStatuses = ref<Record<string, UpdateStatus>>({});
+const updates = ref<Record<string, CheckState>>({});
+const tests = ref<Record<string, TestState>>({});
+const checking = computed(() => Object.values(updates.value).includes('checking'));
 
-async function checkAllUpdates() {
-    if (!extensions.installed.length) return;
-    for (const ext of extensions.installed) updateStatuses.value[ext.id] = 'checking';
+async function checkUpdates() {
+    for (const ext of extensions.installed) updates.value[ext.id] = 'checking';
     try {
-        const updates = await window.api.extensions.checkUpdates();
-        const updateMap = new Map(updates.map((u) => [u.id, u.newVersion]));
+        const found = new Map(
+            (await window.api.extensions.checkUpdates()).map((u) => [u.id, u.newVersion])
+        );
         for (const ext of extensions.installed) {
-            const newVersion = updateMap.get(ext.id);
-            updateStatuses.value[ext.id] = newVersion ? { version: newVersion } : 'up-to-date';
+            const version = found.get(ext.id);
+            updates.value[ext.id] = version ? { version } : 'current';
         }
         await extensions.refresh();
-    } catch (e) {
-        for (const ext of extensions.installed) {
-            updateStatuses.value[ext.id] = { error: e instanceof Error ? e.message : String(e) };
-        }
+    } catch (err) {
+        for (const ext of extensions.installed)
+            updates.value[ext.id] = { error: errorMessage(err) };
     }
 }
-
-function statusLabel(s: UpdateStatus): string {
-    if (s === 'idle') return '';
-    if (s === 'checking') return 'checking…';
-    if (s === 'up-to-date') return 'up to date';
-    if ('version' in s) return `v${s.version} available`;
-    if ('error' in s) return `error: ${s.error}`;
-    return '';
-}
-
-function statusTextColor(s: UpdateStatus): string {
-    if (s === 'idle') return 'text-white/30';
-    if (s === 'checking') return 'text-blue-300';
-    if (s === 'up-to-date') return 'text-emerald-300';
-    if ('version' in s) return 'text-amber-300';
-    if ('error' in s) return 'text-red-300';
-    return '';
-}
-
-// --- Per-extension test ---
-
-type TestStatus = 'idle' | 'running' | { ok: boolean } | { error: string };
-const testStatuses = ref<Record<string, TestStatus>>({});
 
 async function runTest(id: string) {
-    testStatuses.value[id] = 'running';
+    tests.value[id] = 'running';
     try {
-        const ok = await window.api.extensions.test(id);
-        testStatuses.value[id] = { ok };
-    } catch (e) {
-        testStatuses.value[id] = { error: e instanceof Error ? e.message : String(e) };
+        tests.value[id] = (await window.api.extensions.test(id)) ? 'passed' : 'failed';
+    } catch (err) {
+        tests.value[id] = { error: errorMessage(err) };
     }
 }
 
-function testLabel(s: TestStatus): string {
-    if (s === 'idle') return '';
-    if (s === 'running') return 'running…';
-    if ('ok' in s) return s.ok ? 'pass' : 'fail';
-    if ('error' in s) return `error: ${s.error}`;
-    return '';
+function extensionStatus(id: string): { text: string; tone: string } | null {
+    const test = tests.value[id];
+    const update = updates.value[id];
+    if (test === 'running') return { text: 'Testing…', tone: 'text-white/45' };
+    if (test === 'passed') return { text: 'Test passed', tone: 'text-emerald-400' };
+    if (test === 'failed') return { text: 'Test failed', tone: 'text-red-400' };
+    if (test) return { text: `Test failed: ${test.error}`, tone: 'text-red-400' };
+    if (update === 'checking') return { text: 'Checking for updates…', tone: 'text-white/45' };
+    if (update === 'current') return { text: 'Up to date', tone: 'text-emerald-400' };
+    if (update && 'version' in update) {
+        return { text: `Version ${update.version} available`, tone: 'text-amber-400' };
+    }
+    if (update) return { text: `Update check failed: ${update.error}`, tone: 'text-red-400' };
+    return null;
 }
 
-function testTextColor(s: TestStatus): string {
-    if (s === 'running') return 'text-blue-300';
-    if (s !== 'idle' && 'ok' in s) return s.ok ? 'text-emerald-300' : 'text-red-300';
-    if (s !== 'idle' && 'error' in s) return 'text-red-300';
-    return 'text-white/30';
+// ─── logo ─────────────────────────────────────────────────────────────────────
+const LOGO_SIZES = [16, 20, 28, 48, 96];
+const LOGO_BACKGROUNDS = [
+    { label: 'On dark', class: 'bg-canvas text-white' },
+    { label: 'On light', class: 'bg-neutral-200 text-neutral-900' },
+];
+
+// ─── app ──────────────────────────────────────────────────────────────────────
+async function restartOnboarding() {
+    await settingsStore.update({ onboarded: false });
+    await router.push('/setup');
 }
 </script>
 
 <template>
-    <div class="min-h-full bg-neutral-900 text-white p-8 space-y-10">
-        <div>
-            <p class="text-[10px] uppercase tracking-[0.16em] text-white/30 mb-1">Dev</p>
-            <h1 class="text-2xl font-bold">Playground</h1>
-        </div>
+    <div class="flex min-h-full">
+        <SectionSidebar title="Playground" :sections="SECTIONS" />
 
-        <!-- Logo -->
-        <section class="space-y-3">
-            <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">Logo</h2>
-            <div
-                v-for="bg in LOGO_BACKGROUNDS"
-                :key="bg.label"
-                :class="['flex items-end gap-8 rounded-xl p-6', bg.class]"
-            >
-                <div
-                    v-for="size in LOGO_SIZES"
-                    :key="size"
-                    class="flex flex-col items-center gap-2"
+        <div class="min-w-0 flex-1 px-8 py-8 pb-24">
+            <div class="max-w-3xl space-y-12">
+                <SettingsSection
+                    id="player"
+                    title="Player"
+                    description="Play a video from your computer to try the player without a torrent. It keeps playing in the mini player while you're on this page."
                 >
-                    <LogoMark :style="{ width: `${size}px`, height: `${size}px` }" />
-                    <span class="text-[10px] opacity-50 tabular-nums">{{ size }}px</span>
-                </div>
-            </div>
-            <div class="flex items-end gap-8 rounded-xl bg-neutral-200 p-6 text-neutral-900">
-                <div
-                    v-for="size in LOGO_SIZES"
-                    :key="`icon-${size}`"
-                    class="flex flex-col items-center gap-2"
-                >
-                    <img :src="appIcon" :width="size" :height="size" alt="" />
-                    <span class="text-[10px] opacity-50 tabular-nums">{{ size }}px app icon</span>
-                </div>
-            </div>
-        </section>
+                    <SettingRow
+                        title="Test clip"
+                        description="Pick a show to try Up next and episode titles, or leave it empty. Nothing from a test clip is saved to watch progress or synced to AniList."
+                    >
+                        <SelectMenu
+                            v-model="showId"
+                            :options="showOptions"
+                            placeholder="No show"
+                            scrollable
+                        />
+                        <NumberField v-model="episodeNumber" :min="1" placeholder="Ep" />
+                        <button :class="BUTTON" @click="fileInput?.click()">Choose video…</button>
+                        <input
+                            ref="fileInput"
+                            type="file"
+                            accept="video/*,.mkv"
+                            class="hidden"
+                            @change="playClip"
+                        />
+                    </SettingRow>
+                    <SettingRow title="Now playing" :description="nowPlaying">
+                        <button
+                            :class="BUTTON"
+                            :disabled="!player.streamUrl"
+                            @click="router.push('/player')"
+                        >
+                            Open player
+                        </button>
+                        <button :class="BUTTON" :disabled="!player.selection" @click="stopClip">
+                            Stop
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        title="Skip ahead"
+                        description="Jump to where the episode counts as watched, or to a few seconds before the end to see Up next."
+                    >
+                        <button
+                            :class="BUTTON"
+                            :disabled="!player.duration"
+                            @click="seekTo(finishedAt(player.duration))"
+                        >
+                            Watched point
+                        </button>
+                        <button
+                            :class="BUTTON"
+                            :disabled="!player.duration"
+                            @click="seekTo(player.duration - 5)"
+                        >
+                            Near the end
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        title="Fake torrent stats"
+                        description="Fills the stats at the top of the player with made-up numbers that change every second."
+                    >
+                        <Toggle v-model="fakeStats" label="Fake torrent stats" />
+                    </SettingRow>
+                    <SettingRow
+                        title="Status screen"
+                        description="What the player shows while a torrent connects, or when it fails."
+                    >
+                        <button :class="BUTTON" @click="showStatus('loading')">Connecting</button>
+                        <button :class="BUTTON" @click="showStatus('error')">Error</button>
+                        <button
+                            :class="BUTTON"
+                            :disabled="!player.loading && !player.error"
+                            @click="showStatus(null)"
+                        >
+                            Clear
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        v-if="settingsStore.settings"
+                        title="Autoplay next episode"
+                        description="The same switch as in Settings, here for convenience."
+                    >
+                        <Toggle
+                            :model-value="settingsStore.settings.autoplayNext"
+                            label="Autoplay next episode"
+                            @update:model-value="settingsStore.update({ autoplayNext: $event })"
+                        />
+                    </SettingRow>
+                </SettingsSection>
 
-        <!-- Extensions -->
-        <section class="space-y-3">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">
-                    Extensions
-                </h2>
-                <button
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-neutral-800 hover:bg-neutral-700 transition-colors disabled:opacity-40"
-                    :disabled="
-                        !extensions.installed.length ||
-                        Object.values(updateStatuses).some((s) => s === 'checking')
-                    "
-                    @click="checkAllUpdates"
-                >
-                    <RefreshCw
-                        :size="12"
-                        :class="{
-                            'animate-spin': Object.values(updateStatuses).some(
-                                (s) => s === 'checking'
-                            ),
-                        }"
-                    />
-                    Check updates
-                </button>
-            </div>
+                <SettingsSection id="feedback" title="Toasts and loading">
+                    <SettingRow title="Kinds" description="One of each, with real messages.">
+                        <button
+                            v-for="(show, i) in SAMPLE_TOASTS"
+                            :key="i"
+                            :class="BUTTON"
+                            @click="show()"
+                        >
+                            {{ ['Success', 'Info', 'Warning', 'Error'][i] }}
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        title="With a button"
+                        description="Stays up longer, and closes when the button is used."
+                    >
+                        <button :class="BUTTON" @click="toastWithAction">Show</button>
+                    </SettingRow>
+                    <SettingRow title="Stays open" description="Only closes when dismissed.">
+                        <button
+                            :class="BUTTON"
+                            @click="
+                                toast.error(
+                                    'Your AniList login expired. Reconnect it to keep syncing.',
+                                    {
+                                        duration: false,
+                                    }
+                                )
+                            "
+                        >
+                            Show
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        title="Burst"
+                        description="Six in a row, so the oldest fold into the stack."
+                    >
+                        <button :class="BUTTON" @click="burst">Show</button>
+                        <button
+                            :class="BUTTON"
+                            :disabled="!toasts.length"
+                            @click="toasts.splice(0)"
+                        >
+                            Clear all
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        title="Loading bar"
+                        :description="
+                            loadingBar.visible
+                                ? `Loading, ${Math.round(loadingBar.progress)}%`
+                                : 'The bar along the top while a page loads.'
+                        "
+                    >
+                        <button :class="BUTTON" @click="simulateLoad">Two seconds</button>
+                        <button :class="BUTTON" @click="loadingBar.start()">Start</button>
+                        <button :class="BUTTON" @click="loadingBar.finish()">Finish</button>
+                    </SettingRow>
+                </SettingsSection>
 
-            <div v-if="extensions.installed.length" class="space-y-2">
-                <div
-                    v-for="ext in extensions.installed"
-                    :key="ext.id"
-                    class="bg-neutral-800 rounded-lg p-3"
+                <SettingsSection id="components" title="Components">
+                    <SettingRow
+                        title="Select menu"
+                        :description="`Selected: ${selectValue || 'nothing'}`"
+                    >
+                        <SelectMenu
+                            v-model="selectValue"
+                            :options="DEMO_OPTIONS"
+                            placeholder="Audio"
+                        />
+                    </SettingRow>
+                    <SettingRow
+                        title="Multi-select menu"
+                        :description="`Selected: ${genres.join(', ') || 'nothing'}`"
+                    >
+                        <MultiSelectMenu
+                            v-model="genres"
+                            :options="DEMO_GENRES"
+                            placeholder="Genres"
+                        />
+                    </SettingRow>
+                    <SettingRow title="Toggle" :description="toggleValue ? 'On' : 'Off'">
+                        <Toggle v-model="toggleValue" label="Toggle" />
+                    </SettingRow>
+                    <SettingRow title="Number field" :description="`Value: ${numberValue}`">
+                        <NumberField v-model="numberValue" suffix="MB/s" :min="0" />
+                    </SettingRow>
+                    <SettingRow
+                        title="Countdown button"
+                        description="The fill Up next uses while it counts down."
+                    >
+                        <CountdownButton
+                            :key="countdownKey"
+                            :duration="5"
+                            class="h-9 rounded-full bg-white/70 px-4 text-sm font-semibold text-black"
+                            @click="countdownKey++"
+                        >
+                            Restart
+                        </CountdownButton>
+                    </SettingRow>
+                    <SettingRow
+                        title="Badges"
+                        description="Genre pills and tags on the media page."
+                    >
+                        <Badge>Fantasy</Badge>
+                        <Badge variant="tag">Time skip</Badge>
+                    </SettingRow>
+                </SettingsSection>
+
+                <SettingsSection
+                    id="extensions"
+                    title="Extensions"
+                    description="Check sources for updates and run their self-tests."
                 >
-                    <div class="flex items-center justify-between gap-3">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="text-sm font-medium truncate">{{ ext.name }}</span>
-                            <span class="text-[11px] text-white/30 font-mono shrink-0"
-                                >v{{ ext.version }}</span
-                            >
-                            <span
-                                :class="[
-                                    'text-[10px] px-1.5 py-0.5 rounded shrink-0',
-                                    ext.enabled
-                                        ? 'bg-emerald-500/15 text-emerald-400'
-                                        : 'bg-white/6 text-white/30',
-                                ]"
-                            >
-                                {{ ext.enabled ? 'enabled' : 'disabled' }}
+                    <SettingRow
+                        title="Updates"
+                        :description="
+                            extensions.error ??
+                            `${extensions.installed.length} installed, ${extensions.updates.length} with updates`
+                        "
+                    >
+                        <button
+                            :class="BUTTON"
+                            :disabled="!extensions.installed.length || checking"
+                            @click="checkUpdates"
+                        >
+                            <RefreshCw :size="14" :class="{ 'animate-spin': checking }" />
+                            Check updates
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        v-for="ext in extensions.installed"
+                        :key="ext.id"
+                        :title="ext.name"
+                        :disabled="!ext.enabled"
+                    >
+                        <template #badge>
+                            <span class="ml-1.5 font-mono text-xs text-white/35">
+                                {{ ext.version }}
                             </span>
+                        </template>
+                        <template #description>
+                            <span
+                                v-if="extensionStatus(ext.id)"
+                                :class="extensionStatus(ext.id)?.tone"
+                            >
+                                {{ extensionStatus(ext.id)?.text }}
+                            </span>
+                            <span v-else class="font-mono">{{ ext.id }}</span>
+                        </template>
+                        <button
+                            :class="BUTTON"
+                            :disabled="!ext.enabled || tests[ext.id] === 'running'"
+                            @click="runTest(ext.id)"
+                        >
+                            <FlaskConical :size="14" />
+                            Test
+                        </button>
+                    </SettingRow>
+                </SettingsSection>
+
+                <SettingsSection id="logo" title="Logo" bare>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div
+                            v-for="background in LOGO_BACKGROUNDS"
+                            :key="background.label"
+                            :class="['rounded-xl p-5 ring-1 ring-line', background.class]"
+                        >
+                            <p class="text-xs opacity-50">{{ background.label }}</p>
+                            <div class="mt-4 flex items-end gap-5">
+                                <div
+                                    v-for="size in LOGO_SIZES"
+                                    :key="size"
+                                    class="flex flex-col items-center gap-2"
+                                >
+                                    <LogoMark
+                                        :style="{ width: `${size}px`, height: `${size}px` }"
+                                    />
+                                    <span class="text-[10px] tabular-nums opacity-50">{{
+                                        size
+                                    }}</span>
+                                </div>
+                            </div>
                         </div>
-
-                        <div class="flex items-center gap-3 shrink-0">
-                            <span
-                                :class="[
-                                    'text-[11px] font-mono',
-                                    statusTextColor(updateStatuses[ext.id] ?? 'idle'),
-                                ]"
-                            >
-                                {{ statusLabel(updateStatuses[ext.id] ?? 'idle') }}
-                            </span>
-                            <span
-                                :class="[
-                                    'text-[11px] font-mono',
-                                    testTextColor(testStatuses[ext.id] ?? 'idle'),
-                                ]"
-                            >
-                                {{ testLabel(testStatuses[ext.id] ?? 'idle') }}
-                            </span>
-                            <button
-                                class="flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs bg-white/6 hover:bg-white/12 transition-colors disabled:opacity-40"
-                                :disabled="!ext.enabled || testStatuses[ext.id] === 'running'"
-                                @click="runTest(ext.id)"
-                            >
-                                <FlaskConical :size="11" />
-                                Test
-                            </button>
+                        <div class="rounded-xl bg-neutral-200 p-5 text-neutral-900 sm:col-span-2">
+                            <p class="text-xs opacity-50">App icon</p>
+                            <div class="mt-4 flex items-end gap-5">
+                                <div
+                                    v-for="size in [...LOGO_SIZES, 192]"
+                                    :key="size"
+                                    class="flex flex-col items-center gap-2"
+                                >
+                                    <img :src="appIcon" :width="size" :height="size" alt="" />
+                                    <span class="text-[10px] tabular-nums opacity-50">{{
+                                        size
+                                    }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <p class="text-[10px] text-white/20 font-mono mt-1.5">{{ ext.id }}</p>
-                </div>
-            </div>
+                </SettingsSection>
 
-            <p v-else class="text-sm text-white/30">No extensions installed.</p>
-
-            <!-- Store state -->
-            <div class="bg-neutral-800/50 rounded-lg p-3 text-xs space-y-0.5">
-                <p class="text-white/40">
-                    installed: {{ extensions.installed.length }} · loading:
-                    {{ extensions.loading }} · pending updates: {{ extensions.updates.length }}
-                </p>
-                <p class="text-white/40">error: {{ extensions.error ?? 'null' }}</p>
+                <SettingsSection id="general" title="App">
+                    <SettingRow
+                        title="Setup"
+                        description="Go through first-run setup again. Your current settings are kept."
+                    >
+                        <button :class="BUTTON" @click="restartOnboarding">Start setup</button>
+                    </SettingRow>
+                </SettingsSection>
             </div>
-        </section>
-
-        <!-- UI Components -->
-        <section class="space-y-3">
-            <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">
-                UI Components
-            </h2>
-            <div class="flex flex-wrap gap-3 items-center">
-                <SelectMenu v-model="selectVal" :options="DEMO_OPTIONS" placeholder="SelectMenu" />
-                <MultiSelectMenu
-                    v-model="multiVal"
-                    :options="DEMO_MULTI"
-                    placeholder="MultiSelectMenu"
-                />
-            </div>
-            <div class="text-xs text-white/30 font-mono space-y-1">
-                <p>SelectMenu: {{ selectVal || 'empty' }}</p>
-                <p>MultiSelectMenu: {{ multiVal.length ? multiVal.join(', ') : 'empty' }}</p>
-            </div>
-        </section>
-
-        <!-- Toasts -->
-        <section class="space-y-3">
-            <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">Toasts</h2>
-            <div class="flex flex-wrap gap-2">
-                <button
-                    class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm transition-colors"
-                    @click="toast.success('Success')"
-                >
-                    Success
-                </button>
-                <button
-                    class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm transition-colors"
-                    @click="toast.error('Error')"
-                >
-                    Error
-                </button>
-                <button
-                    class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm transition-colors"
-                    @click="toast.warn('Warning')"
-                >
-                    Warning
-                </button>
-                <button
-                    class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm transition-colors"
-                    @click="toast.info('Info')"
-                >
-                    Info
-                </button>
-            </div>
-        </section>
-
-        <!-- Loading bar -->
-        <section class="space-y-3">
-            <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">
-                Loading Bar
-            </h2>
-            <div class="flex gap-2">
-                <button
-                    class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm transition-colors"
-                    @click="testLoadingBar()"
-                >
-                    Simulate 2s load
-                </button>
-                <button
-                    class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm transition-colors"
-                    @click="loadingBar.start()"
-                >
-                    Start
-                </button>
-                <button
-                    class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm transition-colors"
-                    @click="loadingBar.finish()"
-                >
-                    Finish
-                </button>
-            </div>
-        </section>
-
-        <!-- Store state -->
-        <section class="space-y-3">
-            <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">
-                Store State
-            </h2>
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-neutral-800 rounded-lg p-4 space-y-1.5 text-xs">
-                    <p class="font-semibold text-white/80">Media</p>
-                    <p class="text-white/40">dashboardLoading: {{ mediaStore.dashboardLoading }}</p>
-                    <p class="text-white/40">
-                        dashboardError: {{ mediaStore.dashboardError?.message ?? 'null' }}
-                    </p>
-                    <p class="text-white/40">
-                        selectedMedia: {{ mediaStore.selectedMedia?.id ?? 'null' }}
-                    </p>
-                    <p class="text-white/40">
-                        trending: {{ mediaStore.dashboard?.trending?.media?.length ?? 0 }} items
-                    </p>
-                </div>
-                <div class="bg-neutral-800 rounded-lg p-4 space-y-1.5 text-xs">
-                    <p class="font-semibold text-white/80">Loading Bar</p>
-                    <p class="text-white/40">visible: {{ loadingBar.visible }}</p>
-                    <p class="text-white/40">progress: {{ loadingBar.progress.toFixed(1) }}%</p>
-                </div>
-            </div>
-        </section>
+        </div>
     </div>
 </template>

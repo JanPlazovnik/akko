@@ -12,6 +12,7 @@ import SettingRow from '../components/settings/SettingRow.vue';
 import ExtensionsSettings from '../components/settings/ExtensionsSettings.vue';
 import Toggle from '../components/ui/Toggle.vue';
 import CheckStatus, { type CheckState } from '../components/setup/CheckStatus.vue';
+import { BUTTON } from '../components/ui/styles';
 
 const STEPS = [
     { id: 'welcome', label: 'Welcome' },
@@ -27,9 +28,6 @@ const INTRO = [
 ];
 
 const LOW_SPACE_BYTES = 10e9;
-
-const BUTTON =
-    'inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-white/8 px-3 text-sm font-medium transition-colors hover:bg-white/14';
 
 type Status = { state: CheckState; title: string; detail?: string };
 

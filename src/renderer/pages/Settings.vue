@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Check, Copy, FolderOpen, RotateCcw, UserRound } from '@lucide/vue';
 import { LOG_LEVELS, TITLE_LANGUAGES, type AppInfo, type AppSettings } from '@shared/ipc/api';
 import { useSettingsStore } from '../stores/settings';
 import { useAccountsStore } from '../stores/accounts';
 import SettingsSection from '../components/settings/SettingsSection.vue';
 import SettingRow from '../components/settings/SettingRow.vue';
+import SectionSidebar from '../components/SectionSidebar.vue';
 import ExtensionsSettings from '../components/settings/ExtensionsSettings.vue';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import Toggle from '../components/ui/Toggle.vue';
 import NumberField from '../components/ui/NumberField.vue';
+import { BUTTON } from '../components/ui/styles';
 import { openShortcuts } from '../lib/shortcuts';
 
 const SECTIONS = [
@@ -54,16 +56,12 @@ const SUBTITLE_LANGUAGES = [
     'zh',
 ];
 
-const BUTTON =
-    'inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-white/8 px-3 text-sm font-medium transition-colors hover:bg-white/14 disabled:cursor-default disabled:opacity-40';
-
 const store = useSettingsStore();
 const accounts = useAccountsStore();
 const anilistExpiry = computed(() => accounts.anilistExpiry());
 const formatDate = (date: Date) =>
     date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const settings = computed(() => store.settings);
-const activeSection = ref(SECTIONS[0].id);
 const cacheCount = ref<number | null>(null);
 
 const languageNames = new Intl.DisplayNames(['en'], { type: 'language' });
@@ -129,57 +127,16 @@ async function copyInfo() {
 const toMegabytes = (kilobytes: number) => Math.round((kilobytes / 1024) * 10) / 10;
 const toKilobytes = (megabytes: number) => Math.round(megabytes * 1024);
 
-function scrollTo(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-let scroller: HTMLElement | null = null;
-
-function updateActiveSection() {
-    if (!scroller) return;
-    if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4) {
-        activeSection.value = SECTIONS[SECTIONS.length - 1].id;
-        return;
-    }
-    const threshold = scroller.getBoundingClientRect().top + 120;
-    activeSection.value =
-        SECTIONS.filter(
-            ({ id }) => (document.getElementById(id)?.getBoundingClientRect().top ?? 0) <= threshold
-        ).pop()?.id ?? SECTIONS[0].id;
-}
-
 onMounted(async () => {
     window.api.metadata.cacheCount().then((count) => (cacheCount.value = count));
     window.api.appInfo().then((value) => (info.value = value));
     await Promise.all([store.load(), accounts.load()]);
-    scroller = document.querySelector('main');
-    scroller?.addEventListener('scroll', updateActiveSection, { passive: true });
-    updateActiveSection();
 });
-
-onUnmounted(() => scroller?.removeEventListener('scroll', updateActiveSection));
 </script>
 
 <template>
     <div class="flex min-h-full">
-        <aside class="sticky top-0 w-56 shrink-0 self-start px-5 py-8">
-            <h1 class="px-3 font-display text-2xl font-semibold tracking-tight">Settings</h1>
-            <nav class="mt-6 space-y-0.5">
-                <button
-                    v-for="section in SECTIONS"
-                    :key="section.id"
-                    :class="[
-                        'block w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                        activeSection === section.id
-                            ? 'bg-white/8 font-medium text-white'
-                            : 'text-white/50 hover:text-white',
-                    ]"
-                    @click="scrollTo(section.id)"
-                >
-                    {{ section.label }}
-                </button>
-            </nav>
-        </aside>
+        <SectionSidebar title="Settings" :sections="SECTIONS" />
 
         <div v-if="settings" class="min-w-0 flex-1 px-8 py-8 pb-24">
             <div class="max-w-3xl space-y-12">
