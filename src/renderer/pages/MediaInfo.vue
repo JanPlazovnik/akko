@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { toast } from 'vue3-toastify';
 import { Check, Pencil, Play, Plus, Star } from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
 import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import ListEntryDialog from '../components/ListEntryDialog.vue';
 import { STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
+import { toast } from '../lib/toast';
 import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
 import { useListStore } from '../stores/list';

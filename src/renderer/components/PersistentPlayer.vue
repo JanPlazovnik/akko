@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDraggable, useDragDropMonitor } from '@dnd-kit/vue';
 import '@videojs/html/video/ui';
 import '@videojs/html/base.css';
-import { toast } from 'vue3-toastify';
+import { toast } from '../lib/toast';
 import { usePlayerStore } from '../stores/player';
 import { useProgressStore } from '../stores/progress';
 import { useQueueStore } from '../stores/queue';
@@ -234,8 +234,8 @@ watch(
             const resumeAt = progress.resumePosition(player.selection);
             if (resumeAt) {
                 v.currentTime = resumeAt;
-                toast.info(`Resumed at ${formatTimestamp(resumeAt)}. Click to start over.`, {
-                    onClick: () => (v.currentTime = 0),
+                toast.info(`Resumed at ${formatTimestamp(resumeAt)}`, {
+                    action: { label: 'Start over', onClick: () => (v.currentTime = 0) },
                 });
             }
             v.play().catch(() => undefined);

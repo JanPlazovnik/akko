@@ -5,6 +5,7 @@ import { DragDropProvider } from '@dnd-kit/vue';
 import Header from './components/Header.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
 import ShortcutsDialog from './components/ShortcutsDialog.vue';
+import Toaster from './components/Toaster.vue';
 import { useAccountsStore } from './stores/accounts';
 import { useListStore } from './stores/list';
 import { useTrackingStore } from './stores/tracking';
@@ -50,4 +51,5 @@ watch(
             <ShortcutsDialog />
         </div>
     </DragDropProvider>
+    <Toaster />
 </template>

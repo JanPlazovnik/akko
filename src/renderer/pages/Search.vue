@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { X } from '@lucide/vue';
-import { toast } from 'vue3-toastify';
+import { toast } from '../lib/toast';
 import { useLoadingStore } from '../stores/loading';
 import { useMediaStore } from '../stores/media';
 import MediaCard from '../components/MediaCard.vue';

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { Download, RefreshCw, Trash2, AlertCircle, Globe } from '@lucide/vue';
-import { toast } from 'vue3-toastify';
+import { toast } from '../../lib/toast';
 import { useExtensionStore } from '../../stores/extensions';
 import Toggle from '../ui/Toggle.vue';
 import type { ExtensionManifest } from '../../../main/extensions/types';

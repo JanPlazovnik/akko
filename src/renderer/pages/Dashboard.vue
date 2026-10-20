@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { toast } from 'vue3-toastify';
+import { toast } from '../lib/toast';
 import { useMediaStore } from '../stores/media';
 import { useLoadingStore } from '../stores/loading';
 import { useProgressStore, type ContinueItem } from '../stores/progress';

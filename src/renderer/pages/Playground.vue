@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { toast } from 'vue3-toastify';
 import { RefreshCw, FlaskConical } from '@lucide/vue';
+import { toast } from '../lib/toast';
 import { useLoadingStore } from '../stores/loading';
 import { useMediaStore } from '../stores/media';
 import { useExtensionStore } from '../stores/extensions';

@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { watch } from 'vue';
-import { toast } from 'vue3-toastify';
 import type { ListEntry } from '@shared/graphql/queries';
 import { createLogger } from '../lib/logger';
+import { toast } from '../lib/toast';
 import { finishedAt } from '../lib/watching';
 import { useAccountsStore } from './accounts';
 import { useListStore, type EntryPatch } from './list';
@@ -40,8 +40,8 @@ export const useTrackingStore = defineStore('tracking', () => {
         const before = list.entryFor(mediaId);
         if (!(await list.save(mediaId, patch))) return;
         log.info(message);
-        toast.success(`${message}. Click to undo.`, {
-            onClick: () => void undo(mediaId, before),
+        toast.success(message, {
+            action: { label: 'Undo', onClick: () => void undo(mediaId, before) },
         });
     }
 

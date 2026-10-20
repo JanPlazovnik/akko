@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
-import { toast } from 'vue3-toastify';
 import {
     DeleteListEntryMutation,
     SaveListEntryMutation,
@@ -12,6 +11,7 @@ import type { ResultOf, VariablesOf } from '@shared/graphql/graphql';
 import { anilistMutation, anilistUserQuery, staleWhileRevalidate } from '../lib/anilist';
 import { errorMessage } from '../lib/format';
 import { createLogger } from '../lib/logger';
+import { toast } from '../lib/toast';
 import { useAccountsStore } from './accounts';
 import { useMediaStore } from './media';
 

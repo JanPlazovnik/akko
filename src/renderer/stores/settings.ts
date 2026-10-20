@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { AppSettings, SettingsPaths } from '@shared/ipc/api';
-import { toast } from 'vue3-toastify';
 import { errorMessage } from '../lib/format';
+import { toast } from '../lib/toast';
 
 export const useSettingsStore = defineStore('settings', () => {
     const settings = ref<AppSettings | null>(null);

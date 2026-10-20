@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { toast } from 'vue3-toastify';
 import type { AnilistAccount } from '@shared/ipc/api';
 import { mediaTitle } from '@shared/media/types';
 import { errorMessage, formatRelativeDate } from '../lib/format';
+import { toast } from '../lib/toast';
 import router from '../router';
 import { useSettingsStore } from './settings';
 
@@ -51,17 +51,16 @@ export const useAccountsStore = defineStore('accounts', () => {
     async function warnIfExpiring() {
         await load();
         const expiry = anilistExpiry();
-        const options = { onClick: () => void router.push('/settings') };
+        const action = { label: 'Reconnect', onClick: () => void router.push('/settings') };
         if (expiry?.expired) {
-            toast.error('Your AniList login expired. Reconnect it in Settings to keep syncing.', {
-                ...options,
-                autoClose: false,
+            toast.error('Your AniList login expired. Reconnect it to keep syncing.', {
+                action,
+                duration: false,
             });
         } else if (expiry?.soon) {
-            toast.warning(
-                `Your AniList login expires ${expiry.relative}. Reconnect it in Settings to renew it.`,
-                options
-            );
+            toast.warn(`Your AniList login expires ${expiry.relative}. Reconnect it to renew it.`, {
+                action,
+            });
         }
     }
 
