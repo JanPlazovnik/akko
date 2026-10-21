@@ -5,6 +5,8 @@ import { createLogger } from './logger';
 const log = createLogger('cache');
 
 const PRUNE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+// Not found answers are kept briefly, so data added later still shows up soon
+const MISS_MAX_AGE_MS = 5 * 60 * 1000;
 
 const inFlight = new Map<string, Promise<unknown>>();
 
@@ -19,7 +21,8 @@ export async function cached<T>(
 ): Promise<CachedResult<T | null>> {
     const entry = dbGetCache(key);
     const age = entry ? Date.now() - entry.fetchedAt : Infinity;
-    if (entry && age <= maxAge) return { data: JSON.parse(entry.value), age, fromCache: true };
+    const freshFor = entry?.value === 'null' ? Math.min(maxAge, MISS_MAX_AGE_MS) : maxAge;
+    if (entry && age <= freshFor) return { data: JSON.parse(entry.value), age, fromCache: true };
 
     let request = inFlight.get(key) as Promise<T | null> | undefined;
     if (!request) {
@@ -29,7 +32,7 @@ export async function cached<T>(
 
     try {
         const data = await request;
-        if (data !== null) dbSetCache(key, JSON.stringify(data));
+        dbSetCache(key, JSON.stringify(data));
         return { data, age: 0, fromCache: false };
     } catch (err) {
         if (!entry) throw err;
