@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { dbClearCache, dbCountCache } from '../db';
-import { queryAnilist } from '../metadata/anilist';
+import { getAnilistOutage, queryAnilist } from '../metadata/anilist';
 import { mutateAnilist, queryAnilistUser } from '../accounts/anilist';
 import { fetchAniZipEpisodes } from '../metadata/anizip';
 import { fetchLogo } from '../metadata/logos';
@@ -15,6 +15,7 @@ export function registerMetadataHandlers() {
     ipcMain.handle('anilist:mutate', (_e, query: string, variables: unknown) =>
         mutateAnilist(query, variables)
     );
+    ipcMain.handle('anilist:outage', () => getAnilistOutage());
     ipcMain.handle('anizip:episodes', (_e, anilistId: number, maxAge: number) =>
         fetchAniZipEpisodes(anilistId, maxAge)
     );

@@ -20,6 +20,7 @@ const api: AppApi = {
         anilistUser: (query, variables, maxAge) =>
             ipcRenderer.invoke('anilist:user-query', query, variables, maxAge),
         anilistMutate: (query, variables) => ipcRenderer.invoke('anilist:mutate', query, variables),
+        anilistOutage: () => ipcRenderer.invoke('anilist:outage'),
         anizipEpisodes: (anilistId, maxAge) =>
             ipcRenderer.invoke('anizip:episodes', anilistId, maxAge),
         logo: (anilistId) => ipcRenderer.invoke('metadata:logo', anilistId),

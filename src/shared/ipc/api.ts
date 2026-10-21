@@ -127,6 +127,7 @@ export type RendererEventMap = {
     'stream:fonts': [torrentId: string, fonts: Uint8Array[]];
     'stream:stats': [torrentId: string, stats: StreamStats];
     'accounts:changed': [accounts: Accounts];
+    'anilist:outage': [outage: string | null];
 };
 
 export type RendererEventListener<K extends keyof RendererEventMap> = (
@@ -153,6 +154,7 @@ export type AppApi = {
             maxAge: number
         ) => Promise<CachedResult<unknown>>;
         anilistMutate: (query: string, variables: unknown) => Promise<unknown>;
+        anilistOutage: () => Promise<string | null>;
         anizipEpisodes: (
             anilistId: number,
             maxAge: number
