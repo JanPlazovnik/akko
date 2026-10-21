@@ -106,6 +106,7 @@ function clearFilters() {
 const results = computed(() => mediaStore.searchResults);
 const hasNextPage = computed(() => mediaStore.searchHasNextPage);
 const loading = computed(() => mediaStore.searchLoading);
+const failed = computed(() => !!mediaStore.searchError);
 const resetting = ref(false);
 const skeletonCount = computed(() => {
     if (!loading.value) return 0;
@@ -127,6 +128,8 @@ function buildVars() {
 async function fetchPage(reset = false) {
     if (loading.value && !reset) return;
     if (!hasNextPage.value && !reset) return;
+    // A failed page would otherwise retry in a loop as its skeletons unmount and expose the sentinel
+    if (failed.value && !reset) return;
     if (reset) {
         loadingBar.start();
         resetting.value = true;
@@ -142,6 +145,12 @@ async function fetchPage(reset = false) {
             resetting.value = false;
         }
     }
+}
+
+function retry() {
+    if (!results.value.length) return fetchPage(true);
+    mediaStore.searchError = null;
+    fetchPage();
 }
 
 watch(
@@ -259,7 +268,15 @@ onUnmounted(() => scrollObserver?.disconnect());
             </div>
 
             <div ref="sentinel" class="h-4 mt-2" />
-            <div v-if="!hasNextPage && results.length" class="flex justify-center pb-4">
+            <div v-if="failed && !loading" class="flex justify-center pb-4">
+                <button
+                    class="h-8 px-3 rounded-full text-xs bg-neutral-800 hover:bg-neutral-700 text-white/50 hover:text-white transition-colors"
+                    @click="retry"
+                >
+                    Try again
+                </button>
+            </div>
+            <div v-else-if="!hasNextPage && results.length" class="flex justify-center pb-4">
                 <span class="text-white/15 text-xs">End of results</span>
             </div>
         </div>
