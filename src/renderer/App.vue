@@ -51,7 +51,7 @@ function restoreScroll() {
             <AnilistBanner v-if="route.path !== '/player'" />
             <main
                 ref="mainEl"
-                class="mx-2 mb-2 flex-1 overflow-auto rounded-xl bg-surface ring-1 ring-line"
+                class="mx-2 mb-2 flex-1 overflow-auto rounded-xl bg-surface ring-1 ring-line [scrollbar-width:none]!"
             >
                 <RouterView v-slot="{ Component }">
                     <!-- Pages can have several root elements, which a transition can't animate -->
