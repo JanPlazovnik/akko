@@ -39,21 +39,54 @@ const RATE_BUTTON =
     "w-auto px-3 text-sm font-semibold tabular-nums after:content-[attr(data-rate)_'×']";
 const BAR = 'pointer-events-none group-data-visible/controls:pointer-events-auto';
 
-const chapterMarks = computed(() =>
-    player.duration
-        ? player.chapters.filter((c) => c.start > 0).map((c) => (c.start / player.duration) * 100)
-        : []
+type Section = { start: number; end: number; title?: string };
+
+// Shorter sections would only show up as a sliver between two gaps
+const MIN_SECTION_SECONDS = 2;
+
+// Without chapters, AniSkip's openings and endings still split the bar
+const sections = computed<Section[]>(() => {
+    const duration = player.duration;
+    const marks = player.chapters.length ? player.chapters : player.skipSegments;
+    if (!duration || !marks.length) return [{ start: 0, end: duration }];
+
+    const bounds = [...new Set([0, ...marks.flatMap((c) => [c.start, c.end]), duration])]
+        .filter((t) => t >= 0 && t <= duration)
+        .sort((a, b) => a - b)
+        .filter((t, i, all) => t === duration || all[i + 1] - t >= MIN_SECTION_SECONDS);
+    return bounds.slice(0, -1).map((start, i) => {
+        const end = bounds[i + 1];
+        const middle = (start + end) / 2;
+        const title = marks.find((c) => middle >= c.start && middle < c.end)?.title;
+        return { start, end, title };
+    });
+});
+
+const sectionStyles = computed(() =>
+    sections.value.map((section, index, all) => {
+        const left = (section.start / player.duration) * 100 || 0;
+        const width = ((section.end - section.start) / player.duration) * 100 || 100;
+        const last = index === all.length - 1;
+        return {
+            outer: {
+                left: `${left}%`,
+                width: `${width}%`,
+                clipPath: `inset(0 ${last ? 0 : 1}px 0 ${index ? 1 : 0}px)`,
+            },
+            // Stretched to the whole track, so the slider's fill and buffer widths apply as they are
+            inner: { left: `${(-left / width) * 100}%`, width: `${(100 / width) * 100}%` },
+        };
+    })
 );
 
-const hoverTime = ref(0);
-const hoverChapter = computed(
-    () => player.chapters.find((c) => hoverTime.value >= c.start && hoverTime.value < c.end)?.title
-);
+const hoverIndex = ref(-1);
+const hoverChapter = computed(() => sections.value[hoverIndex.value]?.title);
 
 function onSliderPointer(event: PointerEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const fraction = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
-    hoverTime.value = fraction * player.duration;
+    const time = fraction * player.duration;
+    hoverIndex.value = sections.value.findIndex((s) => time >= s.start && time <= s.end);
 }
 </script>
 
@@ -99,22 +132,34 @@ function onSliderPointer(event: PointerEvent) {
             <media-time-slider
                 class="group/slider relative flex h-5 cursor-pointer items-center outline-none"
                 @pointermove="onSliderPointer"
+                @pointerleave="hoverIndex = -1"
             >
-                <media-slider-track
-                    class="relative block h-1 w-full overflow-hidden rounded-full bg-white/20 transition-[height] duration-150 group-hover/slider:h-1.5"
-                >
-                    <media-slider-buffer
-                        class="absolute inset-y-0 left-0 block w-(--media-slider-buffer) bg-white/25"
-                    />
-                    <media-slider-fill
-                        class="absolute inset-y-0 left-0 block w-(--media-slider-fill) bg-accent"
-                    />
-                    <span
-                        v-for="mark in chapterMarks"
-                        :key="mark"
-                        class="absolute inset-y-0 block w-0.5 -translate-x-1/2 bg-black/70"
-                        :style="{ left: `${mark}%` }"
-                    />
+                <media-slider-track class="relative block h-full w-full">
+                    <div
+                        v-for="(section, index) in sections"
+                        :key="section.start"
+                        :class="[
+                            'absolute top-1/2 h-1 -translate-y-1/2 overflow-hidden transition-[height] duration-150 group-hover/slider:h-1.5',
+                            index === 0 && 'rounded-l-full',
+                            index === sections.length - 1 && 'rounded-r-full',
+                            sections.length > 1 &&
+                                index === hoverIndex &&
+                                'group-hover/slider:h-2!',
+                        ]"
+                        :style="sectionStyles[index].outer"
+                    >
+                        <div
+                            class="absolute inset-y-0 bg-white/20"
+                            :style="sectionStyles[index].inner"
+                        >
+                            <span
+                                class="absolute inset-y-0 left-0 block w-(--media-slider-buffer) bg-white/25"
+                            />
+                            <span
+                                class="absolute inset-y-0 left-0 block w-(--media-slider-fill) bg-accent"
+                            />
+                        </div>
+                    </div>
                 </media-slider-track>
                 <media-slider-thumb
                     class="absolute top-1/2 left-(--media-slider-fill) block size-3.5 -translate-1/2 scale-0 rounded-full bg-white shadow-md transition-transform group-hover/slider:scale-100 group-data-dragging/slider:scale-100"

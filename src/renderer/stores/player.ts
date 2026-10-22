@@ -283,6 +283,7 @@ export const usePlayerStore = defineStore('player', () => {
         activeTrack,
         fonts,
         chapters,
+        skipSegments,
         skippableChapter,
         onCues,
         trackContent,
