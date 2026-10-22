@@ -49,7 +49,7 @@ const status = computed(() => {
             class="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-2xl"
         />
         <div class="drag absolute inset-x-0 top-0 flex h-12 justify-end">
-            <WindowControls />
+            <WindowControls class="h-11" />
         </div>
         <div class="relative flex max-w-lg flex-col items-center gap-5 px-6 text-center">
             <Loader2 v-if="player.loading" :size="30" class="animate-spin text-accent" />

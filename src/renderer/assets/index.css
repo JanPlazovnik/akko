@@ -37,6 +37,17 @@ body:has(.dialog-overlay[data-state='open']) header .no-drag:not(.window-control
     -webkit-app-region: drag;
 }
 
+/* The backdrop also covers every set of window controls, so a stand-in takes their place */
+.dialog-window-controls {
+    visibility: hidden;
+}
+body:has(.dialog-overlay[data-state='open']) .dialog-window-controls {
+    visibility: visible;
+}
+body:has(.dialog-overlay[data-state='open']) .window-controls:not(.dialog-window-controls) {
+    visibility: hidden;
+}
+
 * {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
