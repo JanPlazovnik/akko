@@ -57,6 +57,7 @@ export const usePlayerStore = defineStore('player', () => {
     const activeTrackId = ref('');
     const fonts = shallowRef<Uint8Array[]>([]);
     const cues = new Map<string, SubtitleEvent[]>();
+    const early = new Map<string, (() => void)[]>();
     const cueListeners = new Set<CueListener>();
 
     const audioSupport = computed(() => {
@@ -98,9 +99,13 @@ export const usePlayerStore = defineStore('player', () => {
         if (id === torrentId.value) stats.value = data;
     });
 
-    window.api.on('stream:fonts', (id, data) => {
-        if (id === torrentId.value) fonts.value = data;
-    });
+    // Read while the stream starts, so they can arrive before startStream resolves with the torrent id
+    function forStream(id: string, apply: () => void) {
+        if (id === torrentId.value) apply();
+        else if (loading.value) early.set(id, [...(early.get(id) ?? []), apply]);
+    }
+
+    window.api.on('stream:fonts', (id, data) => forStream(id, () => (fonts.value = data)));
 
     function addCues(batch: SubtitleBatch) {
         for (const [trackId, events] of Object.entries(batch)) {
@@ -152,6 +157,7 @@ export const usePlayerStore = defineStore('player', () => {
         lastTrackId = '';
         fonts.value = [];
         cues.clear();
+        early.clear();
     }
 
     // The picker renders outside the player, so it can't show over fullscreen video
@@ -185,6 +191,8 @@ export const usePlayerStore = defineStore('player', () => {
                 );
             }
             torrentId.value = result.torrentId;
+            early.get(result.torrentId)?.forEach((apply) => apply());
+            early.clear();
             streamUrl.value = result.streamUrl;
             tracks.value = result.tracks;
             audioTracks.value = result.audioTracks;
