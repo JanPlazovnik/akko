@@ -19,6 +19,7 @@ import type { Media } from '../../shared/graphql/queries';
 import { mediaTitle } from '../../shared/media/types';
 import { RELATION_LABELS } from '../lib/media-labels';
 import router from '../router';
+import type { ShowArt } from '../../shared/ipc/api';
 
 type DashboardData = ResultOf<typeof DashboardQuery>;
 type AnimeData = NonNullable<ResultOf<typeof GetAnimeQuery>['Media']>;
@@ -204,15 +205,16 @@ export const useMediaStore = defineStore('media', () => {
         return anizipById.value[id]?.mappings ?? null;
     }
 
-    const logos = ref<Record<number, string | null>>({});
+    const art = ref<Record<number, ShowArt>>({});
+    const NO_ART: ShowArt = { logo: null, backdrop: null };
 
-    const logoFor = (id: number) => logos.value[id] ?? null;
+    const artFor = (id: number) => art.value[id] ?? NO_ART;
 
-    async function fetchLogo(id: number) {
-        if (id in logos.value) return;
-        logos.value = { ...logos.value, [id]: null };
-        const logo = await window.api.metadata.logo(id).catch(() => null);
-        logos.value = { ...logos.value, [id]: logo };
+    async function fetchArt(id: number) {
+        if (id in art.value) return;
+        art.value = { ...art.value, [id]: NO_ART };
+        const found = await window.api.metadata.art(id).catch(() => NO_ART);
+        art.value = { ...art.value, [id]: found };
     }
 
     function episodesLoadingFor(id: number) {
@@ -469,8 +471,8 @@ export const useMediaStore = defineStore('media', () => {
         episodesFor,
         detailsFor,
         mappingsFor,
-        logoFor,
-        fetchLogo,
+        artFor,
+        fetchArt,
         episodesLoadingFor,
         fetchDashboard,
         fetchMedia,

@@ -20,14 +20,18 @@ const paused = ref(false);
 const current = computed(() => props.items[heroIndex.value]);
 const brokenLogos = ref(new Set<string>());
 const logo = computed(() => {
-    const url = current.value && mediaStore.logoFor(current.value.id);
+    const url = current.value && mediaStore.artFor(current.value.id).logo;
     return url && !brokenLogos.value.has(url) ? url : null;
 });
+// AniList's banner first, then TMDB's backdrop; without either the cover is blurred into one
+const backdrop = computed(
+    () => current.value?.bannerImage ?? mediaStore.artFor(current.value?.id ?? 0).backdrop
+);
 
-// Load every slide's logo up front, so they don't pop in over the text title
+// Load every slide's art up front, so logos and backdrops don't pop in mid-slide
 watch(
     () => props.items.map((item) => item.id),
-    (ids) => ids.forEach((id) => void mediaStore.fetchLogo(id)),
+    (ids) => ids.forEach((id) => void mediaStore.fetchArt(id)),
     { immediate: true }
 );
 
@@ -47,9 +51,14 @@ function go(index: number) {
         <Transition name="hero-fade">
             <div v-if="current" :key="current.id" class="absolute inset-0">
                 <img
-                    v-if="current.bannerImage"
-                    :src="current.bannerImage"
+                    v-if="backdrop"
+                    :src="backdrop"
                     class="absolute inset-0 size-full object-cover"
+                />
+                <img
+                    v-else-if="current.coverImage?.large"
+                    :src="current.coverImage.large"
+                    class="absolute inset-0 size-full scale-110 object-cover opacity-50 blur-2xl"
                 />
                 <div v-else class="absolute inset-0 bg-raised" />
                 <div

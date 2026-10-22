@@ -23,7 +23,7 @@ const api: AppApi = {
         anilistOutage: () => ipcRenderer.invoke('anilist:outage'),
         anizipEpisodes: (anilistId, maxAge) =>
             ipcRenderer.invoke('anizip:episodes', anilistId, maxAge),
-        logo: (anilistId) => ipcRenderer.invoke('metadata:logo', anilistId),
+        art: (anilistId) => ipcRenderer.invoke('metadata:art', anilistId),
         skipTimes: (anilistId, episode, duration) =>
             ipcRenderer.invoke('metadata:skip-times', anilistId, episode, duration),
         cacheCount: () => ipcRenderer.invoke('cache:count'),

@@ -139,9 +139,11 @@ watch(descriptionEl, (el) => {
 });
 watch(description, () => nextTick(measureClamp));
 
-const fallbackThumbnail = computed(
-    () => media.value?.bannerImage ?? media.value?.coverImage?.large ?? null
+// AniList's banner first, then TMDB's backdrop; without either the cover is blurred into one
+const backdrop = computed(
+    () => media.value?.bannerImage ?? mediaStore.artFor(routeMediaId.value).backdrop
 );
+const fallbackThumbnail = computed(() => backdrop.value ?? media.value?.coverImage?.large ?? null);
 type WatchAction = { episode: Episode | null; label: string; resume?: WatchProgress | null };
 
 // Continues from whichever is newer, local playback or list progress. Finished shows start over,
@@ -256,6 +258,7 @@ async function load(id: number) {
     spoilersShown.value = false;
     loadingBar.start();
     mediaStore.setSelectedMedia(id);
+    void mediaStore.fetchArt(id);
     try {
         // Cards only carry list fields, so always load the details (streaming episodes etc.)
         const details = mediaStore.fetchMedia(id);
@@ -336,8 +339,8 @@ const formatAirDate = (date: string) =>
         <template v-if="media">
             <section class="relative h-[340px] overflow-hidden">
                 <img
-                    v-if="media.bannerImage"
-                    :src="media.bannerImage"
+                    v-if="backdrop"
+                    :src="backdrop"
                     class="absolute inset-0 size-full object-cover"
                 />
                 <img

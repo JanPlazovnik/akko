@@ -38,6 +38,9 @@ export type AppSettings = {
     showStreamStats: boolean;
 };
 
+// From TMDB, for the home banner: an English title logo and a wide backdrop
+export type ShowArt = { logo: string | null; backdrop: string | null };
+
 export type AppInfo = {
     version: string;
     commit: string;
@@ -162,7 +165,7 @@ export type AppApi = {
             anilistId: number,
             maxAge: number
         ) => Promise<CachedResult<AniZipResponse | null>>;
-        logo: (anilistId: number) => Promise<string | null>;
+        art: (anilistId: number) => Promise<ShowArt>;
         skipTimes: (anilistId: number, episode: number, duration: number) => Promise<Chapter[]>;
         cacheCount: () => Promise<number>;
         clearCache: () => Promise<void>;
