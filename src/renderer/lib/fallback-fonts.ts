@@ -21,6 +21,17 @@ const FALLBACK_FAMILIES: Record<string, string[]> = {
     hi: ['nirmala ui', 'mangal', 'kohinoor devanagari', 'noto sans devanagari'],
 };
 
+// Tried after the language's own fonts, so a missing font still falls back to something readable
+const DEFAULT_FAMILIES = [
+    'arial',
+    'segoe ui',
+    'helvetica',
+    'liberation sans',
+    'dejavu sans',
+    'noto sans',
+];
+
+// JASSUB's bundled default, a woff2 that its FreeType can't open, so only a last resort
 export const DEFAULT_FAMILY = 'liberation sans';
 
 export type FallbackFont = { family: string; data: Uint8Array[] };
@@ -44,8 +55,7 @@ async function loadSystemFont(families: string[]): Promise<FallbackFont | null> 
 }
 
 export function fallbackFont(lang: string): Promise<FallbackFont | null> {
-    const families = FALLBACK_FAMILIES[lang.split('-')[0]];
-    if (!families) return Promise.resolve(null);
+    const families = [...(FALLBACK_FAMILIES[lang.split('-')[0]] ?? []), ...DEFAULT_FAMILIES];
     let font = cache.get(lang);
     if (!font) {
         font = loadSystemFont(families).catch(() => null);
