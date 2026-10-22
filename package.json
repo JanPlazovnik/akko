@@ -1,7 +1,7 @@
 {
   "name": "akko",
   "productName": "akko",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A desktop app for browsing anime and streaming episodes over BitTorrent",
   "main": ".vite/build/main.js",
   "private": true,
