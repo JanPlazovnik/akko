@@ -60,7 +60,6 @@ export const usePlayerStore = defineStore('player', () => {
     const activeTrackId = ref('');
     const fonts = shallowRef<Uint8Array[]>([]);
     const chapters = shallowRef<Chapter[]>([]);
-    let earlyChapters: { id: string; chapters: Chapter[] } | null = null;
     const skipTimes = shallowRef<Chapter[]>([]);
     let skipTimesRequested = false;
     const cues = new Map<string, SubtitleEvent[]>();
@@ -127,11 +126,7 @@ export const usePlayerStore = defineStore('player', () => {
 
     window.api.on('stream:fonts', (id, data) => forStream(id, () => (fonts.value = data)));
 
-    // can arrive before startStream resolves with the torrent id
-    window.api.on('stream:chapters', (id, data) => {
-        if (id === torrentId.value) chapters.value = data;
-        else if (loading.value) earlyChapters = { id, chapters: data };
-    });
+    window.api.on('stream:chapters', (id, data) => forStream(id, () => (chapters.value = data)));
 
     // Needs the file's duration, which AniSkip uses to pick submissions timed to this release
     watch([torrentId, duration], async ([id, length]) => {
@@ -200,7 +195,6 @@ export const usePlayerStore = defineStore('player', () => {
         lastTrackId = '';
         fonts.value = [];
         chapters.value = [];
-        earlyChapters = null;
         skipTimes.value = [];
         skipTimesRequested = false;
         cues.clear();
@@ -244,7 +238,6 @@ export const usePlayerStore = defineStore('player', () => {
             tracks.value = result.tracks;
             audioTracks.value = result.audioTracks;
             fileMatch.value = result.match;
-            if (earlyChapters?.id === result.torrentId) chapters.value = earlyChapters.chapters;
             activeTrackId.value = subtitleLanguage()
                 ? defaultTrackId(result.tracks, subtitleLanguage())
                 : '';
