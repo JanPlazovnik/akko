@@ -11,6 +11,7 @@ import {
     DialogTitle,
 } from 'reka-ui';
 import { SHORTCUT_GROUPS, shortcutsOpen } from '../lib/shortcuts';
+import { ignoreWindowControls } from '../lib/dialog';
 
 // In fullscreen only the fullscreen element is visible, so the dialog renders inside it
 const fullscreenElement = ref<Element | null>(null);
@@ -39,11 +40,10 @@ onUnmounted(() => {
 <template>
     <DialogRoot v-model:open="shortcutsOpen">
         <DialogPortal :to="(fullscreenElement as HTMLElement | null) ?? 'body'">
-            <DialogOverlay
-                class="dialog-overlay no-drag fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
-            />
+            <DialogOverlay class="dialog-overlay fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
             <DialogContent
                 class="dialog-content no-drag fixed top-1/2 left-1/2 z-50 flex max-h-[84vh] w-[min(560px,calc(100vw-48px))] -translate-1/2 flex-col overflow-hidden rounded-2xl border border-line bg-surface text-white shadow-2xl shadow-black/70 outline-none"
+                @interact-outside="ignoreWindowControls"
             >
                 <header class="border-b border-line p-5">
                     <DialogTitle class="font-display text-xl font-semibold">

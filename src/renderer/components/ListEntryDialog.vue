@@ -17,6 +17,7 @@ import { LIST_STATUS_LABELS, mediaMeta } from '../lib/media-labels';
 import { LIST_STATUSES, useListStore, type EntryPatch, type ListStatus } from '../stores/list';
 import { useAccountsStore } from '../stores/accounts';
 import { useMediaStore } from '../stores/media';
+import { ignoreWindowControls } from '../lib/dialog';
 
 const SCORE_FORMATS: Record<string, { max: number; step: number }> = {
     POINT_100: { max: 100, step: 1 },
@@ -94,11 +95,10 @@ async function remove() {
 <template>
     <DialogRoot :open="open" @update:open="emit('update:open', $event)">
         <DialogPortal>
-            <DialogOverlay
-                class="dialog-overlay no-drag fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
-            />
+            <DialogOverlay class="dialog-overlay fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
             <DialogContent
                 class="dialog-content no-drag fixed top-1/2 left-1/2 z-50 flex w-[min(520px,calc(100vw-48px))] -translate-1/2 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/70 outline-none"
+                @interact-outside="ignoreWindowControls"
             >
                 <header class="flex items-center gap-4 border-b border-line p-5">
                     <img

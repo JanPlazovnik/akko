@@ -31,6 +31,7 @@ import {
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
 import { mediaToSummary } from '@shared/media/types';
 import type { TorrentResult } from '../../main/extensions/types';
+import { ignoreWindowControls } from '../lib/dialog';
 
 type Source = {
     id: string;
@@ -247,11 +248,10 @@ async function pick(result: TorrentResult) {
 <template>
     <DialogRoot :open="open" @update:open="emit('update:open', $event)">
         <DialogPortal>
-            <DialogOverlay
-                class="dialog-overlay no-drag fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
-            />
+            <DialogOverlay class="dialog-overlay fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
             <DialogContent
                 class="dialog-content no-drag fixed top-1/2 left-1/2 z-50 flex max-h-[84vh] w-[min(880px,calc(100vw-48px))] -translate-1/2 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/70 outline-none"
+                @interact-outside="ignoreWindowControls"
             >
                 <header class="flex gap-5 border-b border-line p-5">
                     <div

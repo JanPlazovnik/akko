@@ -32,6 +32,11 @@ body {
     }
 }
 
+/* A dialog's backdrop covers the header buttons, so the whole header drags while one is open */
+body:has(.dialog-overlay[data-state='open']) header .no-drag:not(.window-controls *) {
+    -webkit-app-region: drag;
+}
+
 * {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.12) transparent;

@@ -8,7 +8,10 @@ const BUTTON =
 </script>
 
 <template>
-    <div class="flex items-stretch self-stretch">
+    <!-- Above dialog backdrops, so the window can still be minimized or closed -->
+    <div
+        class="window-controls pointer-events-auto relative z-60 flex shrink-0 items-stretch self-stretch"
+    >
         <button :class="[BUTTON, 'hover:bg-white/10']" title="Minimize" @click="minimizeWindow()">
             <Minus :size="14" />
         </button>
