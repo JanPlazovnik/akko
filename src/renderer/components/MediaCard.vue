@@ -121,12 +121,15 @@ function navigate() {
 </script>
 
 <template>
+    <!-- The overlay can appear between press and release, which sends the click here rather than
+         to the card or the overlay, so this handles it for both -->
     <div
         ref="triggerRef"
         class="relative"
         :style="accent"
         @mouseenter="onEnter"
         @mouseleave="onLeave"
+        @click="navigate()"
     >
         <Transition name="card-expand">
             <div
@@ -136,7 +139,6 @@ function navigate() {
                     'fixed z-100 w-80 cursor-pointer overflow-hidden rounded-2xl bg-raised shadow-[0_24px_70px_rgba(0,0,0,0.9)] ring-1 ring-white/10 transition-transform duration-100 will-change-transform',
                     pressing ? 'scale-[0.97]' : 'scale-100',
                 ]"
-                @click="navigate()"
                 @wheel.prevent="forwardWheel"
             >
                 <div class="relative h-36">
@@ -200,7 +202,6 @@ function navigate() {
                     'relative aspect-2/3 cursor-pointer overflow-hidden rounded-xl bg-raised ring-1 ring-white/5 transition duration-200 hover:-translate-y-1 hover:ring-accent/60',
                     pressing ? 'scale-[0.96]' : 'scale-100',
                 ]"
-                @click="navigate()"
             >
                 <img
                     v-if="coverImage"
