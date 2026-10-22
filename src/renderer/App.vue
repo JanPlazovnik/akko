@@ -3,6 +3,7 @@ import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { DragDropProvider } from '@dnd-kit/vue';
 import Header from './components/Header.vue';
+import LoadingBar from './components/LoadingBar.vue';
 import AnilistBanner from './components/AnilistBanner.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
 import ShortcutsDialog from './components/ShortcutsDialog.vue';
@@ -41,6 +42,7 @@ watch(
     </div>
     <DragDropProvider v-else>
         <div class="flex h-screen flex-col bg-canvas text-white select-none">
+            <LoadingBar />
             <Header />
             <AnilistBanner v-if="route.path !== '/player'" />
             <main

@@ -6,12 +6,10 @@ const loading = useLoadingStore();
 
 <template>
     <Transition name="bar-fade">
-        <div
-            v-if="loading.visible"
-            class="w-32 h-[3px] rounded-full bg-white/10 overflow-hidden pointer-events-none"
-        >
+        <!-- Along the window's top edge, which stays straight where the panels below are rounded -->
+        <div v-if="loading.visible" class="pointer-events-none fixed inset-x-0 top-0 z-100 h-0.5">
             <div
-                class="h-full bg-white rounded-full transition-all duration-150 ease-out"
+                class="h-full rounded-r-full bg-linear-to-r from-accent/30 via-accent to-[#c4b5fd] transition-[width] duration-150 ease-out"
                 :style="{ width: loading.progress + '%' }"
             />
         </div>
