@@ -3,6 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useRoute, useRouter } from 'vue-router';
 import { X } from '@lucide/vue';
 import { toast } from '../lib/toast';
+import { anilistQuery } from '../lib/anilist';
+import { TagCollectionQuery } from '../../shared/graphql/queries';
 import { useLoadingStore } from '../stores/loading';
 import { useMediaStore } from '../stores/media';
 import MediaCard from '../components/MediaCard.vue';
@@ -23,7 +25,23 @@ const filters = reactive({
     status: (q.status as string) || '',
     format: q.format ? String(q.format).split(',') : ([] as string[]),
     genres: q.genres ? String(q.genres).split(',') : ([] as string[]),
+    tags: q.tags ? String(q.tags).split(',') : ([] as string[]),
 });
+
+// AniList counts a tag from 18% relevance, which lets long shows match nearly anything. The media
+// page lists tags from the same rank, so its tag links find shows like the one they came from.
+const MIN_TAG_RANK = 60;
+
+// AniList rarely adds tags, so the list can be cached for a day
+const TAGS_MAX_AGE = 24 * 60 * 60_000;
+const tagOptions = ref<{ value: string; label: string }[]>([]);
+
+async function loadTags() {
+    const { data } = await anilistQuery(TagCollectionQuery, {}, TAGS_MAX_AGE);
+    tagOptions.value = (data?.MediaTagCollection ?? [])
+        .flatMap((tag) => (tag && !tag.isAdult ? [{ value: tag.name, label: tag.name }] : []))
+        .sort((a, b) => a.label.localeCompare(b.label));
+}
 
 const SORT = [
     { value: 'TRENDING_DESC', label: 'Trending' },
@@ -87,6 +105,7 @@ const hasActiveFilters = computed(
     () =>
         !!filters.search ||
         !!filters.genres.length ||
+        !!filters.tags.length ||
         !!filters.year ||
         !!filters.season ||
         !!filters.format.length ||
@@ -101,6 +120,7 @@ function clearFilters() {
     filters.status = '';
     filters.format = [];
     filters.genres = [];
+    filters.tags = [];
 }
 
 const results = computed(() => mediaStore.searchResults);
@@ -118,6 +138,10 @@ function buildVars() {
     const v: Record<string, unknown> = { type: 'ANIME', sort: [filters.sort] };
     if (filters.search) v.search = filters.search;
     if (filters.genres.length) v.genres = [...filters.genres];
+    if (filters.tags.length) {
+        v.tags = [...filters.tags];
+        v.minimumTagRank = MIN_TAG_RANK;
+    }
     if (filters.year) v.seasonYear = filters.year;
     if (filters.season) v.season = filters.season;
     if (filters.format.length) v.format = [...filters.format];
@@ -176,6 +200,7 @@ watch(
         filters.status,
         filters.format.slice(),
         filters.genres.slice(),
+        filters.tags.slice(),
     ],
     () => fetchPage(true),
     { deep: true }
@@ -193,6 +218,7 @@ watch(
                 ...(f.status && { status: f.status }),
                 ...(f.format.length && { format: f.format.join(',') }),
                 ...(f.genres.length && { genres: f.genres.join(',') }),
+                ...(f.tags.length && { tags: f.tags.join(',') }),
             },
         });
     },
@@ -203,6 +229,7 @@ const sentinel = ref<HTMLElement | null>(null);
 let scrollObserver: IntersectionObserver | null = null;
 
 onMounted(async () => {
+    loadTags().catch(() => undefined);
     await fetchPage(true);
     await nextTick();
     if (sentinel.value) {
@@ -240,6 +267,12 @@ onUnmounted(() => scrollObserver?.disconnect());
                 v-model="filters.genres"
                 :options="GENRES.map((g) => ({ value: g, label: g }))"
                 placeholder="Genres"
+            />
+            <MultiSelectMenu
+                v-model="filters.tags"
+                :options="tagOptions"
+                placeholder="Tags"
+                searchable
             />
 
             <button

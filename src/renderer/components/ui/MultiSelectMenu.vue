@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { ChevronDown, Check } from '@lucide/vue';
 import {
     DropdownMenuRoot,
@@ -15,11 +15,36 @@ const props = defineProps<{
     modelValue: string[];
     options: { value: string; label: string }[];
     placeholder: string;
+    searchable?: boolean;
 }>();
 
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>();
 
 const open = ref(false);
+const query = ref('');
+const searchEl = ref<HTMLInputElement | null>(null);
+
+// Long lists show what's picked first, and narrow down as you type
+const visible = computed(() => {
+    if (!props.searchable) return props.options;
+    const text = query.value.trim().toLowerCase();
+    if (text) return props.options.filter((o) => o.label.toLowerCase().includes(text));
+    const picked = props.options.filter((o) => props.modelValue.includes(o.value));
+    return [...picked, ...props.options.filter((o) => !props.modelValue.includes(o.value))];
+});
+
+watch(open, async (isOpen) => {
+    if (!isOpen || !props.searchable) return;
+    query.value = '';
+    await nextTick();
+    searchEl.value?.focus();
+});
+
+// The menu's type-ahead would otherwise take the keys meant for the search box
+const MENU_KEYS = ['ArrowDown', 'ArrowUp', 'Escape', 'Tab'];
+function keepTyping(e: KeyboardEvent) {
+    if (!MENU_KEYS.includes(e.key)) e.stopPropagation();
+}
 
 function toggle(value: string, checked: boolean) {
     const arr = [...props.modelValue];
@@ -54,9 +79,21 @@ function toggle(value: string, checked: boolean) {
                 :side-offset="6"
                 align="start"
             >
+                <div v-if="searchable" class="border-b border-white/8 p-1.5">
+                    <input
+                        ref="searchEl"
+                        v-model="query"
+                        :placeholder="`Search ${placeholder.toLowerCase()}`"
+                        class="w-full rounded-md bg-white/5 px-2.5 py-1.5 text-xs outline-none placeholder:text-white/30"
+                        @keydown="keepTyping"
+                    />
+                </div>
                 <div class="max-h-60 overflow-y-auto py-1">
+                    <p v-if="!visible.length" class="px-4 py-2 text-xs text-white/35">
+                        {{ options.length ? 'No matches' : 'Loading…' }}
+                    </p>
                     <DropdownMenuCheckboxItem
-                        v-for="opt in options"
+                        v-for="opt in visible"
                         :key="opt.value"
                         :checked="modelValue.includes(opt.value)"
                         :class="[

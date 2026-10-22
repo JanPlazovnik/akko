@@ -250,3 +250,12 @@ export const DeleteListEntryMutation = graphql(`
         }
     }
 `);
+
+export const TagCollectionQuery = graphql(`
+    query TagCollection {
+        MediaTagCollection {
+            name
+            isAdult
+        }
+    }
+`);
