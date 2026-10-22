@@ -11,10 +11,10 @@ const router = useRouter();
 const isDev = import.meta.env.DEV;
 
 const ICON_BUTTON =
-    'grid size-9 cursor-pointer place-items-center rounded-full transition-colors hover:bg-white/10 hover:text-white';
+    'grid size-9 shrink-0 cursor-pointer place-items-center rounded-full transition-colors hover:bg-white/10 hover:text-white';
 
 const navLink = (active: boolean) => [
-    'no-drag flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+    'no-drag flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
     active ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white',
 ];
 
@@ -66,7 +66,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 
 <template>
     <header class="drag flex h-14 shrink-0 items-center pl-4">
-        <div class="flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-2">
             <LogoMark class="size-7 text-white" />
             <span class="font-display text-lg font-semibold tracking-tight">akko</span>
         </div>
@@ -82,7 +82,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 
         <label
             :class="[
-                'no-drag group ml-3 flex h-9 w-80 cursor-text items-center gap-2.5 rounded-full px-4 text-sm ring-1 transition-colors focus-within:bg-white/10 focus-within:ring-white/20',
+                'no-drag group ml-3 flex h-9 w-80 min-w-36 cursor-text items-center gap-2.5 rounded-full px-4 text-sm ring-1 transition-colors focus-within:bg-white/10 focus-within:ring-white/20',
                 onSearchPage()
                     ? 'bg-white/10 ring-white/15'
                     : 'bg-white/5 ring-line hover:bg-white/8',
@@ -95,7 +95,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
                 type="text"
                 spellcheck="false"
                 placeholder="Search anime"
-                class="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/40"
+                class="w-0 min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/40"
                 @focus="openSearch"
                 @input="onSearchInput"
                 @keydown="onSearchKeydown"
@@ -110,14 +110,14 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
             </button>
             <kbd
                 v-else
-                class="rounded-md bg-white/8 px-1.5 py-0.5 font-sans text-[10px] font-medium text-white/40 group-focus-within:hidden"
+                class="shrink-0 rounded-md bg-white/8 px-1.5 py-0.5 font-sans text-[10px] font-medium text-white/40 group-focus-within:hidden"
             >
                 Ctrl K
             </kbd>
         </label>
 
-        <div class="no-drag ml-auto flex items-center gap-1 pr-2 text-white/55">
-            <LoadingBar class="mr-2" />
+        <div class="no-drag ml-auto flex min-w-0 items-center gap-1 pr-2 pl-3 text-white/55">
+            <LoadingBar class="mr-2 min-w-6 shrink" />
             <button
                 v-if="isDev"
                 :class="ICON_BUTTON"
