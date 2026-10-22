@@ -29,46 +29,49 @@ const onFullscreenChange = () => (fullscreenElement.value = document.fullscreenE
 onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
 onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
 
-// Hovering the stack holds every toast so it can be read and clicked
+// Only toasts in full view count down: ones folded into the stack wait their turn, and hovering
+// the stack holds everything so it can be read and clicked
 type Timer = { remaining: number; startedAt: number; handle?: ReturnType<typeof setTimeout> };
 const timers = new Map<number, Timer>();
-let held = false;
+const held = ref(false);
+// A toast that comes back into view, or is let go after hovering, gets long enough to be read
+const MIN_REMAINING_MS = 2000;
+
+const shownIds = computed(
+    () => new Set(layers.value.filter(({ depth }) => !depth).map(({ toast }) => toast.id))
+);
 
 function run(id: number, timer: Timer) {
+    if (timer.handle) return;
+    timer.remaining = Math.max(timer.remaining, MIN_REMAINING_MS);
     timer.startedAt = Date.now();
     timer.handle = setTimeout(() => dismissToast(id), timer.remaining);
 }
 
+function pause(timer: Timer) {
+    if (!timer.handle) return;
+    clearTimeout(timer.handle);
+    timer.handle = undefined;
+    timer.remaining -= Date.now() - timer.startedAt;
+}
+
 watch(
-    () => [...toasts],
-    (current) => {
+    [() => [...toasts], shownIds, held],
+    ([current]) => {
         for (const t of current) {
             if (timers.has(t.id) || t.duration === false || t.duration === undefined) continue;
-            const timer: Timer = { remaining: t.duration, startedAt: 0 };
-            timers.set(t.id, timer);
-            if (!held) run(t.id, timer);
+            timers.set(t.id, { remaining: t.duration, startedAt: 0 });
         }
         for (const [id, timer] of timers) {
-            if (current.some((t) => t.id === id)) continue;
-            clearTimeout(timer.handle);
-            timers.delete(id);
+            if (!current.some((t) => t.id === id)) {
+                clearTimeout(timer.handle);
+                timers.delete(id);
+            } else if (!held.value && shownIds.value.has(id)) run(id, timer);
+            else pause(timer);
         }
     },
     { immediate: true }
 );
-
-function hold() {
-    held = true;
-    for (const timer of timers.values()) {
-        clearTimeout(timer.handle);
-        timer.remaining -= Date.now() - timer.startedAt;
-    }
-}
-
-function release() {
-    held = false;
-    for (const [id, timer] of timers) run(id, timer);
-}
 
 // The closing toast folds its height away as it fades, so the ones below slide up into the gap
 const LEAVE_MS = 200;
@@ -106,8 +109,8 @@ function onAction(t: Toast) {
             enter-active-class="transition duration-200 ease-out"
             move-class="transition-transform duration-200"
             @leave="collapse"
-            @mouseenter="hold"
-            @mouseleave="release"
+            @mouseenter="held = true"
+            @mouseleave="held = false"
         >
             <li
                 v-for="{ toast: t, depth } in layers"
