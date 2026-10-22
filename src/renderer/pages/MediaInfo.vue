@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { Check, ChevronRight, Clapperboard, Eye, Pencil, Play, Plus, Star } from '@lucide/vue';
+import {
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Clapperboard,
+    Eye,
+    Pencil,
+    Play,
+    Plus,
+    Star,
+} from '@lucide/vue';
 import Badge from '../components/ui/Badge.vue';
 import MediaRow from '../components/MediaRow.vue';
 import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
@@ -26,8 +36,12 @@ import { isUnaired } from '../lib/watching';
 import type { Episode } from '@shared/anizip/types';
 import type { WatchProgress } from '@shared/ipc/api';
 
+const EPISODES_PER_PAGE = 16;
 const MIN_TAG_RANK = 60;
 const MAX_TAGS = 8;
+const PAGE_BUTTON =
+    'grid h-9 min-w-9 cursor-pointer place-items-center rounded-full px-2 transition-colors disabled:cursor-default disabled:opacity-30';
+const PAGE_IDLE = 'text-white/60 hover:bg-white/8 hover:text-white disabled:hover:bg-transparent';
 const ROUND_BUTTON =
     'grid size-10 shrink-0 cursor-pointer place-items-center rounded-full bg-white/10 transition-colors hover:bg-white/15 disabled:cursor-default disabled:opacity-40';
 
@@ -56,6 +70,7 @@ const listDialogOpen = ref(false);
 const trailerOpen = ref(false);
 const listEntry = computed(() => list.entryFor(routeMediaId.value));
 const details = computed(() => mediaStore.detailsFor(routeMediaId.value));
+const chosenPage = ref<number | null>(null);
 const descriptionExpanded = ref(false);
 const spoilersShown = ref(false);
 
@@ -158,6 +173,60 @@ const watchAction = computed<WatchAction>(() => {
     return { episode: next, label: single ? verb : `${verb} episode ${next.number}`, resume };
 });
 
+const episodePages = computed(() =>
+    Array.from({ length: Math.ceil(episodes.value.length / EPISODES_PER_PAGE) }, (_, i) =>
+        episodes.value.slice(i * EPISODES_PER_PAGE, (i + 1) * EPISODES_PER_PAGE)
+    )
+);
+const pageLabels = computed(() =>
+    episodePages.value.map((page) => `${page[0].number} to ${page[page.length - 1].number}`)
+);
+
+// Opens on the next episode to watch until a page is picked
+const pageIndex = computed(() => {
+    const target = watchAction.value.episode?.number ?? episodes.value.find(isUnaired)?.number ?? 1;
+    const page =
+        chosenPage.value ??
+        episodePages.value.findIndex((p) => p.some((ep) => ep.number === target));
+    return Math.min(Math.max(page, 0), Math.max(episodePages.value.length - 1, 0));
+});
+const visibleEpisodes = computed(() => episodePages.value[pageIndex.value] ?? []);
+
+// First, last and the neighbours of the current page, with null marking skipped pages
+const pageItems = computed(() => {
+    const last = episodePages.value.length - 1;
+    const current = pageIndex.value;
+    const shown = [...new Set([0, current - 1, current, current + 1, last])]
+        .filter((i) => i >= 0 && i <= last)
+        .sort((a, b) => a - b);
+    return shown.flatMap((i, k) => {
+        const gap = k ? i - shown[k - 1] : 1;
+        return gap === 2 ? [i - 1, i] : gap > 2 ? [null, i] : [i];
+    });
+});
+
+const pagerEl = ref<HTMLElement | null>(null);
+const jumpDraft = ref('');
+
+// The last page can be shorter, so keep the pager where it was instead of letting it shift
+async function goToPage(index: number) {
+    const el = pagerEl.value;
+    const before = el?.getBoundingClientRect().top;
+    chosenPage.value = index;
+    await nextTick();
+    if (el && before !== undefined) {
+        el.closest('main')?.scrollBy(0, el.getBoundingClientRect().top - before);
+    }
+}
+
+function jumpToEpisode() {
+    const number = Number(jumpDraft.value);
+    jumpDraft.value = '';
+    if (!number) return;
+    const index = episodePages.value.findIndex((p) => p[p.length - 1].number >= number);
+    goToPage(index === -1 ? episodePages.value.length - 1 : index);
+}
+
 function startWatching(action: WatchAction) {
     if (action.resume && media.value) void progress.resume(media.value, action.resume);
     else if (action.episode) openDialog(action.episode);
@@ -179,6 +248,7 @@ function isWatched(ep: Episode): boolean {
 // The router reuses this page when only the id changes, so load on every id
 async function load(id: number) {
     selectedEpisode.value = null;
+    chosenPage.value = null;
     dialogOpen.value = false;
     listDialogOpen.value = false;
     trailerOpen.value = false;
@@ -475,9 +545,9 @@ const formatAirDate = (date: string) =>
                         </template>
 
                         <button
-                            v-for="(ep, index) in episodes"
+                            v-for="ep in visibleEpisodes"
                             v-else
-                            :key="index"
+                            :key="ep.key"
                             data-episode
                             class="group cursor-pointer self-start text-left disabled:cursor-default"
                             :disabled="isUnaired(ep)"
@@ -564,6 +634,63 @@ const formatAirDate = (date: string) =>
                             </p>
                         </button>
                     </div>
+
+                    <nav
+                        ref="pagerEl"
+                        v-if="!episodesLoading && episodePages.length > 1"
+                        class="mt-8 grid grid-cols-[1fr_auto_1fr] items-center gap-4"
+                    >
+                        <div />
+                        <div class="flex items-center gap-1 text-sm tabular-nums">
+                            <button
+                                :class="[PAGE_BUTTON, PAGE_IDLE]"
+                                :disabled="pageIndex === 0"
+                                title="Previous page"
+                                @click="goToPage(pageIndex - 1)"
+                            >
+                                <ChevronLeft :size="16" />
+                            </button>
+                            <template v-for="(item, k) in pageItems" :key="item ?? `gap${k}`">
+                                <span v-if="item === null" class="w-6 text-center text-white/30"
+                                    >…</span
+                                >
+                                <button
+                                    v-else
+                                    :class="[
+                                        PAGE_BUTTON,
+                                        item === pageIndex
+                                            ? 'bg-white font-semibold text-black'
+                                            : PAGE_IDLE,
+                                    ]"
+                                    :title="`Episodes ${pageLabels[item]}`"
+                                    @click="goToPage(item)"
+                                >
+                                    {{ item + 1 }}
+                                </button>
+                            </template>
+                            <button
+                                :class="[PAGE_BUTTON, PAGE_IDLE]"
+                                :disabled="pageIndex === episodePages.length - 1"
+                                title="Next page"
+                                @click="goToPage(pageIndex + 1)"
+                            >
+                                <ChevronRight :size="16" />
+                            </button>
+                        </div>
+                        <label
+                            class="flex h-9 w-36 items-center justify-self-end rounded-lg bg-white/5 px-3 ring-1 ring-line focus-within:ring-accent/60"
+                        >
+                            <input
+                                v-model="jumpDraft"
+                                type="number"
+                                min="1"
+                                :max="episodes.length"
+                                placeholder="Go to episode"
+                                class="w-full min-w-0 [appearance:textfield] bg-transparent text-sm tabular-nums outline-none placeholder:text-white/35 [&::-webkit-inner-spin-button]:appearance-none"
+                                @keydown.enter="jumpToEpisode"
+                            />
+                        </label>
+                    </nav>
                 </section>
 
                 <MediaRow
