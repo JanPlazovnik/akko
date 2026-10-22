@@ -4,6 +4,7 @@ import { getAnilistOutage, queryAnilist } from '../metadata/anilist';
 import { mutateAnilist, queryAnilistUser } from '../accounts/anilist';
 import { fetchAniZipEpisodes } from '../metadata/anizip';
 import { fetchLogo } from '../metadata/logos';
+import { fetchSkipTimes } from '../metadata/aniskip';
 
 export function registerMetadataHandlers() {
     ipcMain.handle('anilist:query', (_e, query: string, variables: unknown, maxAge: number) =>
@@ -20,6 +21,11 @@ export function registerMetadataHandlers() {
         fetchAniZipEpisodes(anilistId, maxAge)
     );
     ipcMain.handle('metadata:logo', (_e, anilistId: number) => fetchLogo(anilistId));
+    ipcMain.handle(
+        'metadata:skip-times',
+        (_e, anilistId: number, episode: number, duration: number) =>
+            fetchSkipTimes(anilistId, episode, duration)
+    );
     ipcMain.handle('cache:count', () => dbCountCache());
     ipcMain.handle('cache:clear', () => dbClearCache());
 }

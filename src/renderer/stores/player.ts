@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed, shallowRef } from 'vue';
+import { ref, computed, shallowRef, watch } from 'vue';
 import type { PlaybackActivity, WatchSelection } from '@shared/media/types';
 import type { AniZipMappings, Episode } from '@shared/anizip/types';
 import type {
@@ -61,6 +61,8 @@ export const usePlayerStore = defineStore('player', () => {
     const fonts = shallowRef<Uint8Array[]>([]);
     const chapters = shallowRef<Chapter[]>([]);
     let earlyChapters: { id: string; chapters: Chapter[] } | null = null;
+    const skipTimes = shallowRef<Chapter[]>([]);
+    let skipTimesRequested = false;
     const cues = new Map<string, SubtitleEvent[]>();
     const early = new Map<string, (() => void)[]>();
     const cueListeners = new Set<CueListener>();
@@ -75,13 +77,16 @@ export const usePlayerStore = defineStore('player', () => {
         () => audioSupport.value === 'none' || audioBridgeFailed.value
     );
 
+    // The release's own chapters match its cut exactly, so AniSkip only fills in without them
+    const skipSegments = computed(() => {
+        const skippable = chapters.value.filter((c) => SKIPPABLE_CHAPTER.test(c.title));
+        return skippable.length ? skippable : skipTimes.value;
+    });
+
     const skippableChapter = computed(
         () =>
-            chapters.value.find(
-                (c) =>
-                    SKIPPABLE_CHAPTER.test(c.title) &&
-                    currentTime.value >= c.start &&
-                    currentTime.value < c.end - 1
+            skipSegments.value.find(
+                (c) => currentTime.value >= c.start && currentTime.value < c.end - 1
             ) ?? null
     );
 
@@ -126,6 +131,23 @@ export const usePlayerStore = defineStore('player', () => {
     window.api.on('stream:chapters', (id, data) => {
         if (id === torrentId.value) chapters.value = data;
         else if (loading.value) earlyChapters = { id, chapters: data };
+    });
+
+    // Needs the file's duration, which AniSkip uses to pick submissions timed to this release
+    watch([torrentId, duration], async ([id, length]) => {
+        const watching = selection.value;
+        if (!id || !length || !watching || skipTimesRequested) return;
+        skipTimesRequested = true;
+        try {
+            const times = await window.api.metadata.skipTimes(
+                watching.media.anilistId,
+                watching.episode.number,
+                length
+            );
+            if (id === torrentId.value) skipTimes.value = times;
+        } catch (err) {
+            log.warn('Failed to load skip times:', err);
+        }
     });
 
     function addCues(batch: SubtitleBatch) {
@@ -179,6 +201,8 @@ export const usePlayerStore = defineStore('player', () => {
         fonts.value = [];
         chapters.value = [];
         earlyChapters = null;
+        skipTimes.value = [];
+        skipTimesRequested = false;
         cues.clear();
         early.clear();
     }

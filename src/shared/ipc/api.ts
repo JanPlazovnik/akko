@@ -163,6 +163,7 @@ export type AppApi = {
             maxAge: number
         ) => Promise<CachedResult<AniZipResponse | null>>;
         logo: (anilistId: number) => Promise<string | null>;
+        skipTimes: (anilistId: number, episode: number, duration: number) => Promise<Chapter[]>;
         cacheCount: () => Promise<number>;
         clearCache: () => Promise<void>;
     };

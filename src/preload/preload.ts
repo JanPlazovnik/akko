@@ -24,6 +24,8 @@ const api: AppApi = {
         anizipEpisodes: (anilistId, maxAge) =>
             ipcRenderer.invoke('anizip:episodes', anilistId, maxAge),
         logo: (anilistId) => ipcRenderer.invoke('metadata:logo', anilistId),
+        skipTimes: (anilistId, episode, duration) =>
+            ipcRenderer.invoke('metadata:skip-times', anilistId, episode, duration),
         cacheCount: () => ipcRenderer.invoke('cache:count'),
         clearCache: () => ipcRenderer.invoke('cache:clear'),
     },
