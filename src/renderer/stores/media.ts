@@ -397,8 +397,9 @@ export const useMediaStore = defineStore('media', () => {
         }
     }
 
+    // Cards can carry a lighter copy than the one already loaded, which the page refetches anyway
     function viewMedia(item: Media) {
-        rememberMedia(item);
+        rememberMissing([item]);
         selectedMediaId.value = item.id;
         void preloadMedia(item.id);
         router.push(`/media/${item.id}`);
