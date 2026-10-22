@@ -27,6 +27,21 @@ export function listLabel({ status, progress, media }: ListSource): string {
     return `${label} · ${progress}/${media?.episodes ?? '?'}`;
 }
 
+// Ordered by how likely you are to watch it next
+export const RELATION_LABELS: Record<string, string> = {
+    SEQUEL: 'Sequel',
+    PREQUEL: 'Prequel',
+    PARENT: 'Parent story',
+    SIDE_STORY: 'Side story',
+    SPIN_OFF: 'Spin-off',
+    ALTERNATIVE: 'Alternative',
+    SUMMARY: 'Summary',
+    COMPILATION: 'Compilation',
+    CONTAINS: 'Contains',
+    OTHER: 'Other',
+    CHARACTER: 'Shared characters',
+};
+
 export const FORMAT_LABELS: Record<string, string> = {
     TV: 'TV',
     TV_SHORT: 'TV Short',

@@ -6,7 +6,13 @@ import MediaCard from './MediaCard.vue';
 import type { Media } from '@shared/graphql/queries';
 import type { ContinueItem } from '../stores/progress';
 
-defineProps<{ title: string; items: Media[]; continueItems?: Map<number, ContinueItem> }>();
+const { gutter = 'px-8' } = defineProps<{
+    title: string;
+    items: Media[];
+    continueItems?: Map<number, ContinueItem>;
+    labels?: Map<number, string>;
+    gutter?: string;
+}>();
 const emit = defineEmits<{ play: [item: ContinueItem] }>();
 
 const isScrolling = ref(false);
@@ -76,7 +82,7 @@ function onClickCapture(e: MouseEvent) {
 
 <template>
     <section v-if="items.length" class="pt-8">
-        <div class="mb-3 flex items-center justify-between px-8">
+        <div :class="['mb-3 flex items-center justify-between', gutter]">
             <h3 class="font-display text-xl font-semibold tracking-tight">{{ title }}</h3>
             <div class="flex gap-1">
                 <button
@@ -105,13 +111,14 @@ function onClickCapture(e: MouseEvent) {
         >
             <div
                 v-auto-animate
-                class="grid w-max grid-flow-col auto-cols-[168px] gap-4 px-8 pt-2 pb-2"
+                :class="['grid w-max grid-flow-col auto-cols-[168px] gap-4 pt-2 pb-2', gutter]"
             >
                 <MediaCard
                     v-for="item in items"
                     :key="item.id"
                     :item="item"
                     :continue-item="continueItems?.get(item.id)"
+                    :label="labels?.get(item.id)"
                     @play="emit('play', continueItems!.get(item.id)!)"
                 />
             </div>

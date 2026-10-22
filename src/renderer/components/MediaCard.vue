@@ -11,7 +11,12 @@ import type { ContinueItem } from '../stores/progress';
 
 const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
 
-const props = defineProps<{ item: Media; actionLabel?: string; continueItem?: ContinueItem }>();
+const props = defineProps<{
+    item: Media;
+    actionLabel?: string;
+    continueItem?: ContinueItem;
+    label?: string;
+}>();
 const emit = defineEmits<{ play: [] }>();
 const mediaStore = useMediaStore();
 const list = useListStore();
@@ -226,7 +231,7 @@ function navigate() {
             <div class="mt-2.5 px-0.5">
                 <p class="truncate text-[13px] font-medium leading-snug">{{ title }}</p>
                 <p class="mt-0.5 truncate text-[11px] text-white/40">
-                    {{ meta.slice(0, 2).join(' · ') }}
+                    {{ label ?? meta.slice(0, 2).join(' · ') }}
                 </p>
             </div>
         </div>

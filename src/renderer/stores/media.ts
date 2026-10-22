@@ -17,10 +17,66 @@ import {
 } from '../../shared/anizip/types';
 import type { Media } from '../../shared/graphql/queries';
 import { mediaTitle } from '../../shared/media/types';
+import { RELATION_LABELS } from '../lib/media-labels';
 import router from '../router';
 
 type DashboardData = ResultOf<typeof DashboardQuery>;
+type AnimeData = NonNullable<ResultOf<typeof GetAnimeQuery>['Media']>;
 type FuzzyDate = Media['startDate'];
+
+export type RelatedMedia = { relation: string; media: Media };
+export type Trailer = { site: 'youtube' | 'dailymotion'; id: string };
+export type MediaDetails = {
+    trailer: Trailer | null;
+    studios: string[];
+    related: RelatedMedia[];
+    recommendations: Media[];
+};
+
+const TRAILER_SITES = new Set<string>(['youtube', 'dailymotion'] satisfies Trailer['site'][]);
+const RELATION_ORDER = Object.keys(RELATION_LABELS);
+
+const dateKey = (date: FuzzyDate) =>
+    (date?.year ?? 9999) * 10_000 + (date?.month ?? 99) * 100 + (date?.day ?? 99);
+
+// The lighter list fields cover everything a card shows
+const asMedia = (item: unknown) => item as Media;
+
+// Only anime opens on the media page, and music videos crowd out the actual seasons
+function mediaDetails(media: AnimeData): MediaDetails {
+    const { id: trailerId, site } = media.trailer ?? {};
+    const trailer =
+        trailerId && site && TRAILER_SITES.has(site)
+            ? { site: site as Trailer['site'], id: trailerId }
+            : null;
+    const related = (media.relations?.edges ?? [])
+        .flatMap((edge) =>
+            edge?.node?.type === 'ANIME' &&
+            edge.node.format !== 'MUSIC' &&
+            edge.relationType &&
+            edge.relationType in RELATION_LABELS
+                ? [{ relation: edge.relationType, media: asMedia(edge.node) }]
+                : []
+        )
+        .sort(
+            (a, b) =>
+                RELATION_ORDER.indexOf(a.relation) - RELATION_ORDER.indexOf(b.relation) ||
+                dateKey(a.media.startDate) - dateKey(b.media.startDate)
+        )
+        .filter((r, i, all) => all.findIndex((other) => other.media.id === r.media.id) === i);
+    const recommendations = (media.recommendations?.nodes ?? []).flatMap((node) => {
+        const item = node?.mediaRecommendation;
+        return item && (media.isAdult || !item.isAdult) ? [asMedia(item)] : [];
+    });
+    return {
+        trailer,
+        studios: (media.studios?.edges ?? []).flatMap((edge) =>
+            edge?.isMain && edge.node?.name ? [edge.node.name] : []
+        ),
+        related,
+        recommendations,
+    };
+}
 
 const log = createLogger('media');
 
@@ -56,6 +112,7 @@ export const useMediaStore = defineStore('media', () => {
     const mediaLoadingById = ref<Record<number, boolean>>({});
     const mediaErrorById = ref<Record<number, Error | null>>({});
 
+    const detailsById = ref<Record<number, MediaDetails>>({});
     const anizipById = ref<Record<number, AniZipResponse | null>>({});
     const streamingById = ref<Record<number, StreamingEpisode[]>>({});
     const airingById = ref<Record<number, AiringEpisode[]>>({});
@@ -139,6 +196,10 @@ export const useMediaStore = defineStore('media', () => {
         return episodesById.value[id] ?? [];
     }
 
+    function detailsFor(id: number) {
+        return detailsById.value[id] ?? null;
+    }
+
     function mappingsFor(id: number) {
         return anizipById.value[id]?.mappings ?? null;
     }
@@ -211,8 +272,11 @@ export const useMediaStore = defineStore('media', () => {
         return request;
     }
 
-    function applyMedia(id: number, media: NonNullable<ResultOf<typeof GetAnimeQuery>['Media']>) {
+    function applyMedia(id: number, media: AnimeData) {
         rememberMedia(media as Media);
+        const details = mediaDetails(media);
+        detailsById.value = { ...detailsById.value, [id]: details };
+        rememberMissing([...details.related.map((r) => r.media), ...details.recommendations]);
         streamingById.value = {
             ...streamingById.value,
             [id]: (media.streamingEpisodes ?? []).flatMap((e) => (e ? [e] : [])),
@@ -403,6 +467,7 @@ export const useMediaStore = defineStore('media', () => {
         setSelectedMedia,
         mediaFor,
         episodesFor,
+        detailsFor,
         mappingsFor,
         logoFor,
         fetchLogo,

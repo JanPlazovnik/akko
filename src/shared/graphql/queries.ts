@@ -1,4 +1,4 @@
-import { ListEntryFragment, MediaFragment } from './fragments';
+import { ListEntryFragment, ListMediaFragment, MediaFragment } from './fragments';
 import { graphql, ResultOf } from './graphql';
 
 export const GetAnimeQuery = graphql(
@@ -36,10 +36,25 @@ export const GetAnimeQuery = graphql(
                         }
                     }
                 }
+                relations {
+                    edges {
+                        relationType(version: 2)
+                        node {
+                            ...ListMediaFragment
+                        }
+                    }
+                }
+                recommendations(perPage: 15, sort: [RATING_DESC]) {
+                    nodes {
+                        mediaRecommendation {
+                            ...ListMediaFragment
+                        }
+                    }
+                }
             }
         }
     `,
-    [MediaFragment]
+    [MediaFragment, ListMediaFragment]
 );
 
 export type Media = ResultOf<typeof MediaFragment>;

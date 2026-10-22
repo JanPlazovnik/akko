@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, session, shell } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import log from 'electron-log/main';
@@ -31,6 +31,18 @@ if (isWindows && !app.isPackaged) app.setAppUserModelId('akko.dev');
 // through the audio bridge, so covering or minimizing the window would stop the episode
 app.commandLine.appendSwitch('disable-features', 'BackgroundVideoPauseOptimization');
 
+// Packaged builds load from file://, which sends no Referer, and YouTube won't embed without one
+const EMBED_REFERER = 'https://akko.odstrani.se/';
+function allowTrailerEmbeds() {
+    session.defaultSession.webRequest.onBeforeSendHeaders(
+        { urls: ['https://www.youtube-nocookie.com/*'] },
+        ({ requestHeaders }, callback) => {
+            requestHeaders.Referer ??= EMBED_REFERER;
+            callback({ requestHeaders });
+        }
+    );
+}
+
 const createWindow = () => {
     const mainWindow = new BrowserWindow({
         width: 1280,
@@ -57,6 +69,10 @@ const createWindow = () => {
     }
 
     mainWindow.once('ready-to-show', () => mainWindow.show());
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+        return { action: 'deny' };
+    });
 
     if (!app.isPackaged) {
         mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -88,6 +104,7 @@ app.on('ready', async () => {
         logger.warn('Failed to remove old downloads:', err)
     );
 
+    allowTrailerEmbeds();
     logger.info('App ready, creating window');
     const window = createWindow();
     // Closing the update window first would leave no windows open and quit the app
