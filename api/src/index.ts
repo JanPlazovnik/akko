@@ -1,4 +1,5 @@
-// Title logos for akko's home banner. Keeps the TMDB token server side and caches every answer.
+// Title logos and backdrops for akko's home banner. Keeps the TMDB token server side and caches
+// every answer.
 
 interface Env {
     TMDB_TOKEN: string;
@@ -18,6 +19,8 @@ const FOUND_TTL_S = 30 * DAY_S;
 const MISSING_TTL_S = DAY_S;
 // Square or tall logos don't fit the banner's title slot
 const MIN_ASPECT_RATIO = 1.2;
+
+type Art = { logo: string | null; backdrop: string | null };
 
 function json(body: unknown, status = 200, maxAge = 0): Response {
     return new Response(JSON.stringify(body), {
@@ -41,26 +44,46 @@ async function tmdbTarget(anilistId: number): Promise<string | null> {
     return `${kind}/${mappings.themoviedb_id}`;
 }
 
-async function findLogo(anilistId: number, env: Env): Promise<string | null> {
+const byVotes = (a: TmdbImage, b: TmdbImage) => b.vote_average - a.vote_average;
+
+// Backdrops without text come first, since the banner puts its own title over them
+async function findArt(anilistId: number, env: Env): Promise<Art> {
+    const none: Art = { logo: null, backdrop: null };
     const target = await tmdbTarget(anilistId);
-    if (!target) return null;
+    if (!target) return none;
     const res = await fetch(
-        `https://api.themoviedb.org/3/${target}/images?include_image_language=en`,
+        `https://api.themoviedb.org/3/${target}/images?include_image_language=en,null`,
         { headers: { authorization: `Bearer ${env.TMDB_TOKEN}` } }
     );
-    if (res.status === 404) return null;
+    if (res.status === 404) return none;
     if (!res.ok) throw new Error(`TMDB responded ${res.status}`);
-    const { logos = [] } = (await res.json()) as { logos?: TmdbImage[] };
-    const best = logos
-        .filter((logo) => logo.iso_639_1 === 'en' && logo.aspect_ratio >= MIN_ASPECT_RATIO)
-        .sort((a, b) => b.vote_average - a.vote_average)[0];
-    return best ? `https://image.tmdb.org/t/p/w500${best.file_path}` : null;
+    const { logos = [], backdrops = [] } = (await res.json()) as {
+        logos?: TmdbImage[];
+        backdrops?: TmdbImage[];
+    };
+    const logo = logos
+        .filter((image) => image.iso_639_1 === 'en' && image.aspect_ratio >= MIN_ASPECT_RATIO)
+        .sort(byVotes)[0];
+    const backdrop =
+        backdrops.filter((image) => !image.iso_639_1).sort(byVotes)[0] ??
+        backdrops.sort(byVotes)[0];
+    return {
+        logo: logo ? `https://image.tmdb.org/t/p/w500${logo.file_path}` : null,
+        backdrop: backdrop ? `https://image.tmdb.org/t/p/w1280${backdrop.file_path}` : null,
+    };
 }
+
+// /logo is what older app versions ask for
+const ROUTES: Record<string, (art: Art) => unknown> = {
+    '/logo': ({ logo }) => ({ logo }),
+    '/art': (art) => art,
+};
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const url = new URL(request.url);
-        if (request.method !== 'GET' || url.pathname !== '/logo') {
+        const route = ROUTES[url.pathname];
+        if (request.method !== 'GET' || !route) {
             return json({ error: 'Not found' }, 404);
         }
         const anilistId = Number(url.searchParams.get('anilist_id'));
@@ -69,13 +92,14 @@ export default {
         }
 
         const cache = await caches.open('logos');
-        const key = new Request(`${url.origin}/logo?anilist_id=${anilistId}`);
+        const key = new Request(`${url.origin}${url.pathname}?anilist_id=${anilistId}`);
         const hit = await cache.match(key);
         if (hit) return hit;
 
         try {
-            const logo = await findLogo(anilistId, env);
-            const response = json({ logo }, 200, logo ? FOUND_TTL_S : MISSING_TTL_S);
+            const art = await findArt(anilistId, env);
+            const found = url.pathname === '/logo' ? art.logo : art.logo || art.backdrop;
+            const response = json(route(art), 200, found ? FOUND_TTL_S : MISSING_TTL_S);
             ctx.waitUntil(cache.put(key, response.clone()));
             return response;
         } catch (err) {
