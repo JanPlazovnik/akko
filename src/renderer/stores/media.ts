@@ -8,6 +8,7 @@ import {
     matchStreaming,
     applySchedule,
     normalizeEpisodes,
+    padEpisodes,
     placeholderEpisodes,
     type AiringEpisode,
     type AniZipResponse,
@@ -83,11 +84,19 @@ export const useMediaStore = defineStore('media', () => {
             const streaming = streamingById.value[id];
             const normalized = normalizeEpisodes(data, streaming);
             episodes[id] = normalized.length
-                ? applySchedule(normalized, airingById.value[id] ?? [])
+                ? padToTotal(id, applySchedule(normalized, airingById.value[id] ?? []))
                 : fallbackEpisodes(id, streaming);
         }
         return episodes;
     });
+
+    // Episodes past AniZip's list have no date, unless the show has finished airing
+    function padToTotal(id: number, episodes: Episode[]): Episode[] {
+        const media = mediaFor(id);
+        if (!media?.episodes) return episodes;
+        const released = media.status === 'FINISHED' ? releaseDate(media.startDate) : null;
+        return padEpisodes(episodes, media.episodes, released);
+    }
 
     // While AniList doesn't know the total, the airing schedule tells how many are planned
     function fallbackEpisodes(id: number, streaming?: StreamingEpisode[]): Episode[] {

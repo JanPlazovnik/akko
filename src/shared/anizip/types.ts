@@ -211,6 +211,16 @@ export function applySchedule(episodes: Episode[], airing: AiringEpisode[]): Epi
     return [...scheduled, ...missing].sort((a, b) => a.number - b.number);
 }
 
+// AniZip sometimes stops short of AniList's total, e.g. listing only the first cour of a long show
+export function padEpisodes(episodes: Episode[], count: number, airDate: string | null): Episode[] {
+    const last = episodes.at(-1)?.number ?? 0;
+    if (last >= count) return episodes;
+    const extra = Array.from({ length: count - last }, (_, i) =>
+        blankEpisode(last + i + 1, airDate)
+    );
+    return [...episodes, ...extra];
+}
+
 export function normalizeEpisodes(
     data: AniZipResponse | null,
     streaming: StreamingEpisode[] = []
