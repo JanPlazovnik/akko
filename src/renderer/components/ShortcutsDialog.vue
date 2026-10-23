@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import { X } from '@lucide/vue';
 import {
     DialogClose,
@@ -12,13 +12,9 @@ import {
 } from 'reka-ui';
 import { SHORTCUT_GROUPS, shortcutsOpen } from '../lib/shortcuts';
 import { ignoreWindowControls } from '../lib/dialog';
+import { useFullscreenElement } from '../lib/fullscreen';
 
-// In fullscreen only the fullscreen element is visible, so the dialog renders inside it
-const fullscreenElement = ref<Element | null>(null);
-
-function onFullscreenChange() {
-    fullscreenElement.value = document.fullscreenElement;
-}
+const fullscreenElement = useFullscreenElement();
 
 function onKeydown(event: KeyboardEvent) {
     const target = event.target as HTMLElement | null;
@@ -27,19 +23,13 @@ function onKeydown(event: KeyboardEvent) {
     shortcutsOpen.value = !shortcutsOpen.value;
 }
 
-onMounted(() => {
-    document.addEventListener('keydown', onKeydown);
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-});
-onUnmounted(() => {
-    document.removeEventListener('keydown', onKeydown);
-    document.removeEventListener('fullscreenchange', onFullscreenChange);
-});
+onMounted(() => document.addEventListener('keydown', onKeydown));
+onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 </script>
 
 <template>
     <DialogRoot v-model:open="shortcutsOpen">
-        <DialogPortal :to="(fullscreenElement as HTMLElement | null) ?? 'body'">
+        <DialogPortal :to="fullscreenElement ?? 'body'">
             <DialogOverlay class="dialog-overlay fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
             <DialogContent
                 class="dialog-content no-drag fixed top-1/2 left-1/2 z-50 flex max-h-[84vh] w-[min(560px,calc(100vw-48px))] -translate-1/2 flex-col overflow-hidden rounded-2xl border border-line bg-surface text-white shadow-2xl shadow-black/70 outline-none"

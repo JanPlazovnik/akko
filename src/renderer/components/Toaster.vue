@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from '@lucide/vue';
 import { dismissToast, MAX_VISIBLE_TOASTS, toasts, type Toast } from '../lib/toast';
+import { useFullscreenElement } from '../lib/fullscreen';
 
 const ICONS = { success: CircleCheck, error: CircleAlert, info: Info, warn: TriangleAlert };
 const TINTS = {
@@ -23,11 +24,7 @@ const layers = computed(() =>
         .filter(({ depth }) => depth <= STACK_DEPTH)
 );
 
-// Only the fullscreen element renders while fullscreen, so the stack moves into it
-const fullscreenElement = ref<Element | null>(document.fullscreenElement);
-const onFullscreenChange = () => (fullscreenElement.value = document.fullscreenElement);
-onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
-onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
+const fullscreenElement = useFullscreenElement();
 
 // Only toasts in full view count down: ones folded into the stack wait their turn, and hovering
 // the stack holds everything so it can be read and clicked

@@ -95,8 +95,6 @@ export const useQueueStore = defineStore('queue', () => {
     }
 
     function openPicker(context: PickerContext) {
-        // The dialog renders outside the fullscreen element
-        if (document.fullscreenElement) void document.exitFullscreen();
         const previousContext = player.pickerContext;
         player.pickerContext = context;
         player.pickerOpen = true;

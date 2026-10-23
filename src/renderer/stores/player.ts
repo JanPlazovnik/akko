@@ -201,9 +201,7 @@ export const usePlayerStore = defineStore('player', () => {
         early.clear();
     }
 
-    // The picker renders outside the player, so it can't show over fullscreen video
     function pickAnotherRelease() {
-        if (document.fullscreenElement) void document.exitFullscreen();
         pickerOpen.value = true;
     }
 
