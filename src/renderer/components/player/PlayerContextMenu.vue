@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
     Camera,
     Captions,
@@ -21,13 +22,15 @@ import {
 } from 'reka-ui';
 import { usePlayerStore } from '../../stores/player';
 import { useQueueStore } from '../../stores/queue';
-import { openShortcuts } from '../../lib/shortcuts';
+import { openShortcuts, shortcutsOpen } from '../../lib/shortcuts';
 
 defineProps<{ enabled: boolean; container: HTMLElement | null; fullscreen: boolean }>();
 const emit = defineEmits<{ togglePlay: []; screenshot: []; toggleFullscreen: [] }>();
 
 const player = usePlayerStore();
 const queue = useQueueStore();
+// These are the dialogs that can open over the player; the menu would land behind their backdrop
+const dialogOpen = computed(() => player.pickerOpen || shortcutsOpen.value);
 
 const ITEM =
     'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/85 outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-35 data-highlighted:bg-white/10 data-highlighted:text-white';
@@ -38,7 +41,7 @@ const SEPARATOR = 'mx-2 my-1 h-px bg-line';
 
 <template>
     <ContextMenuRoot>
-        <ContextMenuTrigger as-child :disabled="!enabled">
+        <ContextMenuTrigger as-child :disabled="!enabled || dialogOpen">
             <slot />
         </ContextMenuTrigger>
         <!-- Rendered inside the player, the only thing visible in fullscreen -->
