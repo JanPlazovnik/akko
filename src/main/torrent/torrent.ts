@@ -16,6 +16,7 @@ import { dbGetSettings } from '../db';
 import { defaultDownloadPath } from '../paths';
 import { createLogger } from '../logger';
 import { probeTrackers } from './network';
+import { guardUtpConnect } from './utp';
 import type { EpisodeNumbers } from '../../shared/anizip/types';
 import { describeEpisode } from '../../shared/media/types';
 
@@ -50,6 +51,7 @@ let clientReady: Promise<void> | null = null;
 
 export function initClient(): Promise<void> {
     clientReady ??= (async () => {
+        await guardUtpConnect();
         const { default: WebTorrent } = await import('webtorrent');
         client = new WebTorrent();
         applyTorrentSettings(dbGetSettings());
