@@ -107,8 +107,15 @@ useDragDropMonitor({
     },
 });
 
+// A click that leaves the player route bubbles up here after the route has already changed
+let pressedMini = false;
+
+function onPress() {
+    pressedMini = !isPlayerRoute.value;
+}
+
 function onMiniClick() {
-    if (!isPlayerRoute.value && !justDragged) void router.push('/player');
+    if (pressedMini && !isPlayerRoute.value && !justDragged) void router.push('/player');
 }
 
 // ─── click to pause, double click for fullscreen ──────────────────────────────
@@ -285,6 +292,7 @@ onUnmounted(() => audioBridge?.dispose());
                   ]
         "
         :style="isPlayerRoute ? undefined : miniStyle"
+        @pointerdown.capture="onPress"
         @click="onMiniClick"
     >
         <video-player>
