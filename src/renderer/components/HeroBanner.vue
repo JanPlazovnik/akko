@@ -118,7 +118,7 @@ function go(index: number) {
 
                 <div class="mt-2 flex items-center gap-3">
                     <button
-                        class="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:bg-white/85 active:scale-[0.97]"
+                        class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 active:scale-[0.97]"
                         @click="mediaStore.viewMedia(current)"
                     >
                         <Play :size="15" fill="currentColor" />

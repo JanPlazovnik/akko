@@ -182,7 +182,7 @@ function navigate() {
 
                     <div class="mt-3 flex items-center gap-2">
                         <button
-                            class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold whitespace-nowrap text-black transition-colors hover:bg-white/85"
+                            class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-accent px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap text-black transition hover:brightness-110"
                             @click.stop="play()"
                         >
                             <Play :size="12" fill="currentColor" />

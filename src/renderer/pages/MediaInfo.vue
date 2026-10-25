@@ -327,7 +327,7 @@ const formatAirDate = (date: string) =>
                     </p>
                     <button
                         v-if="watchAction.episode"
-                        class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-white/85"
+                        class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-accent px-3.5 py-1.5 text-xs font-semibold text-black transition hover:brightness-110"
                         @click="startWatching(watchAction)"
                     >
                         <Play :size="12" fill="currentColor" /> {{ watchAction.label }}
@@ -412,7 +412,7 @@ const formatAirDate = (date: string) =>
 
                         <div class="mt-5 flex items-center gap-3">
                             <button
-                                class="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full whitespace-nowrap bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:bg-white/85 active:scale-[0.97] disabled:cursor-default disabled:opacity-40"
+                                class="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg whitespace-nowrap bg-accent px-5 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 active:scale-[0.97] disabled:cursor-default disabled:opacity-40"
                                 :disabled="!watchAction.episode"
                                 @click="startWatching(watchAction)"
                             >
