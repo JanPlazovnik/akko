@@ -159,7 +159,10 @@ export const useListStore = defineStore('list', () => {
         put(mediaId, optimistic);
         try {
             const data = await anilistMutation(SaveListEntryMutation, { mediaId, ...vars });
-            const saved = data?.SaveMediaListEntry as ListEntry | null | undefined;
+            const reply = data?.SaveMediaListEntry as ListEntry | null | undefined;
+            // Saving doesn't change the show, and keeping our copy of it means a reply without the
+            // airing schedule can't make the next, unaired episode look out
+            const saved = reply && { ...reply, media: previous?.media ?? reply.media };
             if (saved) put(mediaId, saved);
             log.info(`Saved AniList ${mediaId}:`, JSON.stringify(vars));
             return saved ?? optimistic;
