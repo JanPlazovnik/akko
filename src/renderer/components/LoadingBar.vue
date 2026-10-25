@@ -9,7 +9,7 @@ const loading = useLoadingStore();
         <!-- Along the window's top edge, which stays straight where the panels below are rounded -->
         <div v-if="loading.visible" class="pointer-events-none fixed inset-x-0 top-0 z-100 h-0.5">
             <div
-                class="h-full rounded-r-full bg-linear-to-r from-accent/30 via-accent to-[#c4b5fd] transition-[width] duration-150 ease-out"
+                class="h-full rounded-r-full bg-linear-to-r from-accent/30 via-accent to-[color-mix(in_oklab,var(--color-accent),white_35%)] transition-[width] duration-150 ease-out"
                 :style="{ width: loading.progress + '%' }"
             />
         </div>

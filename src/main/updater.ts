@@ -27,7 +27,7 @@ p { margin: 0; }
 .track { position: relative; width: 160px; height: 4px; border-radius: 2px; overflow: hidden;
     background: rgb(255 255 255 / 0.08); }
 .fill { height: 100%; width: 0; border-radius: 2px; transition: width 0.3s ease;
-    background: linear-gradient(90deg, rgb(167 139 250 / 0.4), #a78bfa, #c4b5fd); }
+    background: linear-gradient(90deg, rgb(185 166 255 / 0.4), #b9a6ff, #d9ceff); }
 .busy .fill { position: absolute; width: 35%; animation: slide 1.2s ease-in-out infinite; }
 @keyframes slide { from { left: -35%; } to { left: 100%; } }
 </style></head><body>
