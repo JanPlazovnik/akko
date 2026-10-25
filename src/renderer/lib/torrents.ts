@@ -33,7 +33,7 @@ export function searchParams(
         tvdbEId: episode.tvdbId ?? undefined,
         tmdbId: mappings?.themoviedb_id?.toString() ?? undefined,
         imdbId: mappings?.imdb_id ?? undefined,
-        titles: context.titles,
+        titles: [...context.titles],
         episode: episode.absoluteNumber ?? episode.number,
         episodeCount: context.episodeCount ?? undefined,
         resolution,
