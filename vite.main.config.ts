@@ -13,10 +13,15 @@ function commitHash() {
 export default defineConfig({
     define: {
         __COMMIT__: JSON.stringify(commitHash()),
+        // Test builds can point at a local folder of releases instead
+        __UPDATE_FEED__: JSON.stringify(
+            process.env.AKKO_UPDATE_FEED ??
+                'https://github.com/JanPlazovnik/akko/releases/latest/download'
+        ),
     },
     build: {
         rollupOptions: {
-            external: ['webtorrent', 'utp-native', 'better-sqlite3'],
+            external: ['webtorrent', 'utp-native', 'better-sqlite3', 'velopack'],
         },
     },
 });

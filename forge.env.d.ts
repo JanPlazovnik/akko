@@ -2,3 +2,4 @@
 
 // Short git hash of the build, set in vite.main.config.ts
 declare const __COMMIT__: string;
+declare const __UPDATE_FEED__: string;

@@ -1,15 +1,20 @@
 /// <reference types="vite/client" />
-import { spawn } from 'node:child_process';
-import path from 'node:path';
-import { app, autoUpdater, BrowserWindow } from 'electron';
+import { app, BrowserWindow } from 'electron';
+import {
+    HttpSource,
+    UpdateManager,
+    VelopackApp,
+    type UpdateInfo,
+    type VelopackAsset,
+} from 'velopack';
 import icon from '../../assets/icon.svg?raw';
 import { createLogger } from './logger';
 
 const log = createLogger('updater');
 
-const FEED_URL = 'https://github.com/JanPlazovnik/akko/releases/latest/download';
+const FEED_URL = __UPDATE_FEED__;
 const CHECK_TIMEOUT_MS = 10_000;
-// Downloads only give up once progress stops coming; installing always runs to the end
+// Downloads only give up once progress stops coming
 const STALL_TIMEOUT_MS = 60_000;
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
@@ -49,79 +54,82 @@ window.setState = ({ status, progress }) => {
 export type LaunchUpdate = { installing: true } | { installing: false; close: () => void };
 type UpdateState = { status: string; progress?: number };
 
-// Squirrel installs updates on Windows only; AppImage and distro packages are updated by hand
+// Velopack installs updates on Windows only; AppImage and distro packages are updated by hand
 const enabled = () => app.isPackaged && process.platform === 'win32';
 
-const updateExe = () => path.resolve(path.dirname(process.execPath), '..', 'Update.exe');
+const SQUIRREL_HOOKS = new Set([
+    '--squirrel-install',
+    '--squirrel-updated',
+    '--squirrel-obsolete',
+    '--squirrel-uninstall',
+]);
 
-// Update.exe prints its progress as a number per line, and a check ends with a JSON summary
-function runUpdateExe(
-    args: string[],
-    timeoutMs: number,
-    onLine: (line: string) => void = () => undefined
-): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-        const child = spawn(updateExe(), args, { windowsHide: true });
-        const lines: string[] = [];
-        let pending = '';
+// Handles the installer's hooks, which run the app briefly and expect it to exit. Returns true when
+// this process was started for one of them and should quit.
+export function handleInstallerEvents(): boolean {
+    if (!enabled()) return false;
+    // The last Squirrel release installs the first Velopack one and runs it with Squirrel's hooks.
+    // Velopack moves the install over on the next launch, so there's nothing to do here.
+    if (process.argv.some((arg) => SQUIRREL_HOOKS.has(arg))) return true;
+    // Updates downloaded in the background are installed by updateOnLaunch instead, behind the app's
+    // own window rather than Velopack's
+    VelopackApp.build()
+        .setAutoApplyOnStartup(false)
+        .setLogger((level, message) => log[level === 'trace' ? 'debug' : level](message))
+        .run();
+    return false;
+}
+
+let manager: UpdateManager | null = null;
+
+// Null when the app isn't installed by Velopack, eg. a Squirrel install that hasn't moved over yet
+function updateManager(): UpdateManager | null {
+    if (!enabled()) return null;
+    try {
+        manager ??= new UpdateManager(new HttpSource(FEED_URL));
+    } catch (err) {
+        log.warn('Updates unavailable:', err instanceof Error ? err.message : err);
+    }
+    return manager;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${what} timed out`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Gives up once progress stops coming, rather than after a fixed time
+function download(
+    updates: UpdateManager,
+    update: UpdateInfo,
+    onProgress: (percent: number) => void
+) {
+    return new Promise<void>((resolve, reject) => {
         let timer: ReturnType<typeof setTimeout>;
         const watchdog = () => {
             clearTimeout(timer);
-            timer = setTimeout(() => {
-                child.kill();
-                reject(new Error(`Update.exe ${args[0]} timed out`));
-            }, timeoutMs);
-        };
-        const take = (line: string) => {
-            if (!line.trim()) return;
-            lines.push(line.trim());
-            onLine(line.trim());
-            watchdog();
+            timer = setTimeout(() => reject(new Error('Download stalled')), STALL_TIMEOUT_MS);
         };
         watchdog();
-        child.stdout.setEncoding('utf8');
-        child.stdout.on('data', (chunk: string) => {
-            const parts = (pending + chunk).split(/\r?\n/);
-            pending = parts.pop() ?? '';
-            parts.forEach(take);
-        });
-        child.on('error', (err) => {
-            clearTimeout(timer);
-            reject(err);
-        });
-        child.on('close', (code) => {
-            clearTimeout(timer);
-            take(pending);
-            if (code === 0) resolve(lines);
-            else reject(new Error(`Update.exe ${args[0]} exited with ${code}`));
-        });
+        updates
+            .downloadUpdateAsync(update, (percent) => {
+                watchdog();
+                onProgress(percent);
+            })
+            .then(resolve, reject)
+            .finally(() => clearTimeout(timer));
     });
 }
 
-async function availableVersion(): Promise<string | null> {
-    const lines = await runUpdateExe(['--checkForUpdate', FEED_URL], CHECK_TIMEOUT_MS);
-    const summary = JSON.parse(lines.at(-1) ?? '{}') as {
-        releasesToApply?: { version: string }[];
-    };
-    return summary.releasesToApply?.at(-1)?.version ?? null;
-}
-
-// An update reports 0 to 33 while checking, 33 to 66 while downloading and 66 to 100 while
-// installing, so each step gets its own bar
-function describe(version: string, total: number): UpdateState {
-    if (total < 33) return { status: `Preparing update ${version}` };
-    if (total < 66) return { status: `Downloading update ${version}`, progress: (total - 33) * 3 };
-    return { status: `Installing update ${version}`, progress: Math.min(100, (total - 66) * 3) };
-}
-
 // Like Discord: a small window checks for an update before the app opens, and installs it right
-// away if there is one. Squirrel still holds its lock right after installing, so the first run skips it.
+// away if there is one
 export async function updateOnLaunch(): Promise<LaunchUpdate> {
     const skipped: LaunchUpdate = { installing: false, close: () => undefined };
-    if (!enabled()) return skipped;
-    autoUpdater.setFeedURL({ url: FEED_URL });
-    autoUpdater.on('error', (err) => log.warn('Update check failed:', err.message));
-    if (process.argv.includes('--squirrel-firstrun')) return skipped;
+    const updates = updateManager();
+    if (!updates) return skipped;
 
     const window = new BrowserWindow({
         width: 280,
@@ -141,42 +149,59 @@ export async function updateOnLaunch(): Promise<LaunchUpdate> {
             .then(() => window.webContents.executeJavaScript(`setState(${JSON.stringify(state)})`))
             .catch(() => undefined);
     const done = { installing: false, close: () => window.destroy() } as const;
+    const restart = (update: UpdateInfo | VelopackAsset) => {
+        setState({ status: 'Restarting' });
+        updates.waitExitThenApplyUpdate(update, true, true);
+        app.quit();
+        return { installing: true } as const;
+    };
 
-    let version: string | null;
+    const pending = updates.getUpdatePendingRestart();
+    if (pending) {
+        log.info(`Installing ${pending.Version}, downloaded earlier`);
+        return restart(pending);
+    }
+
+    let update: UpdateInfo | null;
     try {
-        version = await availableVersion();
+        update = await withTimeout(
+            updates.checkForUpdatesAsync(),
+            CHECK_TIMEOUT_MS,
+            'Update check'
+        );
     } catch (err) {
         log.warn('Update check failed:', err instanceof Error ? err.message : err);
         return done;
     }
-    if (!version) return done;
+    if (!update) return done;
 
+    const version = update.TargetFullRelease.Version;
     log.info(`Updating to ${version}`);
-    setState(describe(version, 0));
+    setState({ status: `Downloading update ${version}`, progress: 0 });
     try {
-        await runUpdateExe(['--update', FEED_URL], STALL_TIMEOUT_MS, (line) => {
-            const total = Number(line);
-            if (!Number.isNaN(total)) setState(describe(version, total));
-        });
+        await download(updates, update, (progress) =>
+            setState({ status: `Downloading update ${version}`, progress })
+        );
     } catch (err) {
-        // The current version still works, so open that rather than one that may be half installed
+        // The current version still works, so open that rather than wait on a broken download
         log.warn('Update failed:', err instanceof Error ? err.message : err);
         return done;
     }
 
-    setState({ status: 'Restarting' });
-    log.info(`Installed ${version}, restarting`);
-    // What autoUpdater.quitAndInstall does: Update.exe starts the newest version once this one exits
-    spawn(updateExe(), ['--processStartAndWait', path.basename(process.execPath)], {
-        detached: true,
-        stdio: 'ignore',
-    }).unref();
-    app.quit();
-    return { installing: true };
+    log.info(`Downloaded ${version}, restarting to install it`);
+    return restart(update);
 }
 
-// Updates found while the app is open download quietly and apply on the next launch
+// Updates found while the app is open download quietly and install on the next launch
 export function checkPeriodically() {
-    if (!enabled()) return;
-    setInterval(() => autoUpdater.checkForUpdates(), CHECK_INTERVAL_MS).unref();
+    const updates = updateManager();
+    if (!updates) return;
+    setInterval(async () => {
+        try {
+            const update = await updates.checkForUpdatesAsync();
+            if (update) await updates.downloadUpdateAsync(update);
+        } catch (err) {
+            log.warn('Background update failed:', err instanceof Error ? err.message : err);
+        }
+    }, CHECK_INTERVAL_MS).unref();
 }
