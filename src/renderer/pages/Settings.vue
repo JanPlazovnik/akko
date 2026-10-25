@@ -262,6 +262,16 @@ onMounted(async () => {
                             @update:model-value="store.update({ discordShowDetails: $event })"
                         />
                     </SettingRow>
+                    <SettingRow
+                        title="Holiday effects"
+                        description="Small surprises around Halloween, Christmas and New Year."
+                    >
+                        <Toggle
+                            :model-value="settings.holidayEffects"
+                            label="Holiday effects"
+                            @update:model-value="store.update({ holidayEffects: $event })"
+                        />
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection id="playback" title="Playback">

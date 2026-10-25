@@ -23,6 +23,14 @@ import CountdownButton from '../components/ui/CountdownButton.vue';
 import Badge from '../components/ui/Badge.vue';
 import { BUTTON } from '../components/ui/styles';
 import LogoMark from '../components/LogoMark.vue';
+import {
+    HOLIDAY_LABELS,
+    PRESET_DATES,
+    dateOverride,
+    holidayOn,
+    type Holiday,
+} from '../lib/holidays';
+import { celebrate } from '../lib/holiday-effects';
 import appIcon from '../../../assets/icon.svg?url';
 
 const SECTIONS = [
@@ -31,6 +39,7 @@ const SECTIONS = [
     { id: 'components', label: 'Components' },
     { id: 'extensions', label: 'Extensions' },
     { id: 'logo', label: 'Logo' },
+    { id: 'holidays', label: 'Holidays' },
     { id: 'general', label: 'App' },
 ];
 
@@ -262,6 +271,36 @@ const LOGO_BACKGROUNDS = [
     { label: 'On dark', class: 'bg-canvas text-white' },
     { label: 'On light', class: 'bg-neutral-200 text-neutral-900' },
 ];
+
+// ─── holidays ─────────────────────────────────────────────────────────────────
+const HOLIDAYS = Object.keys(HOLIDAY_LABELS) as Holiday[];
+const pad = (n: number) => String(n).padStart(2, '0');
+
+const previewDate = computed({
+    get: () => {
+        const date = dateOverride.value;
+        return date
+            ? `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+            : '';
+    },
+    set: (value: string) => {
+        const [year, month, day] = value.split('-').map(Number);
+        dateOverride.value = value ? new Date(year, month - 1, day) : null;
+    },
+});
+
+const previewHoliday = computed(() => holidayOn(dateOverride.value ?? new Date()));
+
+const presetOptions = PRESET_DATES.map(({ label, month, day }) => ({
+    value: `${new Date().getFullYear()}-${pad(month)}-${pad(day)}`,
+    label,
+}));
+
+// A date picked by hand that isn't a preset leaves the menu on its placeholder
+const previewPreset = computed({
+    get: () => (presetOptions.some((o) => o.value === previewDate.value) ? previewDate.value : ''),
+    set: (value: string) => (previewDate.value = value),
+});
 
 // ─── app ──────────────────────────────────────────────────────────────────────
 async function restartOnboarding() {
@@ -540,6 +579,7 @@ async function restartOnboarding() {
                                     class="flex flex-col items-center gap-2"
                                 >
                                     <LogoMark
+                                        :holiday="null"
                                         :style="{ width: `${size}px`, height: `${size}px` }"
                                     />
                                     <span class="text-[10px] tabular-nums opacity-50">{{
@@ -564,6 +604,43 @@ async function restartOnboarding() {
                             </div>
                         </div>
                     </div>
+                </SettingsSection>
+
+                <SettingsSection id="holidays" title="Holidays">
+                    <SettingRow
+                        title="Preview date"
+                        :description="`${
+                            previewHoliday ? HOLIDAY_LABELS[previewHoliday] : 'No holiday'
+                        } on this date. Applies to the whole app until cleared or reloaded.`"
+                    >
+                        <SelectMenu
+                            v-model="previewPreset"
+                            :options="presetOptions"
+                            placeholder="Presets"
+                        />
+                        <input
+                            v-model="previewDate"
+                            type="date"
+                            class="h-9 rounded-lg bg-white/5 px-3 text-sm ring-1 ring-line [color-scheme:dark] outline-none focus:ring-accent/60"
+                        />
+                        <button v-if="dateOverride" :class="BUTTON" @click="dateOverride = null">
+                            Today
+                        </button>
+                    </SettingRow>
+                    <SettingRow
+                        title="Click effects"
+                        description="What clicking the header logo does on each holiday."
+                    >
+                        <button
+                            v-for="holiday in HOLIDAYS"
+                            :key="holiday"
+                            :class="BUTTON"
+                            @click="celebrate(holiday)"
+                        >
+                            <LogoMark :holiday="holiday" class="size-4" />
+                            {{ HOLIDAY_LABELS[holiday] }}
+                        </button>
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection id="general" title="App">

@@ -20,6 +20,7 @@ export const settings = sqliteTable('settings', {
     discordShowDetails: integer('discord_show_details', { mode: 'boolean' })
         .notNull()
         .default(true),
+    holidayEffects: integer('holiday_effects', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const extensions = sqliteTable('extensions', {

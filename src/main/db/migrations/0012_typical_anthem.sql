@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `holiday_effects` integer DEFAULT true NOT NULL;

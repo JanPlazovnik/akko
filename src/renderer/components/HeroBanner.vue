@@ -5,14 +5,17 @@ import type { Media } from '@shared/graphql/queries';
 import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
 import Badge from './ui/Badge.vue';
+import HolidaySnow from './HolidaySnow.vue';
 import { accentStyle } from '../lib/accent';
 import { mediaMeta, stripHtml } from '../lib/media-labels';
+import { useHoliday } from '../lib/holidays';
 
 const SLIDE_MS = 7000;
 
 const props = defineProps<{ items: Media[] }>();
 const mediaStore = useMediaStore();
 const accounts = useAccountsStore();
+const holiday = useHoliday();
 
 const heroIndex = ref(0);
 const paused = ref(false);
@@ -69,6 +72,8 @@ function go(index: number) {
                 />
             </div>
         </Transition>
+
+        <HolidaySnow v-if="holiday === 'CHRISTMAS'" />
 
         <Transition name="hero-fade" mode="out-in">
             <div

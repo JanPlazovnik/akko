@@ -38,6 +38,7 @@ export type AppSettings = {
     showStreamStats: boolean;
     discordPresence: boolean;
     discordShowDetails: boolean;
+    holidayEffects: boolean;
 };
 
 export type PresenceState = {

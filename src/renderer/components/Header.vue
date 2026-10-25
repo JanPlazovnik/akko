@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { FlaskConical, Home, Library, Search, Settings, X } from '@lucide/vue';
 import WindowControls from './WindowControls.vue';
 import LogoMark from './LogoMark.vue';
+import { dateOverride, useAmbientEffects, useHoliday } from '../lib/holidays';
+import { celebrate, newYearShow, releaseBat } from '../lib/holiday-effects';
 
 const route = useRoute();
 const router = useRouter();
@@ -61,6 +63,39 @@ function onKeydown(event: KeyboardEvent) {
 
 onMounted(() => document.addEventListener('keydown', onKeydown));
 onUnmounted(() => document.removeEventListener('keydown', onKeydown));
+
+const holiday = useHoliday();
+const ambient = useAmbientEffects();
+let batTimer: ReturnType<typeof setTimeout> | undefined;
+let celebrated = false;
+
+function onLogoClick() {
+    if (holiday.value) celebrate(holiday.value);
+}
+
+// A bat every so often at Halloween, and fireworks the first time the app shows New Year. A
+// Playground preview has its own button for those, so picking the date doesn't set them off.
+watch(
+    ambient,
+    (active) => {
+        clearTimeout(batTimer);
+        if (active === 'HALLOWEEN') {
+            const next = (delay: number) =>
+                (batTimer = setTimeout(() => {
+                    releaseBat();
+                    if (Math.random() < 0.3) setTimeout(releaseBat, 400 + Math.random() * 800);
+                    next(8_000 + Math.random() * 12_000);
+                }, delay));
+            next(3_000);
+        }
+        if (active === 'NEW_YEAR' && !celebrated && !dateOverride.value) {
+            celebrated = true;
+            newYearShow(800);
+        }
+    },
+    { immediate: true }
+);
+onUnmounted(() => clearTimeout(batTimer));
 </script>
 
 <template>
@@ -70,7 +105,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
     >
         <div class="flex items-center pl-4">
             <div class="flex items-center gap-2">
-                <LogoMark class="size-7 text-white" />
+                <button data-holiday-logo class="no-drag" aria-label="akko" @click="onLogoClick">
+                    <LogoMark class="size-7 text-white" />
+                </button>
                 <span class="font-display text-lg font-semibold tracking-tight">akko</span>
             </div>
 
