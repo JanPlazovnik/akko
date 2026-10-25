@@ -31,11 +31,7 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(() => document.addEventListener('keydown', onKeydown));
 onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 
-const status = computed(() => {
-    if (player.error) return player.error;
-    if (player.loading) return 'Connecting to peers and fetching torrent metadata…';
-    return 'Nothing is playing right now.';
-});
+const idle = computed(() => !player.loading && !player.error);
 </script>
 
 <template>
@@ -51,22 +47,40 @@ const status = computed(() => {
         <div class="drag absolute inset-x-0 top-0 flex h-12 justify-end">
             <WindowControls class="h-11" />
         </div>
-        <div class="relative flex max-w-lg flex-col items-center gap-5 px-6 text-center">
+        <div v-if="idle" class="relative flex flex-col items-center px-6 text-center">
+            <p class="font-display text-5xl text-white/25 select-none">(&gt;へ&lt;)</p>
+            <h2 class="mt-6 font-display text-2xl font-semibold">Nothing is playing</h2>
+            <div class="mt-6 flex gap-2">
+                <button
+                    class="no-drag cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-white/20"
+                    @click="leave"
+                >
+                    Go back
+                </button>
+                <button
+                    class="no-drag cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black transition hover:brightness-110"
+                    @click="router.push('/')"
+                >
+                    Browse anime
+                </button>
+            </div>
+        </div>
+        <div v-else class="relative flex max-w-lg flex-col items-center gap-5 px-6 text-center">
             <Loader2 v-if="player.loading" :size="30" class="animate-spin text-accent" />
-            <AlertTriangle v-else-if="player.error" :size="30" class="text-red-400" />
+            <AlertTriangle v-else :size="30" class="text-red-400" />
             <div class="space-y-1">
                 <p v-if="player.title" class="text-sm font-medium text-white/50">
                     {{ player.title }}
                 </p>
                 <h2 class="font-display text-3xl font-semibold text-balance">
-                    <EpisodeLabel fallback="Nothing playing" />
+                    <EpisodeLabel />
                 </h2>
             </div>
             <p :class="['text-sm', player.error ? 'text-red-300/90' : 'text-white/50']">
-                {{ status }}
+                {{ player.error ?? 'Connecting to peers and fetching torrent metadata…' }}
             </p>
             <button
-                class="no-drag cursor-pointer rounded-full bg-white/10 px-5 py-2 text-sm font-medium transition-colors hover:bg-white/20"
+                class="no-drag cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-white/20"
                 @click="leave"
             >
                 {{ player.loading ? 'Cancel' : 'Go back' }}
