@@ -6,6 +6,7 @@ import { registerMetadataHandlers } from './metadata';
 import { registerAccountHandlers } from './accounts';
 import { registerAppHandlers } from './app';
 import { registerProgressHandlers } from './progress';
+import { registerPresenceHandlers } from './presence';
 
 export function registerAllHandlers() {
     registerAppHandlers();
@@ -16,4 +17,5 @@ export function registerAllHandlers() {
     registerMetadataHandlers();
     registerAccountHandlers();
     registerProgressHandlers();
+    registerPresenceHandlers();
 }

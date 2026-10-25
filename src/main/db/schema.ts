@@ -16,6 +16,10 @@ export const settings = sqliteTable('settings', {
     autoPickRelease: integer('auto_pick_release', { mode: 'boolean' }).notNull().default(true),
     autoplayNext: integer('autoplay_next', { mode: 'boolean' }).notNull().default(true),
     showStreamStats: integer('show_stream_stats', { mode: 'boolean' }).notNull().default(true),
+    discordPresence: integer('discord_presence', { mode: 'boolean' }).notNull().default(true),
+    discordShowDetails: integer('discord_show_details', { mode: 'boolean' })
+        .notNull()
+        .default(true),
 });
 
 export const extensions = sqliteTable('extensions', {

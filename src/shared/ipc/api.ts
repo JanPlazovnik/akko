@@ -36,6 +36,21 @@ export type AppSettings = {
     autoPickRelease: boolean;
     autoplayNext: boolean;
     showStreamStats: boolean;
+    discordPresence: boolean;
+    discordShowDetails: boolean;
+};
+
+export type PresenceState = {
+    anilistId: number;
+    title: string;
+    cover: string | null;
+    isAdult: boolean;
+    episode: number;
+    episodeCount: number | null;
+    episodeTitle: string | null;
+    status: 'loading' | 'playing' | 'paused';
+    position: number;
+    duration: number;
 };
 
 // From TMDB, for the home banner: an English title logo and a wide backdrop
@@ -193,6 +208,7 @@ export type AppApi = {
         all: () => Promise<WatchProgress[]>;
         save: (progress: WatchProgress) => void;
     };
+    setPresence: (state: PresenceState | null) => void;
     extensions: {
         list: () => Promise<InstalledExtension[]>;
         fetchRepository: (url: string) => Promise<ExtensionManifest[]>;

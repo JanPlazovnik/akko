@@ -241,6 +241,27 @@ onMounted(async () => {
                     >
                         <button :class="BUTTON" @click="openShortcuts">View</button>
                     </SettingRow>
+                    <SettingRow
+                        title="Discord status"
+                        description="Shows what you're watching on your Discord profile while Discord is open."
+                    >
+                        <Toggle
+                            :model-value="settings.discordPresence"
+                            label="Discord status"
+                            @update:model-value="store.update({ discordPresence: $event })"
+                        />
+                    </SettingRow>
+                    <SettingRow
+                        v-if="settings.discordPresence"
+                        title="Show the anime on Discord"
+                        description="When off, Discord only shows that you're watching anime in akko. Adult titles are always hidden."
+                    >
+                        <Toggle
+                            :model-value="settings.discordShowDetails"
+                            label="Show the anime on Discord"
+                            @update:model-value="store.update({ discordShowDetails: $event })"
+                        />
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection id="playback" title="Playback">

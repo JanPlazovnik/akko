@@ -13,6 +13,7 @@ import { configureLogger, getLogFilePath } from './logger';
 import { applyTorrentSettings } from './torrent/torrent';
 import { defaultDownloadPath } from './paths';
 import { getWindow } from './context';
+import { applyDiscordSettings } from './discord';
 
 const TMPFS_MAGIC = 0x01021994;
 
@@ -48,6 +49,10 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
         clean.maxConnections = clamp(patch.maxConnections, 1, 500);
     }
     if (patch.onboarded !== undefined) clean.onboarded = Boolean(patch.onboarded);
+    if (patch.discordPresence !== undefined) clean.discordPresence = Boolean(patch.discordPresence);
+    if (patch.discordShowDetails !== undefined) {
+        clean.discordShowDetails = Boolean(patch.discordShowDetails);
+    }
     if (patch.titleLanguage !== undefined && TITLE_LANGUAGES.includes(patch.titleLanguage)) {
         clean.titleLanguage = patch.titleLanguage;
     }
@@ -57,6 +62,7 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
 export function applySettings(settings: AppSettings) {
     configureLogger({ level: settings.logLevel, logToFile: settings.logToFile });
     applyTorrentSettings(settings);
+    applyDiscordSettings(settings);
 }
 
 export function updateSettings(patch: Partial<AppSettings>): AppSettings {

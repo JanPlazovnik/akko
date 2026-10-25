@@ -53,6 +53,7 @@ const api: AppApi = {
         // Fire and forget, so the last save still goes out while the window is closing
         save: (progress) => ipcRenderer.send('progress:save', progress),
     },
+    setPresence: (state) => ipcRenderer.send('presence:set', state),
 
     extensions: {
         list: () => ipcRenderer.invoke('extension:list'),
