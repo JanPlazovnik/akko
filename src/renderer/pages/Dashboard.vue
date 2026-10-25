@@ -73,7 +73,7 @@ async function play(item: ContinueItem) {
                 @play="play"
             />
             <MediaRow title="Trending now" :items="trending" />
-            <MediaRow title="Airing this season" :items="season" />
+            <MediaRow title="Airing this season" :items="season" featured />
             <MediaRow title="All-time popular" :items="popular" />
         </template>
     </div>

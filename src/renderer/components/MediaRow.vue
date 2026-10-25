@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, provide, onMounted, onUnmounted } from 'vue';
+import { ref, provide, watch, onMounted, onUnmounted } from 'vue';
 import { vAutoAnimate } from '@formkit/auto-animate/vue';
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import MediaCard from './MediaCard.vue';
+import FeaturedCard from './FeaturedCard.vue';
 import type { Media } from '@shared/graphql/queries';
 import type { ContinueItem } from '../stores/progress';
 
@@ -12,11 +13,15 @@ const { gutter = 'px-8' } = defineProps<{
     continueItems?: Map<number, ContinueItem>;
     labels?: Map<number, string>;
     gutter?: string;
+    featured?: boolean;
 }>();
 const emit = defineEmits<{ play: [item: ContinueItem] }>();
 
 const isScrolling = ref(false);
 provide('rowScrolling', isScrolling);
+const openFeatured = ref<number | null>(null);
+provide('openFeatured', openFeatured);
+watch(isScrolling, (scrolling) => scrolling && (openFeatured.value = null));
 
 const rowEl = ref<HTMLElement | null>(null);
 const canScrollLeft = ref(false);
@@ -110,6 +115,14 @@ function onClickCapture(e: MouseEvent) {
             @click.capture="onClickCapture"
         >
             <div
+                v-if="featured"
+                :class="['flex w-max items-start gap-4 pt-2 pb-2', gutter]"
+                @mouseleave="openFeatured = null"
+            >
+                <FeaturedCard v-for="item in items" :key="item.id" :item="item" />
+            </div>
+            <div
+                v-else
                 v-auto-animate
                 :class="['grid w-max grid-flow-col auto-cols-[168px] gap-4 pt-2 pb-2', gutter]"
             >

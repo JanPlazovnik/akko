@@ -83,6 +83,10 @@ export const DashboardQuery = graphql(
                     status_not: NOT_YET_RELEASED
                 ) {
                     ...MediaFragment
+                    nextAiringEpisode {
+                        episode
+                        airingAt
+                    }
                 }
             }
             popular: Page(page: 1, perPage: 25) {
