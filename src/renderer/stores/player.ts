@@ -28,6 +28,9 @@ type CueListener = (trackId: string, events: SubtitleEvent[]) => void;
 
 const log = createLogger('player');
 
+const STALL_SPEED = 16 * 1024;
+const STALL_MS = 20_000;
+
 const SKIPPABLE_CHAPTER = /\b(op|ed|opening|ending|intro|outro|credits|preview)\b/i;
 
 function defaultTrackId(tracks: SubtitleTrack[], lang: string): string {
@@ -49,6 +52,9 @@ export const usePlayerStore = defineStore('player', () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
     const stats = ref<StreamStats | null>(null);
+    // A swarm missing the pieces the player waits on crawls at a few KB/s and never finishes
+    const stalled = ref(false);
+    let slowSince: number | null = null;
     const fileMatch = ref<FileMatch | null>(null);
 
     const isPlaying = ref(false);
@@ -115,7 +121,11 @@ export const usePlayerStore = defineStore('player', () => {
     });
 
     window.api.on('stream:stats', (id, data) => {
-        if (id === torrentId.value) stats.value = data;
+        if (id !== torrentId.value) return;
+        stats.value = data;
+        const slow = data.progress < 1 && data.downloadSpeed < STALL_SPEED;
+        slowSince = slow ? (slowSince ?? Date.now()) : null;
+        stalled.value = slowSince !== null && Date.now() - slowSince >= STALL_MS;
     });
 
     // Read while the stream starts, so they can arrive before startStream resolves with the torrent id
@@ -184,6 +194,8 @@ export const usePlayerStore = defineStore('player', () => {
         loading.value = false;
         error.value = null;
         stats.value = null;
+        stalled.value = false;
+        slowSince = null;
         fileMatch.value = null;
         isPlaying.value = false;
         currentTime.value = 0;
@@ -264,6 +276,7 @@ export const usePlayerStore = defineStore('player', () => {
         loading,
         error,
         stats,
+        stalled,
         fileMatch,
         isPlaying,
         currentTime,
