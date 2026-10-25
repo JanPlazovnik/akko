@@ -41,6 +41,13 @@ const continueLabel = computed(() => {
     const episode = single.value ? null : `EP ${item.episode}`;
     return [episode, left && `${left}m left`].filter(Boolean).join(' · ') || null;
 });
+// Continue items only include airing shows with an episode out, so it's new unless already started
+const newEpisode = computed(
+    () =>
+        !!props.continueItem &&
+        !props.continueItem.record &&
+        (listEntry.value?.media ?? props.item).status === 'RELEASING'
+);
 const playLabel = computed(() => {
     const item = props.continueItem;
     if (!item) return props.actionLabel ?? 'Watch now';
@@ -214,6 +221,12 @@ function navigate() {
                 >
                     <Star :size="10" class="fill-accent text-accent" />
                     {{ item.averageScore }}
+                </span>
+                <span
+                    v-if="newEpisode"
+                    class="absolute top-2 right-2 rounded-md bg-accent px-1.5 py-0.5 text-[11px] font-semibold text-black"
+                >
+                    New
                 </span>
                 <span
                     v-if="continueLabel ?? listEntry"
