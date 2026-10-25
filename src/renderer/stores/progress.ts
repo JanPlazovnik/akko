@@ -4,7 +4,7 @@ import type { Media } from '@shared/graphql/queries';
 import type { WatchProgress } from '@shared/ipc/api';
 import type { WatchSelection } from '@shared/media/types';
 import { createLogger } from '../lib/logger';
-import { finishedAt, isUnaired } from '../lib/watching';
+import { airedEpisodes, finishedAt, isUnaired } from '../lib/watching';
 import router from '../router';
 import { entryMedia, useListStore } from './list';
 import { useMediaStore } from './media';
@@ -95,9 +95,12 @@ export const useProgressStore = defineStore('progress', () => {
         return record ? Math.max(0, record.position - RESUME_REWIND_S) : 0;
     }
 
-    // Without loaded episodes the next one is assumed to exist, as long as the count allows it
+    // Without loaded episodes or an airing schedule the next one is assumed to exist, as long as
+    // the count allows it
     function hasEpisode(media: Media, number: number): boolean {
         if (media.episodes && number > media.episodes) return false;
+        const aired = airedEpisodes(list.entryFor(media.id)?.media ?? {});
+        if (aired !== null) return number <= aired;
         const episodes = mediaStore.episodesFor(media.id);
         if (!episodes.length) return true;
         const episode = episodes.find((ep) => ep.number === number);

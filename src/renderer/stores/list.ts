@@ -12,6 +12,7 @@ import { anilistMutation, anilistUserQuery, staleWhileRevalidate } from '../lib/
 import { errorMessage } from '../lib/format';
 import { createLogger } from '../lib/logger';
 import { toast } from '../lib/toast';
+import { airedEpisodes } from '../lib/watching';
 import { useAccountsStore } from './accounts';
 import { useMediaStore } from './media';
 
@@ -81,8 +82,7 @@ function withRules(
 // Without a scheduled next episode AniList often still has one airing, so assume there is
 function hasUnwatchedEpisode({ media, progress }: ListEntry): boolean {
     if (!media || media.status === 'FINISHED') return true;
-    const aired = media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : Infinity;
-    return (progress ?? 0) < aired;
+    return (progress ?? 0) < (airedEpisodes(media) ?? Infinity);
 }
 
 export const useListStore = defineStore('list', () => {
