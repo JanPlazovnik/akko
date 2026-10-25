@@ -6,7 +6,7 @@ import { useMediaStore } from '../stores/media';
 import { useListStore } from '../stores/list';
 import { useAccountsStore } from '../stores/accounts';
 import { accentStyle } from '../lib/accent';
-import { listLabel, mediaMeta, stripHtml } from '../lib/media-labels';
+import { formatLabel, listLabel, mediaMeta, seasonLabel, stripHtml } from '../lib/media-labels';
 import type { ContinueItem } from '../stores/progress';
 
 const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
@@ -244,8 +244,9 @@ function navigate() {
 
             <div class="mt-2.5 px-0.5">
                 <p class="truncate text-[13px] font-medium leading-snug">{{ title }}</p>
-                <p class="mt-0.5 truncate text-[11px] text-white/40">
-                    {{ label ?? meta.slice(0, 2).join(' · ') }}
+                <p class="mt-0.5 flex justify-between gap-2 text-[11px] text-white/40">
+                    <span class="truncate">{{ label ?? seasonLabel(item) }}</span>
+                    <span class="shrink-0">{{ formatLabel(item) }}</span>
                 </p>
             </div>
         </div>

@@ -70,16 +70,23 @@ type MetaSource = {
     startDate?: { year?: number | null } | null;
 };
 
+export const seasonLabel = (media: MetaSource) =>
+    media.season && media.seasonYear
+        ? `${SEASON_LABELS[media.season] ?? media.season} ${media.seasonYear}`
+        : media.startDate?.year && String(media.startDate.year);
+
+export const formatLabel = (media: MetaSource) =>
+    media.format && (FORMAT_LABELS[media.format] ?? media.format);
+
+const present = (parts: (string | number | null | undefined)[]) =>
+    parts.filter((part): part is string => Boolean(part));
+
 export function mediaMeta(media: MetaSource): string[] {
-    const season =
-        media.season && media.seasonYear
-            ? `${SEASON_LABELS[media.season] ?? media.season} ${media.seasonYear}`
-            : media.startDate?.year && String(media.startDate.year);
-    return [
-        media.format && (FORMAT_LABELS[media.format] ?? media.format),
+    return present([
+        formatLabel(media),
         media.episodes && `${media.episodes} ${media.episodes === 1 ? 'episode' : 'episodes'}`,
-        season,
-    ].filter((part): part is string => Boolean(part));
+        seasonLabel(media),
+    ]);
 }
 
 export function stripHtml(value?: string | null): string {

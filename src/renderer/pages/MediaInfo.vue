@@ -18,13 +18,7 @@ import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import TrailerDialog from '../components/TrailerDialog.vue';
 import BrandIcon from '../components/ui/BrandIcon.vue';
 import ListEntryDialog from '../components/ListEntryDialog.vue';
-import {
-    FORMAT_LABELS,
-    RELATION_LABELS,
-    STATUS_LABELS,
-    mediaMeta,
-    stripHtml,
-} from '../lib/media-labels';
+import { RELATION_LABELS, STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
 import { toast } from '../lib/toast';
 import { useMediaStore } from '../stores/media';
@@ -116,9 +110,7 @@ const relatedLabels = computed(
         new Map(
             details.value?.related.map(({ relation, media }) => [
                 media.id,
-                [RELATION_LABELS[relation], media.format && FORMAT_LABELS[media.format]]
-                    .filter(Boolean)
-                    .join(' · '),
+                RELATION_LABELS[relation] ?? relation,
             ])
         )
 );
