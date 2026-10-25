@@ -1,6 +1,5 @@
 import { app, BrowserWindow, session, shell } from 'electron';
 import path from 'node:path';
-import started from 'electron-squirrel-startup';
 import log from 'electron-log/main';
 import { initClient } from './torrent/torrent';
 import { initContext } from './context';
@@ -12,12 +11,13 @@ import { applySettings } from './settings';
 import { pruneCache } from './cache';
 import { removeLegacyDownloads } from './paths';
 import { refreshAnilistAccount } from './accounts/anilist';
-import { checkPeriodically, updateOnLaunch } from './updater';
+import { checkPeriodically, handleInstallerEvents, updateOnLaunch } from './updater';
 
 log.initialize();
 const logger = createLogger('main');
 
-if (started) {
+const installerEvent = handleInstallerEvents();
+if (installerEvent) {
     app.quit();
 }
 
@@ -90,9 +90,9 @@ const createWindow = () => {
 };
 
 app.on('ready', async () => {
-    // Squirrel launches the app on install and update only to run its hooks. Starting up anyway
-    // gets the extension host torn down mid-load, which fails and disables every extension
-    if (started) return;
+    // The installer launches the app only to run its hooks. Starting up anyway gets the extension
+    // host torn down mid-load, which fails and disables every extension
+    if (installerEvent) return;
 
     const update = await updateOnLaunch();
     if (update.installing) return;

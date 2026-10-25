@@ -28,15 +28,43 @@ jobs:
 
             - run: npm ci
 
-            - run: npm run make
+            - if: runner.os == 'Linux'
+              run: npm run make
+
+            # Velopack builds the Windows installer and updates from the packaged app. Its CLI has
+            # to match the velopack npm package's version.
+            - if: runner.os == 'Windows'
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: 8.0.x
+
+            - if: runner.os == 'Windows'
+              shell: bash
+              run: |
+                  version="$(node -p "require('./package.json').version")"
+                  npm run package
+                  dotnet tool install -g vpk --version "$(node -p "require('velopack/package.json').version")"
+                  # The previous release lets vpk build a delta update; the first Velopack release has none
+                  vpk download github --repoUrl "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --token "$GITHUB_TOKEN" --outputDir releases || true
+                  vpk pack --packId akko --packVersion "$version" \
+                      --packDir out/akko-win32-x64 --mainExe akko.exe --packTitle akko --runtime win-x64 \
+                      --packAuthors relevantcroissant --icon assets/icon.ico \
+                      --splashImage assets/installing.gif --outputDir releases
+                  # The previous release's package was only needed for the delta
+                  find releases -name '*.nupkg' ! -name "*-$version-*" -delete
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             - uses: actions/upload-artifact@v4
               with:
                   name: akko-${{ runner.os }}
+                  # RELEASES and the full .nupkg also let Squirrel installs update into Velopack
                   path: |
-                      out/make/**/*.exe
-                      out/make/**/*.nupkg
-                      out/make/**/RELEASES
+                      releases/*-Setup.exe
+                      releases/*.nupkg
+                      releases/RELEASES
+                      releases/releases.win.json
+                      releases/assets.win.json
                       out/make/**/*.deb
                       out/make/**/*.rpm
                       out/make/**/*.AppImage

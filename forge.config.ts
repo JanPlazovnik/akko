@@ -2,7 +2,6 @@ import { readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerAppImage } from '@reforged/maker-appimage';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
@@ -12,6 +11,8 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 // prebuilds/<platform>-<arch>/… folders, or prebuilds/<platform>-<arch>.node files (better-sqlite3)
 const PREBUILD = /[/\\]prebuilds[/\\]([^/\\]+?)(?:\.node)?(?=$|[/\\])/;
+// Velopack ships its native module for every platform, and only Windows uses it
+const VELOPACK_NATIVE = /[/\\]velopack[/\\]lib[/\\]native[/\\]velopack_nodeffi_(\w+)\.node$/;
 const KEEP_LOCALES = new Set(['en-US.pak']);
 
 // The UI is English only; Chromium falls back to en-US for its own strings
@@ -31,6 +32,10 @@ const config: ForgeConfig = {
         ignore: (file) => {
             if (!file) return false;
             if (!/^[/\\](\.vite|node_modules|package\.json)($|[/\\])/.test(file)) return true;
+            const velopack = VELOPACK_NATIVE.exec(file)?.[1];
+            if (velopack) {
+                return process.platform !== 'win32' || velopack !== `win_${process.arch}_msvc`;
+            }
             const prebuild = PREBUILD.exec(file)?.[1];
             return !!prebuild && prebuild !== `${process.platform}-${process.arch}`;
         },
@@ -44,12 +49,6 @@ const config: ForgeConfig = {
     },
     rebuildConfig: {},
     makers: [
-        new MakerSquirrel({
-            setupIcon: 'assets/icon.ico',
-            // Shown in Windows' installed apps list, Squirrel downloads it during install
-            iconUrl: 'https://raw.githubusercontent.com/JanPlazovnik/akko/main/assets/icon.ico',
-            loadingGif: 'assets/installing.gif',
-        }),
         new MakerZIP({}, ['darwin']),
         new MakerRpm({ options: { icon: 'assets/icon.png' } }),
         new MakerDeb({ options: { icon: 'assets/icon.png' } }),
