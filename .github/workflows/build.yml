@@ -50,6 +50,17 @@ jobs:
         permissions:
             contents: write
         steps:
+            - uses: actions/checkout@v4
+
+            # The notes are the annotated tag's message; checkout drops it, so fetch the tag itself
+            - name: Read release notes from the tag
+              run: |
+                  git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+                  if [ "$(git cat-file -t "$GITHUB_REF_NAME")" = tag ]; then
+                      git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > notes.md
+                  fi
+                  touch notes.md
+
             - uses: actions/download-artifact@v4
               with:
                   path: dist
@@ -58,4 +69,5 @@ jobs:
             - uses: softprops/action-gh-release@v2
               with:
                   files: dist/**/*
+                  body_path: notes.md
                   generate_release_notes: true
