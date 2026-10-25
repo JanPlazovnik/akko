@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Search, X } from '@lucide/vue';
+import type { Media } from '@shared/graphql/queries';
 import MediaCard from '../components/MediaCard.vue';
 import { LIST_STATUS_LABELS } from '../lib/media-labels';
 import { LIST_STATUSES, entryMedia, useListStore, type ListStatus } from '../stores/list';
@@ -11,12 +13,38 @@ const router = useRouter();
 const list = useListStore();
 const accounts = useAccountsStore();
 
+const query = ref('');
+const normalize = (text: string) => text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+const words = computed(() => normalize(query.value).split(/\s+/).filter(Boolean));
+
+function matches(media: Media) {
+    const { english, romaji, native } = media.title ?? {};
+    const titles = normalize([english, romaji, native].filter(Boolean).join(' '));
+    return words.value.every((word) => titles.includes(word));
+}
+
+const filtered = computed(
+    () =>
+        Object.fromEntries(
+            LIST_STATUSES.map((status) => [
+                status,
+                list.byStatus[status].map(entryMedia).filter(matches),
+            ])
+        ) as Record<ListStatus, Media[]>
+);
+
+// While searching, the counts show where the matches are
 const tabs = computed(() =>
     LIST_STATUSES.map((status) => ({
         status,
         label: LIST_STATUS_LABELS[status],
-        count: list.byStatus[status].length,
-    })).filter((tab) => tab.count || tab.status !== 'REPEATING')
+        count: filtered.value[status].length,
+    })).filter(
+        (tab) =>
+            tab.count ||
+            tab.status === active.value ||
+            (tab.status !== 'REPEATING' && !words.value.length)
+    )
 );
 
 const active = computed<ListStatus>(() => {
@@ -24,7 +52,7 @@ const active = computed<ListStatus>(() => {
     return LIST_STATUSES.includes(status) ? status : 'CURRENT';
 });
 
-const items = computed(() => list.byStatus[active.value].map(entryMedia));
+const items = computed(() => filtered.value[active.value]);
 
 const select = (status: ListStatus) => void router.replace({ query: { status } });
 </script>
@@ -49,6 +77,28 @@ const select = (status: ListStatus) => void router.replace({ query: { status } }
                 {{ tab.label }}
                 <span class="text-xs text-white/35 tabular-nums">{{ tab.count }}</span>
             </button>
+
+            <label
+                class="ml-auto flex h-8 w-60 cursor-text items-center gap-2 rounded-full bg-white/5 px-3.5 text-sm ring-1 ring-line transition-colors focus-within:bg-white/10 focus-within:ring-white/20 hover:bg-white/8"
+            >
+                <Search :size="13" class="shrink-0 text-white/40" />
+                <input
+                    v-model="query"
+                    type="text"
+                    spellcheck="false"
+                    placeholder="Search your list"
+                    class="w-0 min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/40"
+                    @keydown.esc="query = ''"
+                />
+                <button
+                    v-if="query"
+                    class="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
+                    title="Clear"
+                    @click.prevent="query = ''"
+                >
+                    <X :size="12" />
+                </button>
+            </label>
         </div>
 
         <div class="px-8 py-6">
@@ -87,6 +137,11 @@ const select = (status: ListStatus) => void router.replace({ query: { status } }
                 </template>
             </div>
 
+            <p v-else-if="words.length" class="py-24 text-center text-sm text-white/40">
+                Nothing in {{ LIST_STATUS_LABELS[active].toLowerCase() }} matches “{{
+                    query.trim()
+                }}”.
+            </p>
             <p v-else class="py-24 text-center text-sm text-white/40">
                 Nothing in {{ LIST_STATUS_LABELS[active].toLowerCase() }} yet.
             </p>
