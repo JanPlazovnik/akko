@@ -1,14 +1,11 @@
 /// <reference types="vite/client" />
 import { app, BrowserWindow } from 'electron';
-import {
-    HttpSource,
-    UpdateManager,
-    VelopackApp,
-    type UpdateInfo,
-    type VelopackAsset,
-} from 'velopack';
+import type { UpdateInfo, UpdateManager, VelopackAsset } from 'velopack';
 import icon from '../../assets/icon.svg?raw';
 import { createLogger } from './logger';
+
+// Importing velopack loads its native module, which only Windows builds ship
+const velopack = (): typeof import('velopack') => require('velopack');
 
 const log = createLogger('updater');
 
@@ -73,7 +70,8 @@ export function handleInstallerEvents(): boolean {
     if (process.argv.some((arg) => SQUIRREL_HOOKS.has(arg))) return true;
     // Updates downloaded in the background are installed by updateOnLaunch instead, behind the app's
     // own window rather than Velopack's
-    VelopackApp.build()
+    velopack()
+        .VelopackApp.build()
         .setAutoApplyOnStartup(false)
         .setLogger((level, message) => log[level === 'trace' ? 'debug' : level](message))
         .run();
@@ -86,6 +84,7 @@ let manager: UpdateManager | null = null;
 function updateManager(): UpdateManager | null {
     if (!enabled()) return null;
     try {
+        const { HttpSource, UpdateManager } = velopack();
         manager ??= new UpdateManager(new HttpSource(FEED_URL));
     } catch (err) {
         log.warn('Updates unavailable:', err instanceof Error ? err.message : err);
