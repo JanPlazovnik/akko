@@ -89,7 +89,7 @@ const idle = computed(() => !player.loading && !player.error);
     </div>
 
     <media-buffering-indicator
-        class="pointer-events-none absolute inset-0 z-10 hidden place-items-center data-visible:grid"
+        class="pointer-events-none absolute inset-0 z-25 hidden place-items-center data-visible:grid"
     >
         <div
             class="flex flex-col items-center gap-3 rounded-2xl bg-black/55 px-6 py-4 backdrop-blur-md"
@@ -97,6 +97,16 @@ const idle = computed(() => !player.loading && !player.error);
             <Loader2 :size="28" class="animate-spin" />
             <p v-if="player.stats" class="text-xs text-white/70 tabular-nums">
                 {{ formatSpeed(player.stats.downloadSpeed) }} · {{ player.stats.peers }} peers
+            </p>
+            <p v-if="player.stalled" class="max-w-64 text-center text-xs text-amber-200/90">
+                The download has stalled, peers may be missing part of this release.
+                <button
+                    v-if="player.pickerContext"
+                    class="pointer-events-auto cursor-pointer text-white/80 underline decoration-white/30 underline-offset-4 transition-colors hover:text-white hover:decoration-white"
+                    @click="player.pickAnotherRelease()"
+                >
+                    Pick another release
+                </button>
             </p>
         </div>
     </media-buffering-indicator>

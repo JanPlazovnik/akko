@@ -19,6 +19,7 @@ import MiniPlayerOverlay from './player/MiniPlayerOverlay.vue';
 import UpNext from './player/UpNext.vue';
 import PlayerContextMenu from './player/PlayerContextMenu.vue';
 import SkipChapter from './player/SkipChapter.vue';
+import ActionFeedback from './player/ActionFeedback.vue';
 import TorrentPickerDialog from './TorrentPickerDialog.vue';
 
 type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -331,6 +332,7 @@ onUnmounted(() => audioBridge?.dispose());
                         <PlayerControls :fullscreen="isFullscreen" />
                         <UpNext />
                         <SkipChapter @seek="seek" />
+                        <ActionFeedback :video="videoRef" />
                     </template>
                     <MiniPlayerOverlay v-else />
                     <PlayerStatus v-if="isPlayerRoute" />

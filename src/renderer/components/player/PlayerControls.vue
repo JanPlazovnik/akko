@@ -82,6 +82,16 @@ const sectionStyles = computed(() =>
 const hoverIndex = ref(-1);
 const hoverChapter = computed(() => sections.value[hoverIndex.value]?.title);
 
+// A clicked button or slider keeps focus, and the hotkeys leave Space and Enter to whatever has
+// focus, so Space would press the button again or do nothing on the seek bar instead of pausing.
+// Listens while capturing, because the sliders stop pointerup from bubbling.
+function releaseFocus(event: PointerEvent) {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && (event.currentTarget as Node).contains(focused)) {
+        focused.blur();
+    }
+}
+
 function onSliderPointer(event: PointerEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const fraction = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
@@ -93,6 +103,7 @@ function onSliderPointer(event: PointerEvent) {
 <template>
     <media-controls
         class="group/controls absolute inset-0 z-20 flex flex-col justify-between opacity-0 transition-opacity duration-300 will-change-[opacity] data-visible:opacity-100"
+        @pointerup.capture="releaseFocus"
     >
         <div
             class="pointer-events-none bg-linear-to-b from-black/75 via-black/30 to-transparent pb-24"
