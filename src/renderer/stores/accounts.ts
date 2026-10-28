@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import type { AnilistAccount } from '@shared/ipc/api';
 import { mediaTitle } from '@shared/media/types';
 import { errorMessage, formatRelativeDate } from '../lib/format';
+import { t } from '../i18n';
 import { toast } from '../lib/toast';
 import router from '../router';
 import { useSettingsStore } from './settings';
@@ -51,14 +52,17 @@ export const useAccountsStore = defineStore('accounts', () => {
     async function warnIfExpiring() {
         await load();
         const expiry = anilistExpiry();
-        const action = { label: 'Reconnect', onClick: () => void router.push('/settings') };
+        const action = {
+            label: t('accounts.reconnect'),
+            onClick: () => void router.push('/settings'),
+        };
         if (expiry?.expired) {
-            toast.error('Your AniList login expired. Reconnect it to keep syncing.', {
+            toast.error(t('accounts.expired'), {
                 action,
                 duration: false,
             });
         } else if (expiry?.soon) {
-            toast.warn(`Your AniList login expires ${expiry.relative}. Reconnect it to renew it.`, {
+            toast.warn(t('accounts.expiring', { when: expiry.relative ?? '' }), {
                 action,
             });
         }
@@ -68,10 +72,12 @@ export const useAccountsStore = defineStore('accounts', () => {
         connecting.value = true;
         try {
             anilist.value = await window.api.accounts.loginAnilist();
-            toast.success(`Connected to AniList as ${anilist.value.name}`);
+            toast.success(t('accounts.connected', { name: anilist.value.name }));
         } catch (err) {
             const message = errorMessage(err);
-            if (message !== 'Login cancelled') toast.error(`Couldn't connect AniList: ${message}`);
+            if (message !== 'Login cancelled') {
+                toast.error(t('accounts.connectFailed', { error: message }));
+            }
         } finally {
             connecting.value = false;
         }

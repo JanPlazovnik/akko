@@ -23,7 +23,7 @@ const BUTTON =
         <div class="flex justify-end gap-1.5 p-2">
             <button
                 :class="[BUTTON, 'size-7']"
-                title="Expand"
+                :title="$t('player.expand')"
                 @mousedown.stop
                 @click.stop="router.push('/player')"
             >
@@ -31,7 +31,7 @@ const BUTTON =
             </button>
             <button
                 :class="[BUTTON, 'size-7']"
-                title="Stop"
+                :title="$t('player.stop')"
                 @mousedown.stop
                 @click.stop="player.stopStream()"
             >

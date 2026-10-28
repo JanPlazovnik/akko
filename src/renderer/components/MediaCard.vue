@@ -6,8 +6,16 @@ import { useMediaStore } from '../stores/media';
 import { useListStore } from '../stores/list';
 import { useAccountsStore } from '../stores/accounts';
 import { accentStyle } from '../lib/accent';
-import { formatLabel, listLabel, mediaMeta, seasonLabel, stripHtml } from '../lib/media-labels';
+import {
+    formatLabel,
+    genreLabel,
+    listLabel,
+    mediaMeta,
+    seasonLabel,
+    stripHtml,
+} from '../lib/media-labels';
 import type { ContinueItem } from '../stores/progress';
+import { t } from '../i18n';
 
 const isScrolling = inject<ReturnType<typeof ref<boolean>>>('rowScrolling', ref(false));
 
@@ -38,8 +46,11 @@ const continueLabel = computed(() => {
     const item = props.continueItem;
     if (!item) return null;
     const left = item.record && Math.ceil((item.record.duration - item.record.position) / 60);
-    const episode = single.value ? null : `EP ${item.episode}`;
-    return [episode, left && `${left}m left`].filter(Boolean).join(' · ') || null;
+    const episode = single.value ? null : t('mediaCard.episodeShort', { episode: item.episode });
+    return (
+        [episode, left && t('mediaCard.minutesLeft', { n: left })].filter(Boolean).join(' · ') ||
+        null
+    );
 });
 // Continue items only include airing shows with an episode out, so it's new unless already started
 const newEpisode = computed(
@@ -50,9 +61,10 @@ const newEpisode = computed(
 );
 const playLabel = computed(() => {
     const item = props.continueItem;
-    if (!item) return props.actionLabel ?? 'Watch now';
-    const verb = item.record ? 'Resume' : 'Watch';
-    return single.value ? verb : `${verb} episode ${item.episode}`;
+    if (!item) return props.actionLabel ?? t('common.watchNow');
+    if (single.value) return item.record ? t('common.resume') : t('common.watch');
+    const key = item.record ? 'mediaCard.resumeEpisode' : 'mediaCard.watchEpisode';
+    return t(key, { episode: item.episode });
 });
 
 function play() {
@@ -195,7 +207,7 @@ function navigate() {
                                 :key="genre!"
                                 class="rounded-full bg-white/6 px-2.5 py-1 text-[11px] whitespace-nowrap text-white/50"
                             >
-                                {{ genre }}
+                                {{ genreLabel(genre!) }}
                             </span>
                         </div>
                     </div>
@@ -226,7 +238,7 @@ function navigate() {
                     v-if="newEpisode"
                     class="absolute top-2 right-2 rounded-md bg-accent px-1.5 py-0.5 text-[11px] font-semibold text-black"
                 >
-                    New
+                    {{ $t('mediaCard.new') }}
                 </span>
                 <span
                     v-if="continueLabel ?? listEntry"

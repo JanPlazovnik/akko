@@ -19,7 +19,7 @@ const player = usePlayerStore();
             @click.stop="emit('seek', player.skippableChapter.end)"
         >
             <SkipForward :size="16" fill="currentColor" />
-            Skip {{ player.skippableChapter.title }}
+            {{ $t('player.skip', { chapter: player.skippableChapter.title }) }}
         </button>
     </Transition>
 </template>

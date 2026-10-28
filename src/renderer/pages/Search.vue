@@ -10,6 +10,8 @@ import { useMediaStore } from '../stores/media';
 import MediaCard from '../components/MediaCard.vue';
 import SelectMenu from '../components/ui/SelectMenu.vue';
 import MultiSelectMenu from '../components/ui/MultiSelectMenu.vue';
+import { formatLabel, genreLabel, seasonName, statusLabel } from '../lib/media-labels';
+import { t } from '../i18n';
 
 const route = useRoute();
 const router = useRouter();
@@ -43,36 +45,18 @@ async function loadTags() {
         .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-const SORT = [
-    { value: 'TRENDING_DESC', label: 'Trending' },
-    { value: 'POPULARITY_DESC', label: 'Popular' },
-    { value: 'SCORE_DESC', label: 'Top Rated' },
-    { value: 'START_DATE_DESC', label: 'Newest' },
-    { value: 'TITLE_ROMAJI', label: 'A-Z' },
-];
+const options = (values: string[], label: (value: string) => string) =>
+    computed(() => values.map((value) => ({ value, label: label(value) })));
 
-const SEASONS = [
-    { value: 'WINTER', label: 'Winter' },
-    { value: 'SPRING', label: 'Spring' },
-    { value: 'SUMMER', label: 'Summer' },
-    { value: 'FALL', label: 'Fall' },
-];
-
-const FORMATS = [
-    { value: 'TV', label: 'TV Show' },
-    { value: 'MOVIE', label: 'Movie' },
-    { value: 'TV_SHORT', label: 'TV Short' },
-    { value: 'SPECIAL', label: 'Special' },
-    { value: 'OVA', label: 'OVA' },
-    { value: 'ONA', label: 'ONA' },
-    { value: 'MUSIC', label: 'Music' },
-];
-
-const STATUSES = [
-    { value: 'RELEASING', label: 'Airing' },
-    { value: 'FINISHED', label: 'Finished' },
-    { value: 'CANCELLED', label: 'Cancelled' },
-];
+const SORT = options(
+    ['TRENDING_DESC', 'POPULARITY_DESC', 'SCORE_DESC', 'START_DATE_DESC', 'TITLE_ROMAJI'],
+    (sort) => t(`search.sort.${sort}`)
+);
+const SEASONS = options(['WINTER', 'SPRING', 'SUMMER', 'FALL'], seasonName);
+const FORMATS = options(['TV', 'MOVIE', 'TV_SHORT', 'SPECIAL', 'OVA', 'ONA', 'MUSIC'], (format) =>
+    format === 'TV' ? t('search.tvShow') : formatLabel({ format }) || format
+);
+const STATUSES = options(['RELEASING', 'FINISHED', 'CANCELLED'], statusLabel);
 
 const GENRES = [
     'Action',
@@ -94,6 +78,7 @@ const GENRES = [
     'Supernatural',
     'Thriller',
 ];
+const GENRE_OPTIONS = options(GENRES, genreLabel);
 
 const thisYear = new Date().getFullYear();
 const YEARS = Array.from({ length: thisYear + 1 - 1941 + 1 }, (_, i) => {
@@ -162,7 +147,7 @@ async function fetchPage(reset = false) {
     try {
         await mediaStore.searchAnime(buildVars() as any, reset);
     } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Search failed');
+        toast.error(err instanceof Error ? err.message : t('search.failed'));
     } finally {
         if (reset) {
             loadingBar.finish();
@@ -252,26 +237,42 @@ onUnmounted(() => scrollObserver?.disconnect());
         <div
             class="sticky top-0 z-50 flex flex-wrap items-center gap-2 border-b border-line bg-surface/85 px-8 py-4 backdrop-blur-md"
         >
-            <SelectMenu v-model="filters.sort" :options="SORT" placeholder="Sort" />
-            <SelectMenu v-model="filters.season" :options="SEASONS" placeholder="Season" />
+            <SelectMenu
+                v-model="filters.sort"
+                :options="SORT"
+                :placeholder="$t('search.filters.sort')"
+            />
+            <SelectMenu
+                v-model="filters.season"
+                :options="SEASONS"
+                :placeholder="$t('search.filters.season')"
+            />
             <SelectMenu
                 :model-value="filters.year ? String(filters.year) : ''"
                 :options="YEARS"
-                placeholder="Year"
+                :placeholder="$t('search.filters.year')"
                 :scrollable="true"
                 @update:model-value="filters.year = $event ? Number($event) : null"
             />
-            <SelectMenu v-model="filters.status" :options="STATUSES" placeholder="Status" />
-            <MultiSelectMenu v-model="filters.format" :options="FORMATS" placeholder="Format" />
+            <SelectMenu
+                v-model="filters.status"
+                :options="STATUSES"
+                :placeholder="$t('search.filters.status')"
+            />
+            <MultiSelectMenu
+                v-model="filters.format"
+                :options="FORMATS"
+                :placeholder="$t('search.filters.format')"
+            />
             <MultiSelectMenu
                 v-model="filters.genres"
-                :options="GENRES.map((g) => ({ value: g, label: g }))"
-                placeholder="Genres"
+                :options="GENRE_OPTIONS"
+                :placeholder="$t('search.filters.genres')"
             />
             <MultiSelectMenu
                 v-model="filters.tags"
                 :options="tagOptions"
-                placeholder="Tags"
+                :placeholder="$t('search.filters.tags')"
                 searchable
             />
 
@@ -280,7 +281,7 @@ onUnmounted(() => scrollObserver?.disconnect());
                 class="flex items-center gap-1 h-8 px-3 rounded-full text-xs bg-neutral-800 hover:bg-neutral-700 text-white/50 hover:text-white transition-colors"
                 @click="clearFilters"
             >
-                <X :size="11" /> Clear
+                <X :size="11" /> {{ $t('common.clear') }}
             </button>
         </div>
 
@@ -306,11 +307,11 @@ onUnmounted(() => scrollObserver?.disconnect());
                     class="h-8 px-3 rounded-full text-xs bg-neutral-800 hover:bg-neutral-700 text-white/50 hover:text-white transition-colors"
                     @click="retry"
                 >
-                    Try again
+                    {{ $t('search.tryAgain') }}
                 </button>
             </div>
             <div v-else-if="!hasNextPage && results.length" class="flex justify-center pb-4">
-                <span class="text-white/15 text-xs">End of results</span>
+                <span class="text-white/15 text-xs">{{ $t('search.end') }}</span>
             </div>
         </div>
     </div>

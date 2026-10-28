@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Search, X } from '@lucide/vue';
 import type { Media } from '@shared/graphql/queries';
 import MediaCard from '../components/MediaCard.vue';
-import { LIST_STATUS_LABELS } from '../lib/media-labels';
+import { listStatusLabel } from '../lib/media-labels';
 import { LIST_STATUSES, entryMedia, useListStore, type ListStatus } from '../stores/list';
 import { useAccountsStore } from '../stores/accounts';
 
@@ -37,7 +37,7 @@ const filtered = computed(
 const tabs = computed(() =>
     LIST_STATUSES.map((status) => ({
         status,
-        label: LIST_STATUS_LABELS[status],
+        label: listStatusLabel(status),
         count: filtered.value[status].length,
     })).filter(
         (tab) =>
@@ -53,6 +53,7 @@ const active = computed<ListStatus>(() => {
 });
 
 const items = computed(() => filtered.value[active.value]);
+const activeLabel = computed(() => listStatusLabel(active.value).toLocaleLowerCase());
 
 const select = (status: ListStatus) => void router.replace({ query: { status } });
 </script>
@@ -86,14 +87,14 @@ const select = (status: ListStatus) => void router.replace({ query: { status } }
                     v-model="query"
                     type="text"
                     spellcheck="false"
-                    placeholder="Search your list"
+                    :placeholder="$t('library.search')"
                     class="w-0 min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/40"
                     @keydown.esc="query = ''"
                 />
                 <button
                     v-if="query"
                     class="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
-                    title="Clear"
+                    :title="$t('common.clear')"
                     @click.prevent="query = ''"
                 >
                     <X :size="12" />
@@ -106,20 +107,20 @@ const select = (status: ListStatus) => void router.replace({ query: { status } }
                 v-if="!accounts.anilist"
                 class="flex flex-col items-center gap-3 py-24 text-center"
             >
-                <p class="font-display text-xl font-semibold">Your lists live on AniList</p>
+                <p class="font-display text-xl font-semibold">{{ $t('library.connectTitle') }}</p>
                 <p class="max-w-sm text-sm text-white/45">
-                    Connect your account to see what you're watching, planning and have finished.
+                    {{ $t('library.connectBody') }}
                 </p>
                 <RouterLink
                     to="/settings"
                     class="mt-2 inline-flex h-9 items-center rounded-lg bg-white/8 px-3 text-sm font-medium transition-colors hover:bg-white/14"
                 >
-                    Connect AniList
+                    {{ $t('library.connect') }}
                 </RouterLink>
             </div>
 
             <p v-else-if="list.error && !list.entries.length" class="py-24 text-center text-sm">
-                <span class="text-red-400">Couldn't load your list:</span>
+                <span class="text-red-400">{{ $t('library.loadFailed') }}</span>
                 <span class="text-white/45"> {{ list.error }}</span>
             </p>
 
@@ -138,12 +139,10 @@ const select = (status: ListStatus) => void router.replace({ query: { status } }
             </div>
 
             <p v-else-if="words.length" class="py-24 text-center text-sm text-white/40">
-                Nothing in {{ LIST_STATUS_LABELS[active].toLowerCase() }} matches “{{
-                    query.trim()
-                }}”.
+                {{ $t('library.noMatches', { status: activeLabel, query: query.trim() }) }}
             </p>
             <p v-else class="py-24 text-center text-sm text-white/40">
-                Nothing in {{ LIST_STATUS_LABELS[active].toLowerCase() }} yet.
+                {{ $t('library.empty', { status: activeLabel }) }}
             </p>
         </div>
     </div>

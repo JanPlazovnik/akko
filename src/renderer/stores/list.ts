@@ -10,6 +10,7 @@ import {
 import type { ResultOf, VariablesOf } from '@shared/graphql/graphql';
 import { anilistMutation, anilistUserQuery, staleWhileRevalidate } from '../lib/anilist';
 import { errorMessage } from '../lib/format';
+import { t } from '../i18n';
 import { createLogger } from '../lib/logger';
 import { toast } from '../lib/toast';
 import { airedEpisodes } from '../lib/watching';
@@ -169,7 +170,7 @@ export const useListStore = defineStore('list', () => {
         } catch (err) {
             put(mediaId, previous);
             log.warn(`Failed to save AniList ${mediaId}:`, err);
-            toast.error(`Couldn't update your list: ${errorMessage(err)}`);
+            toast.error(t('list.saveFailed', { error: errorMessage(err) }));
             return null;
         }
     }
@@ -186,7 +187,7 @@ export const useListStore = defineStore('list', () => {
         } catch (err) {
             put(mediaId, previous);
             log.warn(`Failed to remove AniList ${mediaId}:`, err);
-            toast.error(`Couldn't remove it from your list: ${errorMessage(err)}`);
+            toast.error(t('list.removeFailed', { error: errorMessage(err) }));
             return false;
         }
     }

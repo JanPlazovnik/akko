@@ -4,6 +4,7 @@ import { Loader2, Play } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
 import { COUNTDOWN_S, useQueueStore } from '../../stores/queue';
 import CountdownButton from '../ui/CountdownButton.vue';
+import { t } from '../../i18n';
 
 const player = usePlayerStore();
 const queue = useQueueStore();
@@ -12,8 +13,10 @@ const episode = computed(() => queue.next);
 const finding = computed(() => Boolean(episode.value && queue.finding === episode.value));
 const visible = computed(() => episode.value && (queue.upNext || finding.value));
 const status = computed(() => {
-    if (finding.value) return 'Finding a release…';
-    return queue.countdown ? `Next episode in ${queue.countdown}` : 'Up next';
+    if (finding.value) return t('player.upNext.finding');
+    return queue.countdown
+        ? t('player.upNext.countdown', { n: queue.countdown })
+        : t('player.upNext.title');
 });
 const thumbnail = computed(
     () => episode.value?.image ?? player.selection?.media.bannerImage ?? null
@@ -36,7 +39,7 @@ const thumbnail = computed(
                 <span
                     class="absolute bottom-2 left-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold"
                 >
-                    EP {{ episode.number }}
+                    {{ $t('mediaCard.episodeShort', { episode: episode.number }) }}
                 </span>
             </div>
             <div class="p-4">
@@ -44,7 +47,7 @@ const thumbnail = computed(
                     {{ status }}
                 </p>
                 <p class="mt-0.5 truncate text-sm font-semibold">
-                    {{ episode.title || `Episode ${episode.number}` }}
+                    {{ episode.title || $t('player.episode', { episode: episode.number }) }}
                 </p>
                 <div class="mt-3 flex gap-2">
                     <CountdownButton
@@ -58,14 +61,14 @@ const thumbnail = computed(
                     >
                         <Loader2 v-if="finding" :size="15" class="animate-spin" />
                         <Play v-else :size="14" fill="currentColor" />
-                        Play now
+                        {{ $t('player.upNext.playNow') }}
                     </CountdownButton>
                     <button
                         v-if="!finding"
                         class="h-9 cursor-pointer rounded-full bg-white/10 px-4 text-sm font-medium text-white/85 transition-colors hover:bg-white/20 hover:text-white"
                         @click="queue.dismissUpNext()"
                     >
-                        {{ queue.countdown ? 'Cancel' : 'Close' }}
+                        {{ queue.countdown ? $t('common.cancel') : $t('common.close') }}
                     </button>
                 </div>
             </div>

@@ -55,8 +55,8 @@ const SEPARATOR = 'mx-2 my-1 h-px bg-line';
                     @select="emit('togglePlay')"
                 >
                     <component :is="player.isPlaying ? Pause : Play" :size="15" :class="ICON" />
-                    {{ player.isPlaying ? 'Pause' : 'Play' }}
-                    <span :class="KEY">Space</span>
+                    {{ player.isPlaying ? $t('player.pause') : $t('player.play') }}
+                    <span :class="KEY">{{ $t('shortcuts.keys.Space') }}</span>
                 </ContextMenuItem>
                 <ContextMenuItem
                     :class="ITEM"
@@ -64,7 +64,7 @@ const SEPARATOR = 'mx-2 my-1 h-px bg-line';
                     @select="emit('screenshot')"
                 >
                     <Camera :size="15" :class="ICON" />
-                    Copy screenshot
+                    {{ $t('player.copyScreenshot') }}
                 </ContextMenuItem>
 
                 <ContextMenuSeparator :class="SEPARATOR" />
@@ -74,8 +74,8 @@ const SEPARATOR = 'mx-2 my-1 h-px bg-line';
                     @select="queue.previous && queue.play(queue.previous)"
                 >
                     <SkipBack :size="15" :class="ICON" />
-                    Previous episode
-                    <span :class="KEY">Shift+P</span>
+                    {{ $t('player.previousEpisode') }}
+                    <span :class="KEY">{{ $t('shortcuts.combo.shiftP') }}</span>
                 </ContextMenuItem>
                 <ContextMenuItem
                     :class="ITEM"
@@ -83,8 +83,8 @@ const SEPARATOR = 'mx-2 my-1 h-px bg-line';
                     @select="queue.next && queue.play(queue.next)"
                 >
                     <SkipForward :size="15" :class="ICON" />
-                    Next episode
-                    <span :class="KEY">Shift+N</span>
+                    {{ $t('player.nextEpisode') }}
+                    <span :class="KEY">{{ $t('shortcuts.combo.shiftN') }}</span>
                 </ContextMenuItem>
                 <ContextMenuItem
                     v-if="player.tracks.length"
@@ -92,7 +92,11 @@ const SEPARATOR = 'mx-2 my-1 h-px bg-line';
                     @select="player.toggleSubtitles()"
                 >
                     <Captions :size="15" :class="ICON" />
-                    {{ player.activeTrackId ? 'Turn subtitles off' : 'Turn subtitles on' }}
+                    {{
+                        player.activeTrackId
+                            ? $t('player.subtitlesTurnOff')
+                            : $t('player.subtitlesTurnOn')
+                    }}
                     <span :class="KEY">C</span>
                 </ContextMenuItem>
                 <ContextMenuItem
@@ -101,18 +105,18 @@ const SEPARATOR = 'mx-2 my-1 h-px bg-line';
                     @select="player.pickAnotherRelease()"
                 >
                     <Layers :size="15" :class="ICON" />
-                    Pick another release
+                    {{ $t('player.pickAnother') }}
                 </ContextMenuItem>
 
                 <ContextMenuSeparator :class="SEPARATOR" />
                 <ContextMenuItem :class="ITEM" @select="emit('toggleFullscreen')">
                     <component :is="fullscreen ? Minimize : Maximize" :size="15" :class="ICON" />
-                    {{ fullscreen ? 'Exit fullscreen' : 'Fullscreen' }}
+                    {{ fullscreen ? $t('player.exitFullscreen') : $t('player.fullscreen') }}
                     <span :class="KEY">F</span>
                 </ContextMenuItem>
                 <ContextMenuItem :class="ITEM" @select="openShortcuts()">
                     <Keyboard :size="15" :class="ICON" />
-                    Keyboard shortcuts
+                    {{ $t('player.shortcuts') }}
                     <span :class="KEY">?</span>
                 </ContextMenuItem>
             </ContextMenuContent>

@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Users } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
 import { useSettingsStore } from '../../stores/settings';
 import { formatBytes, formatPercent, formatSpeed } from '../../lib/format';
+import { t } from '../../i18n';
 
 const player = usePlayerStore();
 const settingsStore = useSettingsStore();
@@ -12,9 +13,13 @@ const items = computed(() => {
     const stats = player.stats;
     if (!stats) return [];
     return [
-        { icon: ArrowDown, label: formatSpeed(stats.downloadSpeed), title: 'Download speed' },
-        { icon: ArrowUp, label: formatSpeed(stats.uploadSpeed), title: 'Upload speed' },
-        { icon: Users, label: String(stats.peers), title: 'Connected peers' },
+        {
+            icon: ArrowDown,
+            label: formatSpeed(stats.downloadSpeed),
+            title: t('player.stats.download'),
+        },
+        { icon: ArrowUp, label: formatSpeed(stats.uploadSpeed), title: t('player.stats.upload') },
+        { icon: Users, label: String(stats.peers), title: t('player.stats.peers') },
     ];
 });
 </script>
@@ -35,7 +40,12 @@ const items = computed(() => {
         </span>
         <span
             class="flex items-center gap-2"
-            :title="`${formatBytes(player.stats.downloaded)} of ${formatBytes(player.stats.size)} downloaded`"
+            :title="
+                $t('player.stats.downloaded', {
+                    downloaded: formatBytes(player.stats.downloaded),
+                    size: formatBytes(player.stats.size),
+                })
+            "
         >
             <span class="h-1 w-14 overflow-hidden rounded-full bg-white/15">
                 <span

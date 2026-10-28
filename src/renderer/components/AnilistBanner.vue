@@ -19,9 +19,9 @@ onUnmounted(() => unsubscribe?.());
         class="mx-2 mb-2 flex items-center gap-2.5 rounded-xl bg-amber-400/8 px-4 py-2 text-[13px] ring-1 ring-amber-400/15"
     >
         <CloudOff :size="15" class="shrink-0 text-amber-400" />
-        <span class="font-medium text-amber-100">AniList is down.</span>
+        <span class="font-medium text-amber-100">{{ $t('anilistBanner.title') }}</span>
         <span class="min-w-0 truncate text-white/45" :title="outage">
-            {{ outage }} Saved info is shown where possible.
+            {{ $t('anilistBanner.detail', { reason: outage }) }}
         </span>
     </div>
 </template>

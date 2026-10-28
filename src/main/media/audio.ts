@@ -1,5 +1,6 @@
 import type { AudioSupport, AudioTrack } from '../../shared/ipc/api';
 import { describeLanguage } from './language';
+import { t } from '../i18n';
 import { TrackType, type MatroskaTrack } from './matroska';
 
 // Chromium can't decode these; AC-3 and E-AC-3 are played through the renderer's audio bridge
@@ -17,7 +18,7 @@ export function audioTracks(tracks: MatroskaTrack[]): AudioTrack[] {
         .map((track, i) => {
             const foreign = FOREIGN_CODECS.find(([prefix]) => track.codecId.startsWith(prefix));
             return {
-                ...describeLanguage(track.language, track.name, `Track ${i + 1}`),
+                ...describeLanguage(track.language, track.name, t('tracks.fallback', { n: i + 1 })),
                 codec: foreign?.[1] ?? track.codecId.replace(/^A_/, ''),
                 channels: track.channels ?? 2,
                 support: foreign?.[2] ?? 'native',

@@ -149,7 +149,7 @@ function onAction(t: Toast) {
                     </button>
                     <button
                         class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-                        aria-label="Dismiss"
+                        :aria-label="$t('common.dismiss')"
                         @click="dismissToast(t.id)"
                     >
                         <X :size="15" />

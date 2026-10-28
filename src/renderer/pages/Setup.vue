@@ -13,19 +13,15 @@ import ExtensionsSettings from '../components/settings/ExtensionsSettings.vue';
 import Toggle from '../components/ui/Toggle.vue';
 import CheckStatus, { type CheckState } from '../components/setup/CheckStatus.vue';
 import { BUTTON } from '../components/ui/styles';
+import { t } from '../i18n';
 
-const STEPS = [
-    { id: 'welcome', label: 'Welcome' },
-    { id: 'storage', label: 'Storage' },
-    { id: 'network', label: 'Connection' },
-    { id: 'sources', label: 'Sources' },
-] as const;
+const STEPS = ['welcome', 'storage', 'network', 'sources'] as const;
 
 const INTRO = [
-    { icon: FolderDown, text: 'Choose where episodes are saved and whether to keep them' },
-    { icon: Radar, text: 'Check that your connection can reach other peers' },
-    { icon: Puzzle, text: 'Add a source extension to search for releases' },
-];
+    { icon: FolderDown, id: 'storage' },
+    { icon: Radar, id: 'network' },
+    { icon: Puzzle, id: 'sources' },
+] as const;
 
 const LOW_SPACE_BYTES = 10e9;
 
@@ -36,7 +32,7 @@ const store = useSettingsStore();
 const extensions = useExtensionStore();
 
 const step = ref(0);
-const current = computed(() => STEPS[step.value].id);
+const current = computed(() => STEPS[step.value]);
 const isLast = computed(() => step.value === STEPS.length - 1);
 
 const folder = ref<FolderCheck | null>(null);
@@ -56,87 +52,93 @@ async function checkNetwork() {
         .catch(() => ({ trackersReached: 0, trackersTotal: 0, dhtNodes: 0 }));
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
 watch(() => store.downloadPath, checkFolder, { immediate: true });
 onMounted(checkNetwork);
 
 const folderStatus = computed<Status>(() => {
-    if (!folder.value) return { state: 'running', title: 'Checking folder…' };
+    if (!folder.value) return { state: 'running', title: t('setup.folder.checking') };
     if (!folder.value.writable) {
         return {
             state: 'fail',
-            title: "akko can't save files here",
-            detail: `${folder.value.error}. Choose another folder to continue.`,
+            title: t('setup.folder.notWritable'),
+            detail: t('setup.folder.notWritableDetail', { error: folder.value.error ?? '' }),
         };
     }
     const free = formatBytes(folder.value.freeBytes);
     if (folder.value.inMemory) {
         return {
             state: 'warn',
-            title: 'This folder is stored in memory',
-            detail: `It's a tmpfs with ${free} free, so downloads use RAM and are lost on restart. Choose a folder on disk.`,
+            title: t('setup.folder.inMemory'),
+            detail: t('setup.folder.inMemoryDetail', { free }),
         };
     }
     if (folder.value.freeBytes < LOW_SPACE_BYTES) {
         return {
             state: 'warn',
-            title: `Only ${free} free on this drive`,
-            detail: 'An episode is usually 0.3–1.5 GB, so kept episodes will fill it quickly.',
+            title: t('setup.folder.lowSpace', { free }),
+            detail: t('setup.folder.lowSpaceDetail'),
         };
     }
-    return { state: 'ok', title: 'Folder is ready', detail: `${free} free on this drive.` };
+    return {
+        state: 'ok',
+        title: t('setup.folder.ready'),
+        detail: t('setup.folder.readyDetail', { free }),
+    };
 });
 
 const networkStatus = computed<Status>(() => {
     if (!network.value) {
         return {
             state: 'running',
-            title: 'Looking for peers…',
-            detail: 'This takes up to 10 seconds.',
+            title: t('setup.network.checking'),
+            detail: t('setup.network.checkingDetail'),
         };
     }
     const { trackersReached, trackersTotal, dhtNodes } = network.value;
-    const trackers = `${trackersReached} of ${plural(trackersTotal, 'tracker')}`;
-    const dht = plural(dhtNodes, 'DHT node');
-    const title = 'Connected to the BitTorrent network';
+    const trackers = t(
+        'setup.network.trackers',
+        { reached: trackersReached, n: trackersTotal },
+        trackersTotal
+    );
+    const dht = t('setup.network.dht', { n: dhtNodes }, dhtNodes);
+    const title = t('setup.network.connected');
     if (trackersReached > 0 && dhtNodes >= HEALTHY_DHT_NODES) {
-        return { state: 'ok', title, detail: `Reached ${trackers} and ${dht}.` };
+        return { state: 'ok', title, detail: t('setup.network.reachedBoth', { trackers, dht }) };
     }
     if (trackersReached > 0) {
         return {
             state: 'ok',
             title,
-            detail: `Reached ${trackers}. The DHT only found ${dht}, so akko will find peers through trackers, which works for most releases.`,
+            detail: t('setup.network.reachedTrackers', { trackers, dht }),
         };
     }
     if (dhtNodes >= HEALTHY_DHT_NODES) {
         return {
             state: 'ok',
             title,
-            detail: `Reached ${dht}. Trackers didn't respond, so akko will find peers through the DHT.`,
+            detail: t('setup.network.reachedDht', { dht }),
         };
     }
     return {
         state: 'warn',
-        title: "Couldn't reach the BitTorrent network",
-        detail: 'Episodes may still load through trackers. If streams never start, a firewall, VPN or your network may be blocking BitTorrent.',
+        title: t('setup.network.failed'),
+        detail: t('setup.network.failedDetail'),
     };
 });
 
 const blocker = computed(() => {
     if (current.value === 'storage' && !folder.value?.writable) {
-        return folder.value ? 'Choose a folder akko can write to' : '';
+        return folder.value ? t('setup.blockers.folder') : '';
     }
     if (current.value === 'sources' && !extensions.installed.some((e) => e.enabled)) {
-        return 'Install or enable at least one source to finish';
+        return t('setup.blockers.sources');
     }
     return null;
 });
 
 const primaryLabel = computed(() => {
-    if (step.value === 0) return 'Get started';
-    return isLast.value ? 'Finish setup' : 'Continue';
+    if (step.value === 0) return t('setup.getStarted');
+    return isLast.value ? t('setup.finish') : t('common.continue');
 });
 
 async function next() {
@@ -160,11 +162,13 @@ async function next() {
 
         <div class="mx-2 mb-2 flex min-h-0 flex-1 rounded-xl bg-surface ring-1 ring-line">
             <aside class="w-60 shrink-0 border-r border-line px-6 py-8">
-                <p class="text-xs font-medium tracking-wider text-white/40 uppercase">Setup</p>
+                <p class="text-xs font-medium tracking-wider text-white/40 uppercase">
+                    {{ $t('setup.title') }}
+                </p>
                 <ol class="mt-5 space-y-1">
                     <li
                         v-for="(item, i) in STEPS"
-                        :key="item.id"
+                        :key="item"
                         :class="[
                             'flex items-center gap-3 rounded-lg px-2 py-2 text-sm',
                             i === step ? 'bg-white/8 font-medium text-white' : 'text-white/45',
@@ -183,7 +187,7 @@ async function next() {
                             <Check v-if="i < step" :size="13" :stroke-width="3" />
                             <template v-else>{{ i + 1 }}</template>
                         </span>
-                        {{ item.label }}
+                        {{ $t(`setup.steps.${item}`) }}
                     </li>
                 </ol>
             </aside>
@@ -193,17 +197,15 @@ async function next() {
                     <div class="max-w-2xl">
                         <template v-if="current === 'welcome'">
                             <h1 class="font-display text-3xl font-semibold tracking-tight">
-                                Welcome to akko
+                                {{ $t('setup.welcome.title') }}
                             </h1>
                             <p class="mt-3 max-w-lg leading-relaxed text-white/60">
-                                akko streams episodes straight from BitTorrent and plays them while
-                                they download. Three things need setting up before you start
-                                watching.
+                                {{ $t('setup.welcome.body') }}
                             </p>
                             <ul class="mt-8 space-y-4">
                                 <li
                                     v-for="item in INTRO"
-                                    :key="item.text"
+                                    :key="item.id"
                                     class="flex items-center gap-4 text-sm text-white/80"
                                 >
                                     <span
@@ -211,50 +213,50 @@ async function next() {
                                     >
                                         <component :is="item.icon" :size="17" />
                                     </span>
-                                    {{ item.text }}
+                                    {{ $t(`setup.intro.${item.id}`) }}
                                 </li>
                             </ul>
                         </template>
 
                         <template v-else-if="current === 'storage'">
                             <h1 class="font-display text-2xl font-semibold tracking-tight">
-                                Where should episodes go?
+                                {{ $t('setup.storage.title') }}
                             </h1>
                             <p class="mt-2 text-sm text-white/50">
-                                You can change both of these later in Settings.
+                                {{ $t('setup.storage.body') }}
                             </p>
                             <div
                                 v-if="store.settings"
                                 class="mt-6 divide-y divide-line rounded-xl bg-raised/60 ring-1 ring-line"
                             >
-                                <SettingRow title="Download location">
+                                <SettingRow :title="$t('settings.torrents.location')">
                                     <template #description>
                                         <span class="font-mono text-[11px] break-all text-white/55">
                                             {{ store.downloadPath }}
                                         </span>
                                         <span v-if="!store.settings.downloadPath" class="ml-1.5">
-                                            (default)
+                                            {{ $t('common.default') }}
                                         </span>
                                     </template>
                                     <button
                                         v-if="store.settings.downloadPath"
                                         :class="BUTTON"
-                                        title="Reset to default"
+                                        :title="$t('common.resetDefault')"
                                         @click="store.update({ downloadPath: null })"
                                     >
                                         <RotateCcw :size="14" />
                                     </button>
                                     <button :class="BUTTON" @click="store.chooseDownloadPath">
-                                        Change
+                                        {{ $t('common.change') }}
                                     </button>
                                 </SettingRow>
                                 <SettingRow
-                                    title="Keep downloaded episodes"
-                                    description="Leave files on disk after you stop watching, so replaying them starts instantly. When off, files are deleted as soon as playback stops."
+                                    :title="$t('settings.torrents.keepFiles')"
+                                    :description="$t('settings.torrents.keepFilesDescription')"
                                 >
                                     <Toggle
                                         :model-value="store.settings.keepFiles"
-                                        label="Keep downloaded episodes"
+                                        :label="$t('settings.torrents.keepFiles')"
                                         @update:model-value="store.update({ keepFiles: $event })"
                                     />
                                 </SettingRow>
@@ -264,12 +266,10 @@ async function next() {
 
                         <template v-else-if="current === 'network'">
                             <h1 class="font-display text-2xl font-semibold tracking-tight">
-                                Checking your connection
+                                {{ $t('setup.networkStep.title') }}
                             </h1>
                             <p class="mt-2 text-sm text-white/50">
-                                akko finds peers through trackers and the DHT, a shared directory of
-                                BitTorrent users. If neither can be reached, streams can be slow or
-                                never start.
+                                {{ $t('setup.networkStep.body') }}
                             </p>
                             <CheckStatus
                                 class="mt-6"
@@ -280,12 +280,10 @@ async function next() {
 
                         <template v-else>
                             <h1 class="font-display text-2xl font-semibold tracking-tight">
-                                Add a source
+                                {{ $t('setup.sources.title') }}
                             </h1>
                             <p class="mt-2 mb-6 text-sm text-white/50">
-                                akko doesn't host anything itself. Sources are extensions that
-                                search torrent sites for releases of an episode. Paste a repository
-                                link to browse and install them.
+                                {{ $t('setup.sources.body') }}
                             </p>
                             <ExtensionsSettings />
                         </template>
@@ -299,7 +297,7 @@ async function next() {
                         @click="step--"
                     >
                         <ArrowLeft :size="15" />
-                        Back
+                        {{ $t('common.back') }}
                     </button>
                     <p v-if="blocker" class="ml-auto text-xs text-white/45">{{ blocker }}</p>
                     <button

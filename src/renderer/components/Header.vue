@@ -113,11 +113,11 @@ onUnmounted(() => clearTimeout(batTimer));
 
             <RouterLink to="/" :class="['ml-6', navLink(route.path === '/')]">
                 <Home :size="15" />
-                Home
+                {{ $t('nav.home') }}
             </RouterLink>
             <RouterLink to="/library" :class="['ml-1', navLink(route.path === '/library')]">
                 <Library :size="15" />
-                Library
+                {{ $t('nav.library') }}
             </RouterLink>
         </div>
 
@@ -135,7 +135,7 @@ onUnmounted(() => clearTimeout(batTimer));
                 v-model="query"
                 type="text"
                 spellcheck="false"
-                placeholder="Search anime"
+                :placeholder="$t('header.search')"
                 class="w-0 min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/40"
                 @focus="openSearch"
                 @input="onSearchInput"
@@ -144,7 +144,7 @@ onUnmounted(() => clearTimeout(batTimer));
             <button
                 v-if="query"
                 class="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
-                title="Clear"
+                :title="$t('common.clear')"
                 @click.prevent="clearSearch"
             >
                 <X :size="12" />
@@ -153,7 +153,7 @@ onUnmounted(() => clearTimeout(batTimer));
                 v-else
                 class="shrink-0 rounded-md bg-white/8 px-1.5 py-0.5 font-sans text-[10px] font-medium text-white/40 group-focus-within:hidden"
             >
-                Ctrl K
+                {{ $t('header.searchShortcut') }}
             </kbd>
         </label>
 
@@ -162,14 +162,14 @@ onUnmounted(() => clearTimeout(batTimer));
                 <button
                     v-if="isDev"
                     :class="ICON_BUTTON"
-                    title="Playground"
+                    :title="$t('nav.playground')"
                     @click="router.push('/playground')"
                 >
                     <FlaskConical :size="17" />
                 </button>
                 <button
                     :class="[ICON_BUTTON, route.path === '/settings' && 'bg-white/10 text-white']"
-                    title="Settings"
+                    :title="$t('common.settings')"
                     @click="router.push('/settings')"
                 >
                     <Settings :size="17" />

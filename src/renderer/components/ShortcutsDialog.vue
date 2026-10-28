@@ -10,7 +10,7 @@ import {
     DialogRoot,
     DialogTitle,
 } from 'reka-ui';
-import { SHORTCUT_GROUPS, shortcutsOpen } from '../lib/shortcuts';
+import { SHORTCUT_GROUPS, keyLabel, shortcutsOpen } from '../lib/shortcuts';
 import { ignoreWindowControls } from '../lib/dialog';
 import { useFullscreenElement } from '../lib/fullscreen';
 
@@ -37,10 +37,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
             >
                 <header class="border-b border-line p-5">
                     <DialogTitle class="font-display text-xl font-semibold">
-                        Keyboard shortcuts
+                        {{ $t('shortcuts.title') }}
                     </DialogTitle>
                     <DialogDescription class="mt-1 text-xs text-white/45">
-                        Player shortcuts work while the player is open.
+                        {{ $t('shortcuts.description') }}
                     </DialogDescription>
                     <DialogClose
                         class="absolute top-4 right-4 grid size-8 cursor-pointer place-items-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white"
@@ -54,7 +54,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
                         <h3
                             class="text-[11px] font-semibold tracking-wider text-white/40 uppercase"
                         >
-                            {{ group.title }}
+                            {{ $t(`shortcuts.groups.${group.title}`) }}
                         </h3>
                         <ul class="mt-2 divide-y divide-line">
                             <li
@@ -62,7 +62,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
                                 :key="shortcut.label"
                                 class="flex items-center justify-between gap-4 py-2.5 text-sm"
                             >
-                                <span class="text-white/80">{{ shortcut.label }}</span>
+                                <span class="text-white/80">{{
+                                    $t(`shortcuts.actions.${shortcut.label}`)
+                                }}</span>
                                 <span class="flex shrink-0 items-center gap-1.5">
                                     <template v-for="(combo, i) in shortcut.keys" :key="i">
                                         <span v-if="i" class="text-xs text-white/25">/</span>
@@ -72,7 +74,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
                                                 :key="key"
                                                 class="min-w-6 rounded-md border border-line bg-raised px-1.5 py-0.5 text-center font-sans text-xs text-white/80"
                                             >
-                                                {{ key }}
+                                                {{ keyLabel(key) }}
                                             </kbd>
                                         </span>
                                     </template>

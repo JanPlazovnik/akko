@@ -9,13 +9,25 @@ const BUTTON =
 
 <template>
     <div class="window-controls pointer-events-auto flex shrink-0 items-stretch self-stretch">
-        <button :class="[BUTTON, 'hover:bg-white/10']" title="Minimize" @click="minimizeWindow()">
+        <button
+            :class="[BUTTON, 'hover:bg-white/10']"
+            :title="$t('window.minimize')"
+            @click="minimizeWindow()"
+        >
             <Minus :size="14" />
         </button>
-        <button :class="[BUTTON, 'hover:bg-white/10']" title="Maximize" @click="maximizeWindow()">
+        <button
+            :class="[BUTTON, 'hover:bg-white/10']"
+            :title="$t('window.maximize')"
+            @click="maximizeWindow()"
+        >
             <Square :size="12" />
         </button>
-        <button :class="[BUTTON, 'hover:bg-red-600']" title="Close" @click="closeWindow()">
+        <button
+            :class="[BUTTON, 'hover:bg-red-600']"
+            :title="$t('window.close')"
+            @click="closeWindow()"
+        >
             <X :size="14" />
         </button>
     </div>

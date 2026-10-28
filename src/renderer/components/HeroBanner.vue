@@ -7,7 +7,7 @@ import { useAccountsStore } from '../stores/accounts';
 import Badge from './ui/Badge.vue';
 import HolidaySnow from './HolidaySnow.vue';
 import { accentStyle } from '../lib/accent';
-import { mediaMeta, stripHtml } from '../lib/media-labels';
+import { genreLabel, mediaMeta, stripHtml } from '../lib/media-labels';
 import { useHoliday } from '../lib/holidays';
 
 const SLIDE_MS = 7000;
@@ -84,7 +84,7 @@ function go(index: number) {
                 <p
                     class="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-accent uppercase"
                 >
-                    Trending #{{ heroIndex + 1 }}
+                    {{ $t('hero.trending', { rank: heroIndex + 1 }) }}
                 </p>
 
                 <h2 v-if="logo">
@@ -127,7 +127,7 @@ function go(index: number) {
                         @click="mediaStore.viewMedia(current)"
                     >
                         <Play :size="15" fill="currentColor" />
-                        Watch now
+                        {{ $t('common.watchNow') }}
                     </button>
                     <div v-if="current.genres?.length" class="ml-2 flex flex-wrap gap-1.5">
                         <Badge
@@ -136,7 +136,7 @@ function go(index: number) {
                             variant="tag"
                             :query="{ genres: genre! }"
                         >
-                            {{ genre }}
+                            {{ genreLabel(genre!) }}
                         </Badge>
                     </div>
                 </div>

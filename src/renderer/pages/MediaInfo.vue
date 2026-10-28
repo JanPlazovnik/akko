@@ -18,9 +18,10 @@ import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import TrailerDialog from '../components/TrailerDialog.vue';
 import BrandIcon from '../components/ui/BrandIcon.vue';
 import ListEntryDialog from '../components/ListEntryDialog.vue';
-import { RELATION_LABELS, STATUS_LABELS, mediaMeta, stripHtml } from '../lib/media-labels';
+import { genreLabel, mediaMeta, relationLabel, statusLabel, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
 import { toast } from '../lib/toast';
+import { i18n, t } from '../i18n';
 import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
 import { useListStore } from '../stores/list';
@@ -108,10 +109,7 @@ const sequel = computed(
 const relatedLabels = computed(
     () =>
         new Map(
-            details.value?.related.map(({ relation, media }) => [
-                media.id,
-                RELATION_LABELS[relation] ?? relation,
-            ])
+            details.value?.related.map(({ relation, media }) => [media.id, relationLabel(relation)])
         )
 );
 
@@ -142,7 +140,7 @@ type WatchAction = { episode: Episode | null; label: string; resume?: WatchProgr
 // movies have no episode to name.
 const watchAction = computed<WatchAction>(() => {
     const aired = episodes.value.filter((ep) => !isUnaired(ep));
-    if (!aired.length) return { episode: null, label: 'Not available yet' };
+    if (!aired.length) return { episode: null, label: t('mediaInfo.notAvailable') };
 
     const id = routeMediaId.value;
     const entry = list.entryFor(id);
@@ -153,18 +151,25 @@ const watchAction = computed<WatchAction>(() => {
         (!local && entry?.status === 'COMPLETED') ||
         (watched > 0 && watched >= episodes.value.length);
     if (finished) {
-        return { episode: aired[0], label: single ? 'Rewatch' : 'Rewatch from episode 1' };
+        const label = single ? t('mediaInfo.rewatch') : t('mediaInfo.rewatchFromStart');
+        return { episode: aired[0], label };
     }
 
     const next = watched ? episodes.value.find((ep) => ep.number === watched + 1) : aired[0];
-    if (!next) return { episode: null, label: 'All caught up' };
+    if (!next) return { episode: null, label: t('mediaInfo.caughtUp') };
     if (isUnaired(next)) {
-        const when = next.airDate ? ` ${formatAirDate(next.airDate)}` : ' soon';
-        return { episode: null, label: `Episode ${next.number} airs${when}` };
+        const label = next.airDate
+            ? t('mediaInfo.airsOn', { episode: next.number, date: formatAirDate(next.airDate) })
+            : t('mediaInfo.airsSoon', { episode: next.number });
+        return { episode: null, label };
     }
     const resume = progress.resumable(id, next.number);
-    const verb = resume ? 'Resume' : 'Watch';
-    return { episode: next, label: single ? verb : `${verb} episode ${next.number}`, resume };
+    const label = single
+        ? t(resume ? 'common.resume' : 'common.watch')
+        : t(resume ? 'mediaCard.resumeEpisode' : 'mediaCard.watchEpisode', {
+              episode: next.number,
+          });
+    return { episode: next, label, resume };
 });
 
 const episodePages = computed(() =>
@@ -173,7 +178,9 @@ const episodePages = computed(() =>
     )
 );
 const pageLabels = computed(() =>
-    episodePages.value.map((page) => `${page[0].number} to ${page[page.length - 1].number}`)
+    episodePages.value.map((page) =>
+        t('mediaInfo.pageRange', { from: page[0].number, to: page[page.length - 1].number })
+    )
 );
 
 // Opens on the next episode to watch until a page is picked
@@ -260,7 +267,7 @@ async function load(id: number) {
             await mediaStore.fetchEpisodes(id);
         }
     } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to load media');
+        toast.error(err instanceof Error ? err.message : t('mediaInfo.loadFailed'));
     } finally {
         loadingBar.finish();
     }
@@ -294,7 +301,7 @@ function openDialog(ep: Episode) {
 }
 
 const formatAirDate = (date: string) =>
-    new Date(date).toLocaleDateString(undefined, {
+    new Date(date).toLocaleDateString(i18n.global.locale.value, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -390,7 +397,7 @@ const formatAirDate = (date: string) =>
                                         STATUS_DOT[media.status] ?? 'bg-white/40',
                                     ]"
                                 />
-                                {{ STATUS_LABELS[media.status] ?? media.status }}
+                                {{ statusLabel(media.status) }}
                             </span>
                             <template v-for="part in meta" :key="part">
                                 <span class="text-white/25">•</span>
@@ -417,10 +424,10 @@ const formatAirDate = (date: string) =>
                                 :disabled="accounts.anilistExpiry()?.expired"
                                 :title="
                                     accounts.anilistExpiry()?.expired
-                                        ? 'Reconnect AniList in Settings to edit your list'
+                                        ? $t('mediaInfo.reconnectToEdit')
                                         : listEntry
-                                          ? 'Edit list entry'
-                                          : 'Add to list'
+                                          ? $t('mediaInfo.editEntry')
+                                          : $t('mediaInfo.addToList')
                                 "
                                 @click="listDialogOpen = true"
                             >
@@ -430,7 +437,7 @@ const formatAirDate = (date: string) =>
                             <button
                                 v-if="details?.trailer"
                                 :class="ROUND_BUTTON"
-                                title="Watch the trailer"
+                                :title="$t('mediaInfo.trailer')"
                                 @click="trailerOpen = true"
                             >
                                 <Clapperboard :size="16" />
@@ -441,7 +448,7 @@ const formatAirDate = (date: string) =>
                                 :href="link.url"
                                 target="_blank"
                                 :class="ROUND_BUTTON"
-                                :title="`Open on ${link.label}`"
+                                :title="$t('mediaInfo.openOn', { site: link.label })"
                             >
                                 <BrandIcon :name="link.icon" :size="link.size" />
                             </a>
@@ -450,7 +457,7 @@ const formatAirDate = (date: string) =>
                                 class="ml-2 flex min-w-0 cursor-pointer items-center gap-1 text-sm text-white/55 transition-colors hover:text-white"
                                 @click="mediaStore.viewMedia(sequel)"
                             >
-                                <span class="shrink-0">Sequel:</span>
+                                <span class="shrink-0">{{ $t('mediaInfo.sequel') }}</span>
                                 <span class="truncate font-medium text-white/80">
                                     {{ accounts.titleOf(sequel) }}
                                 </span>
@@ -473,7 +480,11 @@ const formatAirDate = (date: string) =>
                                 class="mt-1.5 cursor-pointer text-xs font-semibold text-accent hover:underline"
                                 @click="descriptionExpanded = !descriptionExpanded"
                             >
-                                {{ descriptionExpanded ? 'Show less' : 'Show more' }}
+                                {{
+                                    descriptionExpanded
+                                        ? $t('mediaInfo.showLess')
+                                        : $t('mediaInfo.showMore')
+                                }}
                             </button>
                         </div>
 
@@ -487,7 +498,7 @@ const formatAirDate = (date: string) =>
                                 variant="tag"
                                 :query="{ genres: genre! }"
                             >
-                                {{ genre }}
+                                {{ genreLabel(genre!) }}
                             </Badge>
                             <Badge
                                 v-for="tag in tags.open"
@@ -513,8 +524,13 @@ const formatAirDate = (date: string) =>
                                 @click="spoilersShown = true"
                             >
                                 <Eye :size="12" />
-                                {{ tags.spoilers.length }}
-                                {{ tags.spoilers.length === 1 ? 'spoiler' : 'spoilers' }}
+                                {{
+                                    $t(
+                                        'mediaInfo.spoilers',
+                                        { n: tags.spoilers.length },
+                                        tags.spoilers.length
+                                    )
+                                }}
                             </button>
                         </div>
                     </div>
@@ -522,7 +538,9 @@ const formatAirDate = (date: string) =>
 
                 <section v-if="episodesLoading || episodes.length" class="mt-10 px-10">
                     <div class="mb-4 flex items-baseline gap-3">
-                        <h2 class="font-display text-xl font-semibold tracking-tight">Episodes</h2>
+                        <h2 class="font-display text-xl font-semibold tracking-tight">
+                            {{ $t('mediaInfo.episodes') }}
+                        </h2>
                         <span v-if="episodes.length" class="text-sm text-white/40">
                             {{ episodes.length }}
                         </span>
@@ -581,20 +599,20 @@ const formatAirDate = (date: string) =>
                                 <span
                                     class="absolute bottom-2 left-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold"
                                 >
-                                    EP {{ ep.number }}
+                                    {{ $t('mediaCard.episodeShort', { episode: ep.number }) }}
                                 </span>
                                 <span
                                     v-if="ep.runtime"
                                     class="absolute right-2 bottom-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] text-white/80"
                                 >
-                                    {{ ep.runtime }}m
+                                    {{ $t('mediaInfo.runtime', { n: ep.runtime }) }}
                                 </span>
                                 <span
                                     v-if="isWatched(ep)"
                                     class="absolute top-2 right-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold"
                                 >
                                     <Check :size="12" :stroke-width="3" />
-                                    Watched
+                                    {{ $t('mediaInfo.watched') }}
                                 </span>
                                 <div
                                     v-if="watchedFraction(ep) !== null"
@@ -612,7 +630,7 @@ const formatAirDate = (date: string) =>
                                     isWatched(ep) && 'text-white/50',
                                 ]"
                             >
-                                {{ ep.title || `Episode ${ep.number}` }}
+                                {{ ep.title || $t('player.episode', { episode: ep.number }) }}
                             </p>
                             <p
                                 v-if="ep.overview"
@@ -622,10 +640,15 @@ const formatAirDate = (date: string) =>
                             </p>
                             <p class="mt-1.5 text-[11px] text-white/30">
                                 <template v-if="ep.airDate">
-                                    {{ isUnaired(ep) ? 'Airs' : 'Aired' }}
-                                    {{ formatAirDate(ep.airDate) }}
+                                    {{
+                                        $t(isUnaired(ep) ? 'mediaInfo.airs' : 'mediaInfo.aired', {
+                                            date: formatAirDate(ep.airDate),
+                                        })
+                                    }}
                                 </template>
-                                <template v-else-if="isUnaired(ep)">Not aired yet</template>
+                                <template v-else-if="isUnaired(ep)">{{
+                                    $t('mediaInfo.notAired')
+                                }}</template>
                             </p>
                         </button>
                     </div>
@@ -640,7 +663,7 @@ const formatAirDate = (date: string) =>
                             <button
                                 :class="[PAGE_BUTTON, PAGE_IDLE]"
                                 :disabled="pageIndex === 0"
-                                title="Previous page"
+                                :title="$t('mediaInfo.previousPage')"
                                 @click="goToPage(pageIndex - 1)"
                             >
                                 <ChevronLeft :size="16" />
@@ -657,7 +680,7 @@ const formatAirDate = (date: string) =>
                                             ? 'bg-white font-semibold text-black'
                                             : PAGE_IDLE,
                                     ]"
-                                    :title="`Episodes ${pageLabels[item]}`"
+                                    :title="$t('mediaInfo.pageTitle', { range: pageLabels[item] })"
                                     @click="goToPage(item)"
                                 >
                                     {{ item + 1 }}
@@ -666,7 +689,7 @@ const formatAirDate = (date: string) =>
                             <button
                                 :class="[PAGE_BUTTON, PAGE_IDLE]"
                                 :disabled="pageIndex === episodePages.length - 1"
-                                title="Next page"
+                                :title="$t('mediaInfo.nextPage')"
                                 @click="goToPage(pageIndex + 1)"
                             >
                                 <ChevronRight :size="16" />
@@ -680,7 +703,7 @@ const formatAirDate = (date: string) =>
                                 type="number"
                                 min="1"
                                 :max="episodes.length"
-                                placeholder="Go to episode"
+                                :placeholder="$t('mediaInfo.goToEpisode')"
                                 class="w-full min-w-0 [appearance:textfield] bg-transparent text-sm tabular-nums outline-none placeholder:text-white/35 [&::-webkit-inner-spin-button]:appearance-none"
                                 @keydown.enter="jumpToEpisode"
                             />
@@ -690,7 +713,7 @@ const formatAirDate = (date: string) =>
 
                 <MediaRow
                     v-if="details?.related.length"
-                    title="Related"
+                    :title="$t('mediaInfo.related')"
                     :items="details.related.map((r) => r.media)"
                     :labels="relatedLabels"
                     gutter="px-10"
@@ -698,7 +721,7 @@ const formatAirDate = (date: string) =>
                 />
                 <MediaRow
                     v-if="details?.recommendations.length"
-                    title="More like this"
+                    :title="$t('mediaInfo.moreLikeThis')"
                     :items="details.recommendations"
                     gutter="px-10"
                 />

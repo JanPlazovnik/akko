@@ -1,0 +1,560 @@
+{
+    "common": {
+        "clear": "Clear",
+        "close": "Close",
+        "settings": "Settings",
+        "watchNow": "Watch now",
+        "cancel": "Cancel",
+        "save": "Save",
+        "resume": "Resume",
+        "watch": "Watch",
+        "dismiss": "Dismiss",
+        "back": "Back",
+        "goBack": "Go back",
+        "off": "Off",
+        "unknownTitle": "Unknown title",
+        "play": "Play",
+        "retry": "Retry",
+        "loading": "Loading…",
+        "change": "Change",
+        "resetDefault": "Reset to default",
+        "default": "(default)",
+        "continue": "Continue",
+        "undo": "Undo",
+        "undone": "Undone"
+    },
+    "nav": {
+        "home": "Home",
+        "library": "Library",
+        "playground": "Playground"
+    },
+    "header": {
+        "search": "Search anime",
+        "searchShortcut": "Ctrl K"
+    },
+    "window": {
+        "minimize": "Minimize",
+        "maximize": "Maximize",
+        "close": "Close"
+    },
+    "anilistBanner": {
+        "title": "AniList is down.",
+        "detail": "{reason} Saved info is shown where possible."
+    },
+    "media": {
+        "airingShort": "EP {episode} {when}",
+        "status": {
+            "RELEASING": "Airing",
+            "FINISHED": "Finished",
+            "NOT_YET_RELEASED": "Not Yet Released",
+            "CANCELLED": "Cancelled",
+            "HIATUS": "On Hiatus"
+        },
+        "listStatus": {
+            "CURRENT": "Watching",
+            "REPEATING": "Rewatching",
+            "PLANNING": "Planning",
+            "COMPLETED": "Completed",
+            "PAUSED": "Paused",
+            "DROPPED": "Dropped"
+        },
+        "listProgress": "{status} · {progress}/{total}",
+        "relation": {
+            "SEQUEL": "Sequel",
+            "PREQUEL": "Prequel",
+            "PARENT": "Parent story",
+            "SIDE_STORY": "Side story",
+            "SPIN_OFF": "Spin-off",
+            "ALTERNATIVE": "Alternative",
+            "SUMMARY": "Summary",
+            "COMPILATION": "Compilation",
+            "CONTAINS": "Contains",
+            "OTHER": "Other",
+            "CHARACTER": "Shared characters"
+        },
+        "format": {
+            "TV": "TV",
+            "TV_SHORT": "TV Short",
+            "MOVIE": "Movie",
+            "SPECIAL": "Special",
+            "OVA": "OVA",
+            "ONA": "ONA",
+            "MUSIC": "Music",
+            "MANGA": "Manga",
+            "NOVEL": "Novel",
+            "ONE_SHOT": "One Shot"
+        },
+        "season": {
+            "WINTER": "Winter",
+            "SPRING": "Spring",
+            "SUMMER": "Summer",
+            "FALL": "Fall"
+        },
+        "seasonYear": "{season} {year}",
+        "episodeCount": "{n} episode | {n} episodes",
+        "genre": {
+            "Action": "Action",
+            "Adventure": "Adventure",
+            "Comedy": "Comedy",
+            "Drama": "Drama",
+            "Ecchi": "Ecchi",
+            "Fantasy": "Fantasy",
+            "Horror": "Horror",
+            "Mahou Shoujo": "Mahou Shoujo",
+            "Mecha": "Mecha",
+            "Music": "Music",
+            "Mystery": "Mystery",
+            "Psychological": "Psychological",
+            "Romance": "Romance",
+            "Sci-Fi": "Sci-Fi",
+            "Slice of Life": "Slice of Life",
+            "Sports": "Sports",
+            "Supernatural": "Supernatural",
+            "Thriller": "Thriller",
+            "Hentai": "Hentai"
+        }
+    },
+    "hero": {
+        "trending": "Trending #{rank}"
+    },
+    "library": {
+        "search": "Search your list",
+        "connectTitle": "Your lists live on AniList",
+        "connectBody": "Connect your account to see what you're watching, planning and have finished.",
+        "connect": "Connect AniList",
+        "loadFailed": "Couldn't load your list:",
+        "noMatches": "Nothing in {status} matches “{query}”.",
+        "empty": "Nothing in {status} yet."
+    },
+    "listEntry": {
+        "fallbackTitle": "List entry",
+        "edit": "Edit your list entry",
+        "add": "Add to your AniList",
+        "status": "Status",
+        "progress": "Progress",
+        "score": "Score",
+        "rewatches": "Rewatches",
+        "outOf": "/ {max}",
+        "confirmRemove": "Click again to remove",
+        "remove": "Remove from list",
+        "addToList": "Add to list"
+    },
+    "mediaCard": {
+        "episodeShort": "EP {episode}",
+        "minutesLeft": "{n}m left",
+        "new": "New",
+        "watchEpisode": "Watch episode {episode}",
+        "resumeEpisode": "Resume episode {episode}"
+    },
+    "player": {
+        "screenshotCopied": "Screenshot copied",
+        "screenshotFailed": "Couldn't copy the screenshot: {error}",
+        "resumedAt": "Resumed at {time}",
+        "startOver": "Start over",
+        "muted": "Muted",
+        "percent": "{n}%",
+        "subtitlesOn": "Subtitles on",
+        "subtitlesOff": "Subtitles off",
+        "seekForward": "+{n}s",
+        "seekBack": "−{n}s",
+        "episodeShort": "E{episode}",
+        "episode": "Episode {episode}",
+        "noSoundUnsupported": "No sound, {codecs} audio isn't supported.",
+        "noSoundFailed": "No sound, {codecs} audio couldn't be loaded.",
+        "pickAnother": "Pick another release",
+        "expand": "Expand",
+        "stop": "Stop",
+        "play": "Play",
+        "pause": "Pause",
+        "copyScreenshot": "Copy screenshot",
+        "previousEpisode": "Previous episode",
+        "nextEpisode": "Next episode",
+        "subtitlesTurnOff": "Turn subtitles off",
+        "subtitlesTurnOn": "Turn subtitles on",
+        "fullscreen": "Fullscreen",
+        "exitFullscreen": "Exit fullscreen",
+        "shortcuts": "Keyboard shortcuts",
+        "controls": {
+            "previous": "Previous episode (Shift+P)",
+            "playPause": "Play/Pause (k)",
+            "next": "Next episode (Shift+N)",
+            "back10": "Back 10s (j)",
+            "forward10": "Forward 10s (l)",
+            "mute": "Mute (m)",
+            "speed": "Playback speed",
+            "fullscreen": "Fullscreen (f)"
+        },
+        "nothingPlaying": "Nothing is playing",
+        "browse": "Browse anime",
+        "connecting": "Connecting to peers and fetching torrent metadata…",
+        "bufferingStats": "{speed} · {peers} peers",
+        "stalled": "The download has stalled, peers may be missing part of this release.",
+        "skip": "Skip {chapter}",
+        "stats": {
+            "download": "Download speed",
+            "upload": "Upload speed",
+            "peers": "Connected peers",
+            "downloaded": "{downloaded} of {size} downloaded"
+        },
+        "subtitles": "Subtitles",
+        "subtitlesButton": "Subtitles (c)",
+        "upNext": {
+            "finding": "Finding a release…",
+            "countdown": "Next episode in {n}",
+            "title": "Up next",
+            "playNow": "Play now"
+        }
+    },
+    "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "description": "Player shortcuts work while the player is open.",
+        "groups": {
+            "player": "Player",
+            "anywhere": "Anywhere"
+        },
+        "keys": {
+            "Space": "Space",
+            "Click": "Click",
+            "Double click": "Double click",
+            "Esc": "Esc",
+            "Shift": "Shift",
+            "Ctrl": "Ctrl"
+        },
+        "actions": {
+            "playPause": "Play or pause",
+            "fullscreen": "Fullscreen",
+            "exitFullscreen": "Exit fullscreen",
+            "seek5": "Back or forward 5 seconds",
+            "seek10": "Back or forward 10 seconds",
+            "jump": "Jump to 0% to 90%",
+            "volume": "Volume up or down",
+            "mute": "Mute",
+            "subtitles": "Subtitles on or off",
+            "previous": "Previous episode",
+            "next": "Next episode",
+            "search": "Search",
+            "shortcuts": "Keyboard shortcuts"
+        },
+        "combo": {
+            "shiftP": "Shift+P",
+            "shiftN": "Shift+N"
+        }
+    },
+    "trailer": {
+        "label": "Trailer"
+    },
+    "extensions": {
+        "fetchFailed": "Failed to fetch repository",
+        "installed": "{name} installed",
+        "installFailed": "Install failed",
+        "removed": "{name} removed",
+        "removeFailed": "Failed to remove extension",
+        "toggleFailed": "Failed to toggle extension",
+        "updatesAvailable": "{n} update available | {n} updates available",
+        "upToDate": "All extensions up to date",
+        "updateCheckFailed": "Failed to check for updates",
+        "updated": "Extension updated",
+        "updateFailed": "Update failed",
+        "checkUpdates": "Check for updates",
+        "version": "v{version}",
+        "versionAvailable": "v{version} available",
+        "update": "Update",
+        "enable": "Enable {name}",
+        "remove": "Remove {name}",
+        "none": "No extensions installed",
+        "browseTitle": "Browse repository",
+        "fetching": "Fetching…",
+        "browse": "Browse",
+        "installing": "Installing…",
+        "install": "Install",
+        "installedBadge": "Installed",
+        "accuracy": {
+            "high": "high",
+            "medium": "medium",
+            "low": "low"
+        }
+    },
+    "picker": {
+        "overall": "#{n} overall",
+        "choose": "Choose a release to stream",
+        "resolution": "{r}p",
+        "counts": "{results} results · {sources} sources",
+        "searchAgain": "Search again",
+        "noExtensions": "No extensions are enabled.",
+        "manageExtensions": "Manage extensions",
+        "topPick": "Top pick",
+        "startsIn": "· starts in {n}s",
+        "seeders": "{n} seeders",
+        "searching": "Searching",
+        "results": "No results | {n} result | {n} results",
+        "accuracy": "{accuracy} accuracy",
+        "bestRelease": "Best release",
+        "batch": "Batch",
+        "playingNow": "Playing now",
+        "unsupportedAudioHint": "DTS/TrueHD audio can't be played. If this release has no other audio track, it will be silent.",
+        "unsupportedAudio": "Audio may not play",
+        "seedersTitle": "Seeders"
+    },
+    "menu": {
+        "search": "Search {name}",
+        "noMatches": "No matches",
+        "clearAll": "Clear all"
+    },
+    "search": {
+        "sort": {
+            "TRENDING_DESC": "Trending",
+            "POPULARITY_DESC": "Popular",
+            "SCORE_DESC": "Top Rated",
+            "START_DATE_DESC": "Newest",
+            "TITLE_ROMAJI": "A-Z"
+        },
+        "tvShow": "TV Show",
+        "failed": "Search failed",
+        "filters": {
+            "sort": "Sort",
+            "season": "Season",
+            "year": "Year",
+            "status": "Status",
+            "format": "Format",
+            "genres": "Genres",
+            "tags": "Tags"
+        },
+        "tryAgain": "Try again",
+        "end": "End of results"
+    },
+    "mediaInfo": {
+        "notAvailable": "Not available yet",
+        "rewatch": "Rewatch",
+        "rewatchFromStart": "Rewatch from episode 1",
+        "caughtUp": "All caught up",
+        "airsOn": "Episode {episode} airs {date}",
+        "airsSoon": "Episode {episode} airs soon",
+        "pageRange": "{from} to {to}",
+        "loadFailed": "Failed to load media",
+        "reconnectToEdit": "Reconnect AniList in Settings to edit your list",
+        "editEntry": "Edit list entry",
+        "addToList": "Add to list",
+        "trailer": "Watch the trailer",
+        "openOn": "Open on {site}",
+        "sequel": "Sequel:",
+        "showLess": "Show less",
+        "showMore": "Show more",
+        "spoilers": "{n} spoiler | {n} spoilers",
+        "episodes": "Episodes",
+        "runtime": "{n}m",
+        "watched": "Watched",
+        "airs": "Airs {date}",
+        "aired": "Aired {date}",
+        "notAired": "Not aired yet",
+        "previousPage": "Previous page",
+        "nextPage": "Next page",
+        "pageTitle": "Episodes {range}",
+        "goToEpisode": "Go to episode",
+        "related": "Related",
+        "moreLikeThis": "More like this"
+    },
+    "dashboard": {
+        "continue": "Continue watching",
+        "trending": "Trending now",
+        "season": "Airing this season",
+        "popular": "All-time popular"
+    },
+    "settings": {
+        "torrents": {
+            "location": "Download location",
+            "keepFiles": "Keep downloaded episodes",
+            "keepFilesDescription": "Leave files on disk after you stop watching, so replaying them starts instantly. When off, files are deleted as soon as playback stops.",
+            "description": "Where episodes are downloaded to and how much bandwidth streaming may use.",
+            "openFolder": "Open folder",
+            "downloadLimit": "Download limit",
+            "uploadLimit": "Upload limit",
+            "noLimit": "Leave empty for no limit.",
+            "unlimited": "Unlimited",
+            "speedUnit": "MB/s",
+            "connections": "Maximum connections",
+            "connectionsDescription": "Peers per torrent. More can be faster, but uses more resources."
+        },
+        "sections": {
+            "accounts": "Accounts",
+            "interface": "Interface",
+            "player": "Player",
+            "torrents": "Torrents",
+            "discord": "Discord",
+            "extensions": "Extensions",
+            "application": "App",
+            "about": "About"
+        },
+        "accounts": {
+            "description": "Sync your lists and watch progress with a tracking site.",
+            "anilist": "AniList",
+            "expired": "login expired",
+            "expires": "login expires {when}",
+            "service": "AniList ·",
+            "notConnected": "Not connected",
+            "waiting": "Waiting for AniList…",
+            "reconnect": "Reconnect",
+            "connect": "Connect",
+            "disconnect": "Disconnect",
+            "sync": "Sync watch progress",
+            "syncDescription": "Marks episodes as watched near the end, and puts a show on Watching once you've watched it for 5 minutes."
+        },
+        "interface": {
+            "description": "How titles are shown and the look of the app.",
+            "titleLanguage": "Title language",
+            "titleLanguageDescription": "How anime titles are shown. AniList follows your account's setting.",
+            "titleLanguages": {
+                "ROMAJI": "Romaji",
+                "ENGLISH": "English",
+                "NATIVE": "Native",
+                "anilist": "AniList ({language})",
+                "anilistDisconnected": "AniList (romaji when not connected)"
+            },
+            "shortcuts": "Keyboard shortcuts",
+            "shortcutsDescription": "Press ? anywhere to see them.",
+            "view": "View",
+            "holidays": "Holiday effects",
+            "holidaysDescription": "Small surprises around Halloween, Christmas and New Year."
+        },
+        "player": {
+            "description": "Subtitles, picking releases and what happens when an episode ends.",
+            "subtitles": "Preferred subtitles",
+            "subtitlesDescription": "Selected automatically when an episode starts.",
+            "autoPick": "Pick releases automatically",
+            "autoPickDescription": "Plays the top pick a few seconds after the search finishes, unless you start browsing the results.",
+            "autoplay": "Autoplay next episode",
+            "autoplayDescription": "Counts down when an episode ends, then plays the next one.",
+            "stats": "Show torrent stats",
+            "statsDescription": "Download and upload speed, peers and how much of the episode has downloaded, at the top of the player."
+        },
+        "discord": {
+            "description": "Show what you're watching on your Discord profile.",
+            "status": "Discord status",
+            "statusDescription": "Updates while Discord is running on this computer.",
+            "details": "Show the anime on Discord",
+            "detailsDescription": "When off, Discord only shows that you're watching anime in akko. Adult titles are always hidden."
+        },
+        "extensions": {
+            "description": "Sources the release picker searches."
+        },
+        "app": {
+            "description": "Logs, cached data and tools for troubleshooting.",
+            "logLevel": "Log level",
+            "logLevelDescription": "How much detail is written to the log.",
+            "logLevels": {
+                "error": "Error",
+                "warn": "Warn",
+                "info": "Info",
+                "verbose": "Verbose",
+                "debug": "Debug",
+                "silly": "Silly"
+            },
+            "logToFile": "Write logs to file",
+            "logToFileDescription": "Useful when reporting a bug.",
+            "devTools": "Developer tools",
+            "devToolsDev": "Always available in development builds. Open with F12 or Ctrl+Shift+I.",
+            "devToolsDescription": "Lets F12 and Ctrl+Shift+I open the developer tools.",
+            "cache": "Metadata cache",
+            "cacheDescription": "Show info and episode lists are kept offline and refreshed in the background.",
+            "cacheEntries": "{n} entry | {n} entries"
+        },
+        "about": {
+            "copyInfo": "Copy version info",
+            "copy": "Copy",
+            "copied": "Copied",
+            "tmdb": "Title logos come from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB."
+        },
+        "saveFailed": "Couldn't save setting: {error}"
+    },
+    "setup": {
+        "title": "Setup",
+        "steps": {
+            "welcome": "Welcome",
+            "storage": "Storage",
+            "network": "Connection",
+            "sources": "Sources"
+        },
+        "intro": {
+            "storage": "Choose where episodes are saved and whether to keep them",
+            "network": "Check that your connection can reach other peers",
+            "sources": "Add a source extension to search for releases"
+        },
+        "folder": {
+            "checking": "Checking folder…",
+            "notWritable": "akko can't save files here",
+            "notWritableDetail": "{error}. Choose another folder to continue.",
+            "inMemory": "This folder is stored in memory",
+            "inMemoryDetail": "It's a tmpfs with {free} free, so downloads use RAM and are lost on restart. Choose a folder on disk.",
+            "lowSpace": "Only {free} free on this drive",
+            "lowSpaceDetail": "An episode is usually 0.3–1.5 GB, so kept episodes will fill it quickly.",
+            "ready": "Folder is ready",
+            "readyDetail": "{free} free on this drive."
+        },
+        "network": {
+            "checking": "Looking for peers…",
+            "checkingDetail": "This takes up to 10 seconds.",
+            "trackers": "{reached} of {n} tracker | {reached} of {n} trackers",
+            "dht": "{n} DHT node | {n} DHT nodes",
+            "connected": "Connected to the BitTorrent network",
+            "reachedBoth": "Reached {trackers} and {dht}.",
+            "reachedTrackers": "Reached {trackers}. The DHT only found {dht}, so akko will find peers through trackers, which works for most releases.",
+            "reachedDht": "Reached {dht}. Trackers didn't respond, so akko will find peers through the DHT.",
+            "failed": "Couldn't reach the BitTorrent network",
+            "failedDetail": "Episodes may still load through trackers. If streams never start, a firewall, VPN or your network may be blocking BitTorrent."
+        },
+        "blockers": {
+            "folder": "Choose a folder akko can write to",
+            "sources": "Install or enable at least one source to finish"
+        },
+        "getStarted": "Get started",
+        "finish": "Finish setup",
+        "welcome": {
+            "title": "Welcome to akko",
+            "body": "akko streams episodes straight from BitTorrent and plays them while they download. Three things need setting up before you start watching."
+        },
+        "storage": {
+            "title": "Where should episodes go?",
+            "body": "You can change both of these later in Settings."
+        },
+        "networkStep": {
+            "title": "Checking your connection",
+            "body": "akko finds peers through trackers and the DHT, a shared directory of BitTorrent users. If neither can be reached, streams can be slow or never start."
+        },
+        "sources": {
+            "title": "Add a source",
+            "body": "akko doesn't host anything itself. Sources are extensions that search torrent sites for releases of an episode. Paste a repository link to browse and install them."
+        }
+    },
+    "accounts": {
+        "reconnect": "Reconnect",
+        "expired": "Your AniList login expired. Reconnect it to keep syncing.",
+        "expiring": "Your AniList login expires {when}. Reconnect it to renew it.",
+        "connected": "Connected to AniList as {name}",
+        "connectFailed": "Couldn't connect AniList: {error}"
+    },
+    "list": {
+        "saveFailed": "Couldn't update your list: {error}",
+        "removeFailed": "Couldn't remove it from your list: {error}"
+    },
+    "tracking": {
+        "watching": "Marked {title} as watching",
+        "rewatching": "Marked {title} as rewatching",
+        "watched": "Marked {title} as watched",
+        "episodeWatched": "Marked episode {episode} of {title} as watched"
+    },
+    "discord": {
+        "watching": "Watching anime",
+        "paused": "Paused",
+        "episode": "Episode {episode}",
+        "episodeOf": "Episode {episode} of {count}",
+        "episodePaused": "{episode} · Paused",
+        "viewOnAnilist": "View on AniList"
+    },
+    "updater": {
+        "checking": "Checking for updates",
+        "downloading": "Downloading update {version}",
+        "restarting": "Restarting"
+    },
+    "tracks": {
+        "fallback": "Track {n}"
+    }
+}

@@ -13,7 +13,7 @@ import {
 import SettingRow from './settings/SettingRow.vue';
 import SelectMenu from './ui/SelectMenu.vue';
 import NumberField from './ui/NumberField.vue';
-import { LIST_STATUS_LABELS, mediaMeta } from '../lib/media-labels';
+import { listStatusLabel, mediaMeta } from '../lib/media-labels';
 import { LIST_STATUSES, useListStore, type EntryPatch, type ListStatus } from '../stores/list';
 import { useAccountsStore } from '../stores/accounts';
 import { useMediaStore } from '../stores/media';
@@ -42,7 +42,7 @@ const entry = computed(() => list.entryFor(props.mediaId));
 const score = computed(
     () => SCORE_FORMATS[accounts.anilist?.scoreFormat ?? ''] ?? SCORE_FORMATS.POINT_10
 );
-const statusOptions = LIST_STATUSES.map((value) => ({ value, label: LIST_STATUS_LABELS[value] }));
+const statusOptions = LIST_STATUSES.map((value) => ({ value, label: listStatusLabel(value) }));
 
 const draft = reactive({ status: 'PLANNING' as ListStatus, progress: 0, score: 0, repeat: 0 });
 const initial = { ...draft };
@@ -109,10 +109,10 @@ async function remove() {
                     />
                     <div class="min-w-0 flex-1">
                         <DialogTitle class="truncate pr-8 font-display text-xl font-semibold">
-                            {{ media ? accounts.titleOf(media) : 'List entry' }}
+                            {{ media ? accounts.titleOf(media) : $t('listEntry.fallbackTitle') }}
                         </DialogTitle>
                         <DialogDescription class="mt-1 text-xs text-white/45">
-                            {{ entry ? 'Edit your list entry' : 'Add to your AniList' }}
+                            {{ entry ? $t('listEntry.edit') : $t('listEntry.add') }}
                             <template v-if="media">· {{ mediaMeta(media).join(' · ') }}</template>
                         </DialogDescription>
                     </div>
@@ -124,33 +124,37 @@ async function remove() {
                 </header>
 
                 <div class="divide-y divide-line">
-                    <SettingRow title="Status">
+                    <SettingRow :title="$t('listEntry.status')">
                         <SelectMenu
                             :model-value="draft.status"
                             :options="statusOptions"
-                            placeholder="Status"
+                            :placeholder="$t('listEntry.status')"
                             required
                             @update:model-value="draft.status = $event as ListStatus"
                         />
                     </SettingRow>
-                    <SettingRow title="Progress">
+                    <SettingRow :title="$t('listEntry.progress')">
                         <NumberField
                             v-model="draft.progress"
                             :max="media?.episodes ?? undefined"
-                            :suffix="media?.episodes ? `/ ${media.episodes}` : undefined"
+                            :suffix="
+                                media?.episodes
+                                    ? $t('listEntry.outOf', { max: media.episodes })
+                                    : undefined
+                            "
                             placeholder="0"
                         />
                     </SettingRow>
-                    <SettingRow title="Score">
+                    <SettingRow :title="$t('listEntry.score')">
                         <NumberField
                             v-model="draft.score"
                             :max="score.max"
                             :step="score.step"
-                            :suffix="`/ ${score.max}`"
+                            :suffix="$t('listEntry.outOf', { max: score.max })"
                             placeholder="0"
                         />
                     </SettingRow>
-                    <SettingRow title="Rewatches">
+                    <SettingRow :title="$t('listEntry.rewatches')">
                         <NumberField v-model="draft.repeat" placeholder="0" />
                     </SettingRow>
                 </div>
@@ -162,20 +166,24 @@ async function remove() {
                         :disabled="saving"
                         @click="remove"
                     >
-                        {{ confirmingRemove ? 'Click again to remove' : 'Remove from list' }}
+                        {{
+                            confirmingRemove
+                                ? $t('listEntry.confirmRemove')
+                                : $t('listEntry.remove')
+                        }}
                     </button>
                     <button
                         :class="[BUTTON, 'ml-auto bg-white/8 hover:bg-white/14']"
                         @click="close"
                     >
-                        Cancel
+                        {{ $t('common.cancel') }}
                     </button>
                     <button
                         :class="[BUTTON, 'bg-white text-black hover:bg-white/85']"
                         :disabled="saving"
                         @click="save"
                     >
-                        {{ entry ? 'Save' : 'Add to list' }}
+                        {{ entry ? $t('common.save') : $t('listEntry.addToList') }}
                     </button>
                 </footer>
             </DialogContent>

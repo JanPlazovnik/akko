@@ -33,6 +33,7 @@ import { mediaToSummary } from '@shared/media/types';
 import type { TorrentResult } from '../../main/extensions/types';
 import { ignoreWindowControls } from '../lib/dialog';
 import { useFullscreenElement } from '../lib/fullscreen';
+import { t, translateOr } from '../i18n';
 
 type Source = {
     id: string;
@@ -91,6 +92,9 @@ const orderedSources = computed(() =>
 );
 const searching = computed(() => sources.value.some((s) => s.status === 'loading'));
 const totalResults = computed(() => sources.value.reduce((n, s) => n + s.results.length, 0));
+
+const accuracyLabel = (accuracy: string) =>
+    translateOr(`extensions.accuracy.${accuracy}`, accuracy);
 
 function isPlaying(result: TorrentResult): boolean {
     return player.selection?.torrent.magnet === torrentId(result.link, result.hash);
@@ -235,7 +239,7 @@ async function pick(result: TorrentResult) {
             ? mediaToSummary(media, accounts.titleOf(media))
             : {
                   anilistId: props.anilistId,
-                  title: props.titles[0] ?? 'Unknown title',
+                  title: props.titles[0] ?? t('common.unknownTitle'),
                   episodeCount: props.episodeCount,
               };
         void player.startStream(selectionFor(summary, context.value, result), context.value);
@@ -267,7 +271,7 @@ async function pick(result: TorrentResult) {
                         <span
                             class="absolute bottom-1.5 left-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[11px] font-semibold"
                         >
-                            EP {{ episode.number }}
+                            {{ $t('mediaCard.episodeShort', { episode: episode.number }) }}
                         </span>
                     </div>
 
@@ -276,16 +280,16 @@ async function pick(result: TorrentResult) {
                             {{ titles[0] }}
                         </p>
                         <DialogTitle class="truncate pr-8 font-display text-xl font-semibold">
-                            Episode {{ episode.number }}
+                            {{ $t('player.episode', { episode: episode.number }) }}
                             <span
                                 v-if="episode.number !== episodeNumber"
                                 class="ml-1 text-sm font-medium text-white/40"
                             >
-                                #{{ episodeNumber }} overall
+                                {{ $t('picker.overall', { n: episodeNumber }) }}
                             </span>
                         </DialogTitle>
                         <DialogDescription class="truncate text-sm text-white/55">
-                            {{ episodeTitle ?? 'Choose a release to stream' }}
+                            {{ episodeTitle ?? $t('picker.choose') }}
                         </DialogDescription>
 
                         <div class="mt-auto flex items-center gap-3 pt-3">
@@ -301,15 +305,20 @@ async function pick(result: TorrentResult) {
                                     ]"
                                     @click="resolution = r"
                                 >
-                                    {{ r }}p
+                                    {{ $t('picker.resolution', { r }) }}
                                 </button>
                             </div>
                             <span class="text-xs text-white/40">
-                                {{ totalResults }} results · {{ sources.length }} sources
+                                {{
+                                    $t('picker.counts', {
+                                        results: totalResults,
+                                        sources: sources.length,
+                                    })
+                                }}
                             </span>
                             <button
                                 class="ml-auto grid size-8 cursor-pointer place-items-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
-                                title="Search again"
+                                :title="$t('picker.searchAgain')"
                                 :disabled="searching"
                                 @click="triggerSearch()"
                             >
@@ -339,12 +348,12 @@ async function pick(result: TorrentResult) {
                         v-else-if="listed && !sources.length"
                         class="flex flex-col items-center gap-3 px-3 py-14 text-center text-sm text-white/45"
                     >
-                        No extensions are enabled.
+                        {{ $t('picker.noExtensions') }}
                         <button
                             class="cursor-pointer rounded-full bg-white/10 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-white/20"
                             @click="manageExtensions"
                         >
-                            Manage extensions
+                            {{ $t('picker.manageExtensions') }}
                         </button>
                     </div>
 
@@ -354,9 +363,9 @@ async function pick(result: TorrentResult) {
                     >
                         <div class="min-w-0 flex-1">
                             <p class="text-xs font-semibold text-accent">
-                                Top pick
+                                {{ $t('picker.topPick') }}
                                 <span v-if="autoPickIn" class="font-medium text-white/50">
-                                    · starts in {{ autoPickIn }}s
+                                    {{ $t('picker.startsIn', { n: autoPickIn }) }}
                                 </span>
                             </p>
                             <p class="mt-1 truncate text-sm text-white/90">
@@ -373,7 +382,7 @@ async function pick(result: TorrentResult) {
                                     [
                                         bestSource?.name,
                                         best.size && formatBytes(best.size),
-                                        best.seeders && `${best.seeders} seeders`,
+                                        best.seeders && $t('picker.seeders', { n: best.seeders }),
                                     ]
                                         .filter(Boolean)
                                         .join(' · ')
@@ -390,7 +399,7 @@ async function pick(result: TorrentResult) {
                             @click="pick(best)"
                         >
                             <Play :size="13" fill="currentColor" />
-                            Play
+                            {{ $t('common.play') }}
                         </CountdownButton>
                     </div>
 
@@ -414,7 +423,8 @@ async function pick(result: TorrentResult) {
                                 v-if="source.status === 'loading'"
                                 class="flex items-center gap-1.5 text-xs text-white/40"
                             >
-                                <Loader2 :size="12" class="animate-spin" /> Searching
+                                <Loader2 :size="12" class="animate-spin" />
+                                {{ $t('picker.searching') }}
                             </span>
                             <span
                                 v-else-if="source.status === 'error'"
@@ -425,7 +435,13 @@ async function pick(result: TorrentResult) {
                                 <span class="truncate">{{ source.error }}</span>
                             </span>
                             <span v-else class="text-xs text-white/35">
-                                {{ source.results.length || 'No' }} results
+                                {{
+                                    $t(
+                                        'picker.results',
+                                        { n: source.results.length },
+                                        source.results.length
+                                    )
+                                }}
                             </span>
                         </header>
 
@@ -457,7 +473,11 @@ async function pick(result: TorrentResult) {
                                 <div class="mt-1 flex items-center gap-2 text-[11px] text-white/45">
                                     <span
                                         class="flex items-center gap-1.5"
-                                        :title="`${result.accuracy} accuracy`"
+                                        :title="
+                                            $t('picker.accuracy', {
+                                                accuracy: accuracyLabel(result.accuracy),
+                                            })
+                                        "
                                     >
                                         <span
                                             :class="[
@@ -465,38 +485,42 @@ async function pick(result: TorrentResult) {
                                                 ACCURACY_DOT[result.accuracy],
                                             ]"
                                         />
-                                        {{ result.accuracy }}
+                                        {{ accuracyLabel(result.accuracy) }}
                                     </span>
                                     <span
                                         v-if="parseTitle(result.title).resolution"
                                         class="rounded bg-white/8 px-1.5 py-px font-medium text-white/70"
                                     >
-                                        {{ parseTitle(result.title).resolution }}p
+                                        {{
+                                            $t('picker.resolution', {
+                                                r: parseTitle(result.title).resolution,
+                                            })
+                                        }}
                                     </span>
                                     <span
                                         v-if="result.type === 'best'"
                                         class="rounded bg-emerald-400/12 px-1.5 py-px font-medium text-emerald-300"
                                     >
-                                        Best release
+                                        {{ $t('picker.bestRelease') }}
                                     </span>
                                     <span
                                         v-else-if="result.type === 'batch'"
                                         class="rounded bg-sky-400/12 px-1.5 py-px font-medium text-sky-300"
                                     >
-                                        Batch
+                                        {{ $t('picker.batch') }}
                                     </span>
                                     <span
                                         v-if="isPlaying(result)"
                                         class="rounded bg-white/12 px-1.5 py-px font-medium text-white/80"
                                     >
-                                        Playing now
+                                        {{ $t('picker.playingNow') }}
                                     </span>
                                     <span
                                         v-if="hasUnsupportedAudio(result)"
                                         class="rounded bg-amber-400/12 px-1.5 py-px font-medium text-amber-300"
-                                        title="DTS/TrueHD audio can't be played. If this release has no other audio track, it will be silent."
+                                        :title="$t('picker.unsupportedAudioHint')"
                                     >
-                                        Audio may not play
+                                        {{ $t('picker.unsupportedAudio') }}
                                     </span>
                                     <span v-if="formatRelativeDate(result.date)">
                                         {{ formatRelativeDate(result.date) }}
@@ -514,7 +538,7 @@ async function pick(result: TorrentResult) {
                                         'flex w-12 items-center justify-end gap-1',
                                         result.seeders >= 10 ? 'text-emerald-400' : 'text-white/50',
                                     ]"
-                                    title="Seeders"
+                                    :title="$t('picker.seedersTitle')"
                                 >
                                     <ArrowUp :size="11" />
                                     {{ result.seeders }}

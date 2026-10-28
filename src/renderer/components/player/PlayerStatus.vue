@@ -49,19 +49,21 @@ const idle = computed(() => !player.loading && !player.error);
         </div>
         <div v-if="idle" class="relative flex flex-col items-center px-6 text-center">
             <p class="font-display text-5xl text-white/25 select-none">(&gt;へ&lt;)</p>
-            <h2 class="mt-6 font-display text-2xl font-semibold">Nothing is playing</h2>
+            <h2 class="mt-6 font-display text-2xl font-semibold">
+                {{ $t('player.nothingPlaying') }}
+            </h2>
             <div class="mt-6 flex gap-2">
                 <button
                     class="no-drag cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-white/20"
                     @click="leave"
                 >
-                    Go back
+                    {{ $t('common.goBack') }}
                 </button>
                 <button
                     class="no-drag cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black transition hover:brightness-110"
                     @click="router.push('/')"
                 >
-                    Browse anime
+                    {{ $t('player.browse') }}
                 </button>
             </div>
         </div>
@@ -77,13 +79,13 @@ const idle = computed(() => !player.loading && !player.error);
                 </h2>
             </div>
             <p :class="['text-sm', player.error ? 'text-red-300/90' : 'text-white/50']">
-                {{ player.error ?? 'Connecting to peers and fetching torrent metadata…' }}
+                {{ player.error ?? $t('player.connecting') }}
             </p>
             <button
                 class="no-drag cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-white/20"
                 @click="leave"
             >
-                {{ player.loading ? 'Cancel' : 'Go back' }}
+                {{ player.loading ? $t('common.cancel') : $t('common.goBack') }}
             </button>
         </div>
     </div>
@@ -96,16 +98,21 @@ const idle = computed(() => !player.loading && !player.error);
         >
             <Loader2 :size="28" class="animate-spin" />
             <p v-if="player.stats" class="text-xs text-white/70 tabular-nums">
-                {{ formatSpeed(player.stats.downloadSpeed) }} · {{ player.stats.peers }} peers
+                {{
+                    $t('player.bufferingStats', {
+                        speed: formatSpeed(player.stats.downloadSpeed),
+                        peers: player.stats.peers,
+                    })
+                }}
             </p>
             <p v-if="player.stalled" class="max-w-64 text-center text-xs text-amber-200/90">
-                The download has stalled, peers may be missing part of this release.
+                {{ $t('player.stalled') }}
                 <button
                     v-if="player.pickerContext"
                     class="pointer-events-auto cursor-pointer text-white/80 underline decoration-white/30 underline-offset-4 transition-colors hover:text-white hover:decoration-white"
                     @click="player.pickAnotherRelease()"
                 >
-                    Pick another release
+                    {{ $t('player.pickAnother') }}
                 </button>
             </p>
         </div>

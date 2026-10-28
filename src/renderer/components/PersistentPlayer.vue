@@ -13,6 +13,7 @@ import { useSubtitleRenderer } from '../lib/subtitles';
 import { useControlsHover } from '../lib/controls-hover';
 import { AudioBridge } from '../lib/audio-bridge';
 import { errorMessage } from '../lib/format';
+import { t } from '../i18n';
 import PlayerControls from './player/PlayerControls.vue';
 import PlayerStatus from './player/PlayerStatus.vue';
 import MiniPlayerOverlay from './player/MiniPlayerOverlay.vue';
@@ -143,9 +144,9 @@ async function copyScreenshot() {
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve));
         if (!blob) throw new Error('Could not encode the frame');
         await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-        toast.success('Screenshot copied');
+        toast.success(t('player.screenshotCopied'));
     } catch (err) {
-        toast.error(`Couldn't copy the screenshot: ${errorMessage(err)}`);
+        toast.error(t('player.screenshotFailed', { error: errorMessage(err) }));
     }
 }
 
@@ -250,8 +251,8 @@ watch(
             const resumeAt = progress.resumePosition(player.selection);
             if (resumeAt) {
                 v.currentTime = resumeAt;
-                toast.info(`Resumed at ${formatTimestamp(resumeAt)}`, {
-                    action: { label: 'Start over', onClick: () => (v.currentTime = 0) },
+                toast.info(t('player.resumedAt', { time: formatTimestamp(resumeAt) }), {
+                    action: { label: t('player.startOver'), onClick: () => (v.currentTime = 0) },
                 });
             }
             v.play().catch(() => undefined);

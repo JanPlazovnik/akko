@@ -36,9 +36,9 @@ const src = computed(() => EMBEDS[props.trailer.site](props.trailer.id));
                 <div class="mb-3 flex items-center gap-4">
                     <DialogTitle class="truncate font-display text-lg font-semibold">
                         {{ title }}
-                        <span class="ml-1 font-sans text-sm font-normal text-white/45"
-                            >Trailer</span
-                        >
+                        <span class="ml-1 font-sans text-sm font-normal text-white/45">{{
+                            $t('trailer.label')
+                        }}</span>
                     </DialogTitle>
                     <DialogClose
                         class="ml-auto grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"

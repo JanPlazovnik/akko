@@ -8,9 +8,13 @@ const player = usePlayerStore();
 
 <template>
     <template v-if="player.episodeTitle">
-        <span class="mr-1.5 tabular-nums opacity-50">E{{ player.episodeNumber }}</span>
+        <span class="mr-1.5 tabular-nums opacity-50">{{
+            $t('player.episodeShort', { episode: player.episodeNumber })
+        }}</span>
         {{ player.episodeTitle }}
     </template>
-    <template v-else-if="player.episodeNumber">Episode {{ player.episodeNumber }}</template>
+    <template v-else-if="player.episodeNumber">{{
+        $t('player.episode', { episode: player.episodeNumber })
+    }}</template>
     <template v-else>{{ fallback }}</template>
 </template>

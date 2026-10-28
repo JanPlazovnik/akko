@@ -32,7 +32,7 @@ const COLOR = {
             @click="$emit('retry')"
         >
             <RotateCcw :size="13" />
-            Retry
+            {{ $t('common.retry') }}
         </button>
     </div>
 </template>

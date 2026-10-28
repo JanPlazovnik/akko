@@ -83,14 +83,14 @@ function toggle(value: string, checked: boolean) {
                     <input
                         ref="searchEl"
                         v-model="query"
-                        :placeholder="`Search ${placeholder.toLowerCase()}`"
+                        :placeholder="$t('menu.search', { name: placeholder.toLocaleLowerCase() })"
                         class="w-full rounded-md bg-white/5 px-2.5 py-1.5 text-xs outline-none placeholder:text-white/30"
                         @keydown="keepTyping"
                     />
                 </div>
                 <div class="max-h-60 overflow-y-auto py-1">
                     <p v-if="!visible.length" class="px-4 py-2 text-xs text-white/35">
-                        {{ options.length ? 'No matches' : 'Loading…' }}
+                        {{ options.length ? $t('menu.noMatches') : $t('common.loading') }}
                     </p>
                     <DropdownMenuCheckboxItem
                         v-for="opt in visible"
@@ -129,7 +129,7 @@ function toggle(value: string, checked: boolean) {
                             class="px-3 py-1.5 text-[11px] text-white/35 cursor-pointer outline-none select-none rounded-md mx-1 data-[highlighted]:text-white/60 transition-colors"
                             @select="emit('update:modelValue', [])"
                         >
-                            Clear all
+                            {{ $t('menu.clearAll') }}
                         </DropdownMenuItem>
                     </div>
                 </template>

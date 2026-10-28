@@ -7,6 +7,7 @@ import { sendToRenderer } from '../context';
 import { createLogger } from '../logger';
 import { audioTracks } from '../media/audio';
 import { describeLanguage } from '../media/language';
+import { t } from '../i18n';
 import {
     isTextSubtitle,
     MatroskaFile,
@@ -137,7 +138,11 @@ export class SubtitleSession {
 
         return matroska.tracks.filter(isTextSubtitle).map((track) => ({
             id: `mkv:${track.number}`,
-            ...describeLanguage(track.language, track.name, `Track ${track.number}`),
+            ...describeLanguage(
+                track.language,
+                track.name,
+                t('tracks.fallback', { n: track.number })
+            ),
             header: isAss(track)
                 ? assHeader(track.codecPrivate && Buffer.from(track.codecPrivate).toString())
                 : PLAIN_HEADER,

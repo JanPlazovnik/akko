@@ -9,6 +9,7 @@ import { useListStore, type EntryPatch } from './list';
 import { useMediaStore } from './media';
 import { usePlayerStore } from './player';
 import { useSettingsStore } from './settings';
+import { t } from '../i18n';
 
 const log = createLogger('tracking');
 
@@ -41,12 +42,12 @@ export const useTrackingStore = defineStore('tracking', () => {
         if (!(await list.save(mediaId, patch))) return;
         log.info(message);
         toast.success(message, {
-            action: { label: 'Undo', onClick: () => void undo(mediaId, before) },
+            action: { label: t('common.undo'), onClick: () => void undo(mediaId, before) },
         });
     }
 
     async function undo(mediaId: number, before: ListEntry | null) {
-        if (await list.restore(mediaId, before)) toast.info('Undone');
+        if (await list.restore(mediaId, before)) toast.info(t('common.undone'));
     }
 
     async function markStarted() {
@@ -61,12 +62,12 @@ export const useTrackingStore = defineStore('tracking', () => {
         const single = media?.format === 'MOVIE' || media?.episodes === 1;
 
         if (!entry || entry.status === 'PLANNING' || entry.status === 'PAUSED') {
-            await apply(anilistId, { status: 'CURRENT' }, `Marked ${title} as watching`);
+            await apply(anilistId, { status: 'CURRENT' }, t('tracking.watching', { title }));
         } else if (entry.status === 'COMPLETED' && selection.episode.number === 1 && !single) {
             await apply(
                 anilistId,
                 { status: 'REPEATING', progress: 0 },
-                `Marked ${title} as rewatching`
+                t('tracking.rewatching', { title })
             );
         }
     }
@@ -88,8 +89,8 @@ export const useTrackingStore = defineStore('tracking', () => {
 
         const single = episodes === 1;
         const message = single
-            ? `Marked ${title} as watched`
-            : `Marked episode ${number} of ${title} as watched`;
+            ? t('tracking.watched', { title })
+            : t('tracking.episodeWatched', { episode: number, title });
         await apply(anilistId, { progress: number }, message);
     }
 

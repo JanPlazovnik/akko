@@ -67,14 +67,14 @@ async function play(item: ContinueItem) {
             <HeroBanner :items="trending.slice(0, 6)" />
             <MediaRow
                 v-if="continueWatching.length"
-                title="Continue watching"
+                :title="$t('dashboard.continue')"
                 :items="continueWatching"
                 :continue-items="continueById"
                 @play="play"
             />
-            <MediaRow title="Trending now" :items="trending" />
-            <MediaRow title="Airing this season" :items="season" featured />
-            <MediaRow title="All-time popular" :items="popular" />
+            <MediaRow :title="$t('dashboard.trending')" :items="trending" />
+            <MediaRow :title="$t('dashboard.season')" :items="season" featured />
+            <MediaRow :title="$t('dashboard.popular')" :items="popular" />
         </template>
     </div>
     <TorrentPickerDialog v-if="picker" v-model:open="pickerOpen" v-bind="picker" />

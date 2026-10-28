@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { AppSettings, SettingsPaths } from '@shared/ipc/api';
 import { errorMessage } from '../lib/format';
+import { t } from '../i18n';
 import { toast } from '../lib/toast';
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -26,7 +27,7 @@ export const useSettingsStore = defineStore('settings', () => {
             settings.value = await window.api.settings.update(patch);
         } catch (err) {
             settings.value = previous;
-            toast.error(`Couldn't save setting: ${errorMessage(err)}`);
+            toast.error(t('settings.saveFailed', { error: errorMessage(err) }));
         }
     }
 

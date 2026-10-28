@@ -7,6 +7,7 @@ import { useAccountsStore } from '../stores/accounts';
 import { accentStyle } from '../lib/accent';
 import { formatLabel, stripHtml } from '../lib/media-labels';
 import { formatRelativeDate } from '../lib/format';
+import { t } from '../i18n';
 
 const props = defineProps<{
     item: Media & { nextAiringEpisode?: { episode: number; airingAt: number } | null };
@@ -28,7 +29,7 @@ const airing = computed(() => {
     const next = props.item.nextAiringEpisode;
     if (!next) return null;
     const when = formatRelativeDate(new Date(next.airingAt * 1000).toISOString());
-    return `EP ${next.episode} ${when}`;
+    return t('media.airingShort', { episode: next.episode, when });
 });
 
 const cardRef = ref<HTMLElement | null>(null);
@@ -143,7 +144,7 @@ onUnmounted(() => clearTimeout(hoverTimer));
                     @click.stop="mediaStore.viewMedia(item)"
                 >
                     <Play :size="12" fill="currentColor" />
-                    Watch now
+                    {{ $t('common.watchNow') }}
                 </button>
             </div>
         </div>

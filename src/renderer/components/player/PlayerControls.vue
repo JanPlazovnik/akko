@@ -112,7 +112,7 @@ function onSliderPointer(event: PointerEvent) {
                 <div class="flex min-w-0 items-start gap-3 pl-3">
                     <button
                         :class="[CONTROL_BUTTON, 'no-drag mt-3']"
-                        title="Back"
+                        :title="$t('common.back')"
                         @click="goBack(router)"
                     >
                         <ChevronLeft :size="24" />
@@ -193,14 +193,17 @@ function onSliderPointer(event: PointerEvent) {
             <div class="mt-1 flex items-center gap-1">
                 <button
                     :class="[CONTROL_BUTTON, EPISODE_BUTTON]"
-                    title="Previous episode (Shift+P)"
+                    :title="$t('player.controls.previous')"
                     :disabled="!queue.previous || !!queue.finding"
                     @click="queue.previous && queue.play(queue.previous)"
                 >
                     <Loader2 v-if="finding(queue.previous)" :size="18" class="animate-spin" />
                     <SkipBack v-else :size="18" fill="currentColor" />
                 </button>
-                <media-play-button :class="[CONTROL_BUTTON, 'group/play']" title="Play/Pause (k)">
+                <media-play-button
+                    :class="[CONTROL_BUTTON, 'group/play']"
+                    :title="$t('player.controls.playPause')"
+                >
                     <Play
                         :size="20"
                         fill="currentColor"
@@ -210,7 +213,7 @@ function onSliderPointer(event: PointerEvent) {
                 </media-play-button>
                 <button
                     :class="[CONTROL_BUTTON, EPISODE_BUTTON]"
-                    title="Next episode (Shift+N)"
+                    :title="$t('player.controls.next')"
                     :disabled="!queue.next || !!queue.finding"
                     @click="queue.next && queue.play(queue.next)"
                 >
@@ -218,15 +221,26 @@ function onSliderPointer(event: PointerEvent) {
                     <SkipForward v-else :size="18" fill="currentColor" />
                 </button>
                 <!-- Bound, so the element gets a number rather than a string it would concatenate -->
-                <media-seek-button :seconds="-10" :class="CONTROL_BUTTON" title="Back 10s (j)">
+                <media-seek-button
+                    :seconds="-10"
+                    :class="CONTROL_BUTTON"
+                    :title="$t('player.controls.back10')"
+                >
                     <RotateCcw :size="18" />
                 </media-seek-button>
-                <media-seek-button :seconds="10" :class="CONTROL_BUTTON" title="Forward 10s (l)">
+                <media-seek-button
+                    :seconds="10"
+                    :class="CONTROL_BUTTON"
+                    :title="$t('player.controls.forward10')"
+                >
                     <RotateCw :size="18" />
                 </media-seek-button>
 
                 <div class="group/volume flex items-center">
-                    <media-mute-button :class="[CONTROL_BUTTON, 'group/mute']" title="Mute (m)">
+                    <media-mute-button
+                        :class="[CONTROL_BUTTON, 'group/mute']"
+                        :title="$t('player.controls.mute')"
+                    >
                         <VolumeX :size="20" class="hidden group-data-muted/mute:block" />
                         <Volume2 :size="20" class="group-data-muted/mute:hidden" />
                     </media-mute-button>
@@ -255,11 +269,11 @@ function onSliderPointer(event: PointerEvent) {
                     <SubtitleMenu />
                     <media-playback-rate-button
                         :class="[CONTROL_BUTTON, RATE_BUTTON]"
-                        title="Playback speed"
+                        :title="$t('player.controls.speed')"
                     />
                     <media-fullscreen-button
                         :class="[CONTROL_BUTTON, 'group/fs']"
-                        title="Fullscreen (f)"
+                        :title="$t('player.controls.fullscreen')"
                     >
                         <Maximize :size="19" class="group-data-fullscreen/fs:hidden" />
                         <Minimize :size="19" class="hidden group-data-fullscreen/fs:block" />

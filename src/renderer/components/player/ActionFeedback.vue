@@ -13,6 +13,7 @@ import {
 } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
 import { formatTimestamp } from '../../lib/watching';
+import { t } from '../../i18n';
 
 const props = defineProps<{ video: HTMLVideoElement | null }>();
 const player = usePlayerStore();
@@ -57,7 +58,7 @@ function onVolume() {
     const muted = v.muted || v.volume === 0;
     showPill({
         icon: muted ? VolumeX : v.volume < 0.5 ? Volume1 : Volume2,
-        label: muted ? 'Muted' : `${Math.round(v.volume * 100)}%`,
+        label: muted ? t('player.muted') : t('player.percent', { n: Math.round(v.volume * 100) }),
         level: muted ? 0 : v.volume,
     });
 }
@@ -81,8 +82,8 @@ watch(
         if (!fromKey()) return;
         showPill(
             id
-                ? { icon: Captions, label: player.activeTrack?.label ?? 'Subtitles on' }
-                : { icon: CaptionsOff, label: 'Subtitles off' }
+                ? { icon: Captions, label: player.activeTrack?.label ?? t('player.subtitlesOn') }
+                : { icon: CaptionsOff, label: t('player.subtitlesOff') }
         );
     }
 );
@@ -159,7 +160,11 @@ onUnmounted(() => {
                 ]"
             >
                 <ChevronsLeft v-if="seek.seconds < 0" :size="18" />
-                {{ seek.seconds > 0 ? '+' : '−' }}{{ Math.abs(seek.seconds) }}s
+                {{
+                    $t(seek.seconds > 0 ? 'player.seekForward' : 'player.seekBack', {
+                        n: Math.abs(seek.seconds),
+                    })
+                }}
                 <ChevronsRight v-if="seek.seconds > 0" :size="18" />
             </div>
         </Transition>

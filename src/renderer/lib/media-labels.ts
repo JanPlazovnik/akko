@@ -1,19 +1,27 @@
-export const STATUS_LABELS: Record<string, string> = {
-    RELEASING: 'Airing',
-    FINISHED: 'Finished',
-    NOT_YET_RELEASED: 'Not Yet Released',
-    CANCELLED: 'Cancelled',
-    HIATUS: 'On Hiatus',
-};
+import { t, translateOr } from '../i18n';
 
-export const LIST_STATUS_LABELS: Record<string, string> = {
-    CURRENT: 'Watching',
-    REPEATING: 'Rewatching',
-    PLANNING: 'Planning',
-    COMPLETED: 'Completed',
-    PAUSED: 'Paused',
-    DROPPED: 'Dropped',
-};
+const label = (group: string, value: string) => translateOr(`media.${group}.${value}`, value);
+
+export const statusLabel = (status: string) => label('status', status);
+export const listStatusLabel = (status: string) => label('listStatus', status);
+export const relationLabel = (relation: string) => label('relation', relation);
+export const genreLabel = (genre: string) => label('genre', genre);
+export const seasonName = (season: string) => label('season', season);
+
+// Ordered by how likely you are to watch it next
+export const RELATIONS = [
+    'SEQUEL',
+    'PREQUEL',
+    'PARENT',
+    'SIDE_STORY',
+    'SPIN_OFF',
+    'ALTERNATIVE',
+    'SUMMARY',
+    'COMPILATION',
+    'CONTAINS',
+    'OTHER',
+    'CHARACTER',
+];
 
 type ListSource = {
     status?: string | null;
@@ -22,45 +30,10 @@ type ListSource = {
 };
 
 export function listLabel({ status, progress, media }: ListSource): string {
-    const label = LIST_STATUS_LABELS[status ?? ''] ?? status ?? '';
-    if (!progress || status === 'COMPLETED' || status === 'PLANNING') return label;
-    return `${label} · ${progress}/${media?.episodes ?? '?'}`;
+    const name = listStatusLabel(status ?? '');
+    if (!progress || status === 'COMPLETED' || status === 'PLANNING') return name;
+    return t('media.listProgress', { status: name, progress, total: media?.episodes ?? '?' });
 }
-
-// Ordered by how likely you are to watch it next
-export const RELATION_LABELS: Record<string, string> = {
-    SEQUEL: 'Sequel',
-    PREQUEL: 'Prequel',
-    PARENT: 'Parent story',
-    SIDE_STORY: 'Side story',
-    SPIN_OFF: 'Spin-off',
-    ALTERNATIVE: 'Alternative',
-    SUMMARY: 'Summary',
-    COMPILATION: 'Compilation',
-    CONTAINS: 'Contains',
-    OTHER: 'Other',
-    CHARACTER: 'Shared characters',
-};
-
-export const FORMAT_LABELS: Record<string, string> = {
-    TV: 'TV',
-    TV_SHORT: 'TV Short',
-    MOVIE: 'Movie',
-    SPECIAL: 'Special',
-    OVA: 'OVA',
-    ONA: 'ONA',
-    MUSIC: 'Music',
-    MANGA: 'Manga',
-    NOVEL: 'Novel',
-    ONE_SHOT: 'One Shot',
-};
-
-export const SEASON_LABELS: Record<string, string> = {
-    WINTER: 'Winter',
-    SPRING: 'Spring',
-    SUMMER: 'Summer',
-    FALL: 'Fall',
-};
 
 type MetaSource = {
     format?: string | null;
@@ -72,11 +45,10 @@ type MetaSource = {
 
 export const seasonLabel = (media: MetaSource) =>
     media.season && media.seasonYear
-        ? `${SEASON_LABELS[media.season] ?? media.season} ${media.seasonYear}`
+        ? t('media.seasonYear', { season: seasonName(media.season), year: media.seasonYear })
         : media.startDate?.year && String(media.startDate.year);
 
-export const formatLabel = (media: MetaSource) =>
-    media.format && (FORMAT_LABELS[media.format] ?? media.format);
+export const formatLabel = (media: MetaSource) => media.format && label('format', media.format);
 
 const present = (parts: (string | number | null | undefined)[]) =>
     parts.filter((part): part is string => Boolean(part));
@@ -84,7 +56,7 @@ const present = (parts: (string | number | null | undefined)[]) =>
 export function mediaMeta(media: MetaSource): string[] {
     return present([
         formatLabel(media),
-        media.episodes && `${media.episodes} ${media.episodes === 1 ? 'episode' : 'episodes'}`,
+        media.episodes && t('media.episodeCount', { n: media.episodes }, media.episodes),
         seasonLabel(media),
     ]);
 }

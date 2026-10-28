@@ -3,6 +3,7 @@ import { app, BrowserWindow } from 'electron';
 import type { UpdateInfo, UpdateManager, VelopackAsset } from 'velopack';
 import icon from '../../assets/icon.svg?raw';
 import { createLogger } from './logger';
+import { t } from './i18n';
 
 // Importing velopack loads its native module, which only Windows builds ship
 const velopack = (): typeof import('velopack') => require('velopack');
@@ -34,7 +35,7 @@ p { margin: 0; }
 @keyframes slide { from { left: -35%; } to { left: 100%; } }
 </style></head><body>
 ${icon}
-<p id="status">Checking for updates</p>
+<p id="status">${t('updater.checking')}</p>
 <div id="track" class="track busy"><div id="fill" class="fill"></div></div>
 <p id="detail"></p>
 <script>
@@ -149,7 +150,7 @@ export async function updateOnLaunch(): Promise<LaunchUpdate> {
             .catch(() => undefined);
     const done = { installing: false, close: () => window.destroy() } as const;
     const restart = (update: UpdateInfo | VelopackAsset) => {
-        setState({ status: 'Restarting' });
+        setState({ status: t('updater.restarting') });
         updates.waitExitThenApplyUpdate(update, true, true);
         app.quit();
         return { installing: true } as const;
@@ -176,10 +177,10 @@ export async function updateOnLaunch(): Promise<LaunchUpdate> {
 
     const version = update.TargetFullRelease.Version;
     log.info(`Updating to ${version}`);
-    setState({ status: `Downloading update ${version}`, progress: 0 });
+    setState({ status: t('updater.downloading', { version }), progress: 0 });
     try {
         await download(updates, update, (progress) =>
-            setState({ status: `Downloading update ${version}`, progress })
+            setState({ status: t('updater.downloading', { version }), progress })
         );
     } catch (err) {
         // The current version still works, so open that rather than wait on a broken download

@@ -5,6 +5,7 @@ import { toast } from '../../lib/toast';
 import { useExtensionStore } from '../../stores/extensions';
 import Toggle from '../ui/Toggle.vue';
 import type { ExtensionManifest } from '../../../main/extensions/types';
+import { t, translateOr } from '../../i18n';
 
 const store = useExtensionStore();
 
@@ -23,6 +24,9 @@ const ACCURACY_CLASS = {
     low: 'text-red-400 bg-red-400/10',
 };
 
+const accuracyLabel = (accuracy: string) =>
+    translateOr(`extensions.accuracy.${accuracy}`, accuracy);
+
 function isInstalled(id: string) {
     return store.installed.some((e) => e.id === id);
 }
@@ -33,7 +37,7 @@ async function browseRepo() {
     try {
         repoManifests.value = await store.fetchRepository(repoUrl.value.trim());
     } catch (e) {
-        toast.error('Failed to fetch repository');
+        toast.error(t('extensions.fetchFailed'));
     } finally {
         repoBusy.value = false;
     }
@@ -43,9 +47,9 @@ async function install(manifest: ExtensionManifest) {
     installingId.value = manifest.id;
     try {
         await store.install(manifest);
-        toast.success(`${manifest.name} installed`);
+        toast.success(t('extensions.installed', { name: manifest.name }));
     } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Install failed');
+        toast.error(e instanceof Error ? e.message : t('extensions.installFailed'));
     } finally {
         installingId.value = null;
     }
@@ -54,9 +58,9 @@ async function install(manifest: ExtensionManifest) {
 async function uninstall(id: string, name: string) {
     try {
         await store.uninstall(id);
-        toast.success(`${name} removed`);
+        toast.success(t('extensions.removed', { name }));
     } catch {
-        toast.error('Failed to remove extension');
+        toast.error(t('extensions.removeFailed'));
     }
 }
 
@@ -64,7 +68,7 @@ async function toggle(id: string, enabled: boolean) {
     try {
         await store.toggle(id, enabled);
     } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Failed to toggle extension');
+        toast.error(e instanceof Error ? e.message : t('extensions.toggleFailed'));
         await store.refresh();
     }
 }
@@ -75,10 +79,10 @@ async function checkUpdates() {
         await store.checkUpdates();
         const count = store.updates.length;
         toast.info(
-            count ? `${count} update${count > 1 ? 's' : ''} available` : 'All extensions up to date'
+            count ? t('extensions.updatesAvailable', { n: count }, count) : t('extensions.upToDate')
         );
     } catch {
-        toast.error('Failed to check for updates');
+        toast.error(t('extensions.updateCheckFailed'));
     } finally {
         checkingUpdates.value = false;
     }
@@ -88,9 +92,9 @@ async function updateExtension(id: string) {
     updatingId.value = id;
     try {
         await store.update(id);
-        toast.success('Extension updated');
+        toast.success(t('extensions.updated'));
     } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Update failed');
+        toast.error(e instanceof Error ? e.message : t('extensions.updateFailed'));
     } finally {
         updatingId.value = null;
     }
@@ -107,7 +111,7 @@ async function updateExtension(id: string) {
                 @click="checkUpdates"
             >
                 <RefreshCw :size="13" :class="{ 'animate-spin': checkingUpdates }" />
-                Check for updates
+                {{ $t('extensions.checkUpdates') }}
             </button>
         </div>
 
@@ -138,12 +142,14 @@ async function updateExtension(id: string) {
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-medium">{{ ext.name }}</span>
-                        <span class="text-[11px] text-white/30">v{{ ext.version }}</span>
+                        <span class="text-[11px] text-white/30">{{
+                            $t('extensions.version', { version: ext.version })
+                        }}</span>
                         <span
                             v-if="ext.hasUpdate"
                             class="text-[11px] px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-400 border border-blue-500/20"
                         >
-                            v{{ ext.pendingVersion }} available
+                            {{ $t('extensions.versionAvailable', { version: ext.pendingVersion }) }}
                         </span>
                     </div>
                     <div class="flex items-center gap-1.5 mt-1">
@@ -153,7 +159,7 @@ async function updateExtension(id: string) {
                                 ACCURACY_CLASS[ext.accuracy],
                             ]"
                         >
-                            {{ ext.accuracy }}
+                            {{ accuracyLabel(ext.accuracy) }}
                         </span>
                         <span class="text-[11px] px-1.5 py-0.5 rounded bg-white/6 text-white/40">
                             {{ ext.type }}
@@ -172,17 +178,18 @@ async function updateExtension(id: string) {
                         @click="updateExtension(ext.id)"
                     >
                         <Download :size="12" />
-                        Update
+                        {{ $t('extensions.update') }}
                     </button>
 
                     <Toggle
                         :model-value="ext.enabled"
-                        :label="`Enable ${ext.name}`"
+                        :label="$t('extensions.enable', { name: ext.name })"
                         @update:model-value="toggle(ext.id, $event)"
                     />
 
                     <button
                         class="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                        :title="$t('extensions.remove', { name: ext.name })"
                         @click="uninstall(ext.id, ext.name)"
                     >
                         <Trash2 :size="14" />
@@ -196,12 +203,12 @@ async function updateExtension(id: string) {
             class="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-white/10 text-white/30"
         >
             <AlertCircle :size="20" class="mb-2" />
-            <span class="text-sm">No extensions installed</span>
+            <span class="text-sm">{{ $t('extensions.none') }}</span>
         </div>
 
         <!-- Repository browser -->
         <div class="space-y-3 pt-2">
-            <h3 class="text-sm font-medium text-white/60">Browse repository</h3>
+            <h3 class="text-sm font-medium text-white/60">{{ $t('extensions.browseTitle') }}</h3>
             <div class="flex gap-2">
                 <input
                     v-model="repoUrl"
@@ -214,7 +221,7 @@ async function updateExtension(id: string) {
                     class="h-9 px-4 rounded-lg text-sm font-medium bg-white/10 hover:bg-white/15 transition-colors disabled:opacity-40 shrink-0"
                     @click="browseRepo"
                 >
-                    {{ repoBusy ? 'Fetching…' : 'Browse' }}
+                    {{ repoBusy ? $t('extensions.fetching') : $t('extensions.browse') }}
                 </button>
             </div>
 
@@ -245,7 +252,9 @@ async function updateExtension(id: string) {
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2">
                             <span class="text-sm font-medium">{{ manifest.name }}</span>
-                            <span class="text-[11px] text-white/30">v{{ manifest.version }}</span>
+                            <span class="text-[11px] text-white/30">{{
+                                $t('extensions.version', { version: manifest.version })
+                            }}</span>
                         </div>
                         <div class="flex items-center gap-1.5 mt-1">
                             <span
@@ -254,7 +263,7 @@ async function updateExtension(id: string) {
                                     ACCURACY_CLASS[manifest.accuracy],
                                 ]"
                             >
-                                {{ manifest.accuracy }}
+                                {{ accuracyLabel(manifest.accuracy) }}
                             </span>
                             <span
                                 class="text-[11px] px-1.5 py-0.5 rounded bg-white/6 text-white/40"
@@ -276,13 +285,17 @@ async function updateExtension(id: string) {
                         @click="install(manifest)"
                     >
                         <Download :size="12" />
-                        {{ installingId === manifest.id ? 'Installing…' : 'Install' }}
+                        {{
+                            installingId === manifest.id
+                                ? $t('extensions.installing')
+                                : $t('extensions.install')
+                        }}
                     </button>
                     <span
                         v-else
                         class="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0"
                     >
-                        Installed
+                        {{ $t('extensions.installedBadge') }}
                     </span>
                 </div>
             </div>

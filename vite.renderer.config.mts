@@ -39,6 +39,12 @@ export default defineConfig({
         outDir: path.resolve(__dirname, '.vite/renderer/main_window'),
     },
 
+    define: {
+        __VUE_I18N_FULL_INSTALL__: true,
+        __VUE_I18N_LEGACY_API__: false,
+        __INTLIFY_PROD_DEVTOOLS__: false,
+    },
+
     worker: {
         format: 'es',
     },

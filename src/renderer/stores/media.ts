@@ -17,7 +17,7 @@ import {
 } from '../../shared/anizip/types';
 import type { Media } from '../../shared/graphql/queries';
 import { mediaTitle } from '../../shared/media/types';
-import { RELATION_LABELS } from '../lib/media-labels';
+import { RELATIONS } from '../lib/media-labels';
 import router from '../router';
 import type { ShowArt } from '../../shared/ipc/api';
 
@@ -35,7 +35,6 @@ export type MediaDetails = {
 };
 
 const TRAILER_SITES = new Set<string>(['youtube', 'dailymotion'] satisfies Trailer['site'][]);
-const RELATION_ORDER = Object.keys(RELATION_LABELS);
 
 const dateKey = (date: FuzzyDate) =>
     (date?.year ?? 9999) * 10_000 + (date?.month ?? 99) * 100 + (date?.day ?? 99);
@@ -55,13 +54,13 @@ function mediaDetails(media: AnimeData): MediaDetails {
             edge?.node?.type === 'ANIME' &&
             edge.node.format !== 'MUSIC' &&
             edge.relationType &&
-            edge.relationType in RELATION_LABELS
+            RELATIONS.includes(edge.relationType)
                 ? [{ relation: edge.relationType, media: asMedia(edge.node) }]
                 : []
         )
         .sort(
             (a, b) =>
-                RELATION_ORDER.indexOf(a.relation) - RELATION_ORDER.indexOf(b.relation) ||
+                RELATIONS.indexOf(a.relation) - RELATIONS.indexOf(b.relation) ||
                 dateKey(a.media.startDate) - dateKey(b.media.startDate)
         )
         .filter((r, i, all) => all.findIndex((other) => other.media.id === r.media.id) === i);

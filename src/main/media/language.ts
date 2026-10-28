@@ -1,4 +1,6 @@
-const languageNames = new Intl.DisplayNames(['en'], { type: 'language', fallback: 'none' });
+import { LOCALE } from '../i18n';
+
+const languageNames = new Intl.DisplayNames([LOCALE], { type: 'language', fallback: 'none' });
 
 function language(code: string): { lang: string; name?: string } {
     try {

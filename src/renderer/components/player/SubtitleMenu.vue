@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Captions, Check } from '@lucide/vue';
 import { usePlayerStore } from '../../stores/player';
 import { CONTROL_BUTTON } from './styles';
+import { t } from '../../i18n';
 
 const player = usePlayerStore();
 const open = ref(false);
@@ -10,8 +11,8 @@ const root = ref<HTMLElement | null>(null);
 const list = ref<HTMLElement | null>(null);
 
 const options = computed(() => [
-    { id: '', label: 'Off', lang: '' },
-    ...player.tracks.map((t) => ({ id: t.id, label: t.label, lang: t.lang })),
+    { id: '', label: t('common.off'), lang: '' },
+    ...player.tracks.map((track) => ({ id: track.id, label: track.label, lang: track.lang })),
 ]);
 
 function onPointerDown(event: PointerEvent) {
@@ -37,7 +38,7 @@ function select(id: string) {
     <div v-if="player.tracks.length" ref="root" class="relative">
         <button
             :class="[CONTROL_BUTTON, player.activeTrackId ? 'text-white' : 'text-white/50']"
-            title="Subtitles (c)"
+            :title="$t('player.subtitlesButton')"
             @click="open = !open"
         >
             <Captions :size="20" />
@@ -56,7 +57,7 @@ function select(id: string) {
                 <p
                     class="px-3 pt-1.5 pb-2 text-[11px] font-semibold tracking-wider text-white/40 uppercase"
                 >
-                    Subtitles
+                    {{ $t('player.subtitles') }}
                 </p>
                 <div ref="list" class="max-h-[min(60vh,28rem)] overflow-y-auto">
                     <button

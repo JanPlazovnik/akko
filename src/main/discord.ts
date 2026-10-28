@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { AppSettings, PresenceState } from '../shared/ipc/api';
 import { createLogger } from './logger';
+import { t } from './i18n';
 
 const log = createLogger('discord');
 
@@ -148,22 +149,24 @@ function toActivity(state: PresenceState, receivedAt: number) {
     if (!showDetails || state.isAdult) {
         return {
             type: 3,
-            details: 'Watching anime',
-            state: state.status === 'paused' ? 'Paused' : undefined,
+            details: t('discord.watching'),
+            state: state.status === 'paused' ? t('discord.paused') : undefined,
             timestamps,
             assets: { large_image: 'logo', large_text: 'akko' },
         };
     }
 
     const url = `https://anilist.co/anime/${state.anilistId}`;
-    const episode = `Episode ${state.episode}${state.episodeCount ? ` of ${state.episodeCount}` : ''}`;
+    const episode = state.episodeCount
+        ? t('discord.episodeOf', { episode: state.episode, count: state.episodeCount })
+        : t('discord.episode', { episode: state.episode });
     return {
         type: 3,
         // Shows "Watching <title>" in the member list instead of the app name
         status_display_type: 2,
         details: clip(state.title),
         details_url: url,
-        state: state.status === 'paused' ? `${episode} · Paused` : episode,
+        state: state.status === 'paused' ? t('discord.episodePaused', { episode }) : episode,
         timestamps,
         assets: {
             large_image: state.cover ?? 'logo',
@@ -172,7 +175,7 @@ function toActivity(state: PresenceState, receivedAt: number) {
             small_image: 'logo',
             small_text: 'akko',
         },
-        buttons: [{ label: 'View on AniList', url }],
+        buttons: [{ label: t('discord.viewOnAnilist'), url }],
     };
 }
 
