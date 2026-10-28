@@ -16,11 +16,12 @@ import { openShortcuts } from '../lib/shortcuts';
 
 const SECTIONS = [
     { id: 'accounts', label: 'Accounts' },
-    { id: 'client', label: 'Client' },
-    { id: 'playback', label: 'Playback' },
+    { id: 'interface', label: 'Interface' },
+    { id: 'player', label: 'Player' },
     { id: 'torrents', label: 'Torrents' },
+    { id: 'discord', label: 'Discord' },
     { id: 'extensions', label: 'Extensions' },
-    { id: 'advanced', label: 'Advanced' },
+    { id: 'application', label: 'App' },
     { id: 'about', label: 'About' },
 ];
 
@@ -222,7 +223,11 @@ onMounted(async () => {
                     </SettingRow>
                 </SettingsSection>
 
-                <SettingsSection id="client" title="Client">
+                <SettingsSection
+                    id="interface"
+                    title="Interface"
+                    description="How titles are shown and the look of the app."
+                >
                     <SettingRow
                         title="Title language"
                         description="How anime titles are shown. AniList follows your account's setting."
@@ -242,27 +247,6 @@ onMounted(async () => {
                         <button :class="BUTTON" @click="openShortcuts">View</button>
                     </SettingRow>
                     <SettingRow
-                        title="Discord status"
-                        description="Shows what you're watching on your Discord profile while Discord is open."
-                    >
-                        <Toggle
-                            :model-value="settings.discordPresence"
-                            label="Discord status"
-                            @update:model-value="store.update({ discordPresence: $event })"
-                        />
-                    </SettingRow>
-                    <SettingRow
-                        v-if="settings.discordPresence"
-                        title="Show the anime on Discord"
-                        description="When off, Discord only shows that you're watching anime in akko. Adult titles are always hidden."
-                    >
-                        <Toggle
-                            :model-value="settings.discordShowDetails"
-                            label="Show the anime on Discord"
-                            @update:model-value="store.update({ discordShowDetails: $event })"
-                        />
-                    </SettingRow>
-                    <SettingRow
                         title="Holiday effects"
                         description="Small surprises around Halloween, Christmas and New Year."
                     >
@@ -274,7 +258,11 @@ onMounted(async () => {
                     </SettingRow>
                 </SettingsSection>
 
-                <SettingsSection id="playback" title="Playback">
+                <SettingsSection
+                    id="player"
+                    title="Player"
+                    description="Subtitles, picking releases and what happens when an episode ends."
+                >
                     <SettingRow
                         title="Preferred subtitles"
                         description="Selected automatically when an episode starts."
@@ -389,6 +377,34 @@ onMounted(async () => {
                 </SettingsSection>
 
                 <SettingsSection
+                    id="discord"
+                    title="Discord"
+                    description="Show what you're watching on your Discord profile."
+                >
+                    <SettingRow
+                        title="Discord status"
+                        description="Updates while Discord is running on this computer."
+                    >
+                        <Toggle
+                            :model-value="settings.discordPresence"
+                            label="Discord status"
+                            @update:model-value="store.update({ discordPresence: $event })"
+                        />
+                    </SettingRow>
+                    <SettingRow
+                        v-if="settings.discordPresence"
+                        title="Show the anime on Discord"
+                        description="When off, Discord only shows that you're watching anime in akko. Adult titles are always hidden."
+                    >
+                        <Toggle
+                            :model-value="settings.discordShowDetails"
+                            label="Show the anime on Discord"
+                            @update:model-value="store.update({ discordShowDetails: $event })"
+                        />
+                    </SettingRow>
+                </SettingsSection>
+
+                <SettingsSection
                     id="extensions"
                     title="Extensions"
                     description="Sources the release picker searches."
@@ -397,7 +413,11 @@ onMounted(async () => {
                     <ExtensionsSettings />
                 </SettingsSection>
 
-                <SettingsSection id="advanced" title="Advanced">
+                <SettingsSection
+                    id="application"
+                    title="App"
+                    description="Logs, cached data and tools for troubleshooting."
+                >
                     <SettingRow
                         title="Log level"
                         description="How much detail is written to the log."
@@ -421,6 +441,21 @@ onMounted(async () => {
                             :model-value="settings.logToFile"
                             label="Write logs to file"
                             @update:model-value="store.update({ logToFile: $event })"
+                        />
+                    </SettingRow>
+                    <SettingRow
+                        title="Developer tools"
+                        :description="
+                            info?.packaged === false
+                                ? 'Always available in development builds. Open with F12 or Ctrl+Shift+I.'
+                                : 'Lets F12 and Ctrl+Shift+I open the developer tools.'
+                        "
+                    >
+                        <Toggle
+                            :model-value="settings.devTools || info?.packaged === false"
+                            :disabled="info?.packaged === false"
+                            label="Developer tools"
+                            @update:model-value="store.update({ devTools: $event })"
                         />
                     </SettingRow>
                     <SettingRow
