@@ -39,6 +39,7 @@ export type AppSettings = {
     discordPresence: boolean;
     discordShowDetails: boolean;
     holidayEffects: boolean;
+    devTools: boolean;
 };
 
 export type PresenceState = {
@@ -65,6 +66,7 @@ export type AppInfo = {
     os: string;
     electron: string;
     chrome: string;
+    packaged: boolean;
 };
 
 export type WatchProgress = {

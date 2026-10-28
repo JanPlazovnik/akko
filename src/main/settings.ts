@@ -14,6 +14,7 @@ import { applyTorrentSettings } from './torrent/torrent';
 import { defaultDownloadPath } from './paths';
 import { getWindow } from './context';
 import { applyDiscordSettings } from './discord';
+import { applyDevToolsSettings } from './devtools';
 
 const TMPFS_MAGIC = 0x01021994;
 
@@ -36,6 +37,7 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
         clean.showStreamStats = Boolean(patch.showStreamStats);
     }
     if (patch.holidayEffects !== undefined) clean.holidayEffects = Boolean(patch.holidayEffects);
+    if (patch.devTools !== undefined) clean.devTools = Boolean(patch.devTools);
     if (patch.subtitleLanguage !== undefined) {
         clean.subtitleLanguage = String(patch.subtitleLanguage).slice(0, 16);
     }
@@ -64,6 +66,7 @@ export function applySettings(settings: AppSettings) {
     configureLogger({ level: settings.logLevel, logToFile: settings.logToFile });
     applyTorrentSettings(settings);
     applyDiscordSettings(settings);
+    applyDevToolsSettings(settings);
 }
 
 export function updateSettings(patch: Partial<AppSettings>): AppSettings {

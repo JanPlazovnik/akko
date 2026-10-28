@@ -17,6 +17,7 @@ export function registerAppHandlers() {
             os: os.release(),
             electron: process.versions.electron,
             chrome: process.versions.chrome,
+            packaged: app.isPackaged,
         })
     );
 }

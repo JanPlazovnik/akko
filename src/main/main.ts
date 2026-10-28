@@ -11,6 +11,7 @@ import { applySettings } from './settings';
 import { pruneCache } from './cache';
 import { removeLegacyDownloads } from './paths';
 import { refreshAnilistAccount } from './accounts/anilist';
+import { guardDevTools } from './devtools';
 import { checkPeriodically, handleInstallerEvents, updateOnLaunch } from './updater';
 
 log.initialize();
@@ -74,17 +75,7 @@ const createWindow = () => {
         return { action: 'deny' };
     });
 
-    if (!app.isPackaged) {
-        mainWindow.webContents.on('before-input-event', (event, input) => {
-            const devToolsKey =
-                input.key === 'F12' ||
-                (input.control && input.shift && input.key.toLowerCase() === 'i');
-            if (input.type === 'keyDown' && devToolsKey) {
-                mainWindow.webContents.toggleDevTools();
-                event.preventDefault();
-            }
-        });
-    }
+    guardDevTools(mainWindow);
 
     return mainWindow;
 };

@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `dev_tools` integer DEFAULT false NOT NULL;
