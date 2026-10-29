@@ -196,6 +196,12 @@ export const useMediaStore = defineStore('media', () => {
         return episodesById.value[id] ?? [];
     }
 
+    // AniList leaves the total empty for some airing shows that list or schedule all episodes
+    function episodeTotal(id: number) {
+        const scheduled = Math.max(0, ...(airingById.value[id] ?? []).map((a) => a.episode));
+        return mediaFor(id)?.episodes ?? (Math.max(scheduled, episodesFor(id).length) || null);
+    }
+
     function detailsFor(id: number) {
         return detailsById.value[id] ?? null;
     }
@@ -469,6 +475,7 @@ export const useMediaStore = defineStore('media', () => {
         setSelectedMedia,
         mediaFor,
         episodesFor,
+        episodeTotal,
         detailsFor,
         mappingsFor,
         artFor,

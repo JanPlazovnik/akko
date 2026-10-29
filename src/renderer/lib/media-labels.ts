@@ -26,13 +26,12 @@ export const RELATIONS = [
 type ListSource = {
     status?: string | null;
     progress?: number | null;
-    media?: { episodes?: number | null } | null;
 };
 
-export function listLabel({ status, progress, media }: ListSource): string {
+export function listLabel({ status, progress }: ListSource, total?: number | null): string {
     const name = listStatusLabel(status ?? '');
     if (!progress || status === 'COMPLETED' || status === 'PLANNING') return name;
-    return t('media.listProgress', { status: name, progress, total: media?.episodes ?? '?' });
+    return t('media.listProgress', { status: name, progress, total: total ?? '?' });
 }
 
 type MetaSource = {

@@ -30,6 +30,9 @@ const mediaStore = useMediaStore();
 const list = useListStore();
 const accounts = useAccountsStore();
 const listEntry = computed(() => list.entryFor(props.item.id));
+const episodeTotal = computed(
+    () => listEntry.value?.media?.episodes ?? mediaStore.episodeTotal(props.item.id)
+);
 
 const title = computed(() => accounts.titleOf(props.item));
 const coverImage = computed(() => props.item.coverImage?.large ?? null);
@@ -247,7 +250,7 @@ function navigate() {
                         watched === null ? 'bottom-2' : 'bottom-3.5',
                     ]"
                 >
-                    {{ continueLabel ?? listLabel(listEntry!) }}
+                    {{ continueLabel ?? listLabel(listEntry!, episodeTotal) }}
                 </span>
                 <div v-if="watched !== null" class="absolute inset-x-0 bottom-0 h-1 bg-white/20">
                     <div class="h-full bg-accent" :style="{ width: `${watched * 100}%` }" />
