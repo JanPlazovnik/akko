@@ -276,6 +276,17 @@ onMounted(async () => {
                             @update:model-value="store.update({ holidayEffects: $event })"
                         />
                     </SettingRow>
+                    <SettingRow
+                        :title="$t('settings.interface.holidayCursor')"
+                        :description="$t('settings.interface.holidayCursorDescription')"
+                    >
+                        <Toggle
+                            :model-value="settings.holidayEffects && settings.holidayCursor"
+                            :disabled="!settings.holidayEffects"
+                            :label="$t('settings.interface.holidayCursor')"
+                            @update:model-value="store.update({ holidayCursor: $event })"
+                        />
+                    </SettingRow>
                 </SettingsSection>
 
                 <SettingsSection

@@ -39,6 +39,7 @@ export type AppSettings = {
     discordPresence: boolean;
     discordShowDetails: boolean;
     holidayEffects: boolean;
+    holidayCursor: boolean;
     devTools: boolean;
 };
 

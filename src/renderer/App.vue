@@ -8,6 +8,7 @@ import AnilistBanner from './components/AnilistBanner.vue';
 import PersistentPlayer from './components/PersistentPlayer.vue';
 import ShortcutsDialog from './components/ShortcutsDialog.vue';
 import Toaster from './components/Toaster.vue';
+import HolidayCursor from './components/HolidayCursor.vue';
 import WindowControls from './components/WindowControls.vue';
 import { useAccountsStore } from './stores/accounts';
 import { useListStore } from './stores/list';
@@ -70,6 +71,7 @@ function restoreScroll() {
         </div>
     </DragDropProvider>
     <Toaster />
+    <HolidayCursor />
     <!-- Stands in for the window controls a dialog's backdrop covers, at the same height. Coming last
          also keeps it clickable inside the player's draggable top bar. -->
     <WindowControls

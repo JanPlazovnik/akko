@@ -413,7 +413,9 @@
             "shortcutsDescription": "Press ? anywhere to see them.",
             "view": "View",
             "holidays": "Holiday effects",
-            "holidaysDescription": "Small surprises around Halloween, Christmas and New Year."
+            "holidaysDescription": "Small surprises around Halloween, Christmas and New Year.",
+            "holidayCursor": "Holiday cursor",
+            "holidayCursorDescription": "A themed cursor with a little companion and trail while holiday effects are on."
         },
         "player": {
             "description": "Subtitles, picking releases and what happens when an episode ends.",

@@ -154,3 +154,9 @@ body:has(.dialog-overlay[data-state='open']) .window-controls:not(.dialog-window
         scale: 0.97;
     }
 }
+
+/* Themed arrow during holidays; links and buttons keep the hand */
+:root[data-holiday-cursor],
+:root[data-holiday-cursor] .cursor-default {
+    cursor: var(--holiday-cursor), default;
+}

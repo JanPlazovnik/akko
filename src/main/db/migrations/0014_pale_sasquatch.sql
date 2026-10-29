@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `holiday_cursor` integer DEFAULT true NOT NULL;

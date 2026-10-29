@@ -21,6 +21,7 @@ export const settings = sqliteTable('settings', {
         .notNull()
         .default(true),
     holidayEffects: integer('holiday_effects', { mode: 'boolean' }).notNull().default(true),
+    holidayCursor: integer('holiday_cursor', { mode: 'boolean' }).notNull().default(true),
     devTools: integer('dev_tools', { mode: 'boolean' }).notNull().default(false),
 });
 

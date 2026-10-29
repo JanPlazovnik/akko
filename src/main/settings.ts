@@ -37,6 +37,7 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
         clean.showStreamStats = Boolean(patch.showStreamStats);
     }
     if (patch.holidayEffects !== undefined) clean.holidayEffects = Boolean(patch.holidayEffects);
+    if (patch.holidayCursor !== undefined) clean.holidayCursor = Boolean(patch.holidayCursor);
     if (patch.devTools !== undefined) clean.devTools = Boolean(patch.devTools);
     if (patch.subtitleLanguage !== undefined) {
         clean.subtitleLanguage = String(patch.subtitleLanguage).slice(0, 16);
