@@ -60,7 +60,7 @@ async function uninstall(id: string, name: string) {
         await store.uninstall(id);
         toast.success(t('extensions.removed', { name }));
     } catch {
-        toast.error(t('extensions.removeFailed'));
+        toast.error(t('extensions.removeFailed', { name }));
     }
 }
 

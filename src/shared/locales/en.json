@@ -38,8 +38,8 @@
         "close": "Close"
     },
     "anilistBanner": {
-        "title": "AniList is down.",
-        "detail": "{reason} Saved info is shown where possible."
+        "title": "Can't reach AniList.",
+        "detail": "{reason} You'll see saved info where there is some."
     },
     "media": {
         "airingShort": "EP {episode} {when}",
@@ -159,8 +159,8 @@
         "seekBack": "−{n}s",
         "episodeShort": "E{episode}",
         "episode": "Episode {episode}",
-        "noSoundUnsupported": "No sound, {codecs} audio isn't supported.",
-        "noSoundFailed": "No sound, {codecs} audio couldn't be loaded.",
+        "noSoundUnsupported": "Can't play {codecs} audio, so there's no sound.",
+        "noSoundFailed": "Couldn't load the {codecs} audio, so there's no sound.",
         "pickAnother": "Pick another release",
         "expand": "Expand",
         "stop": "Stop",
@@ -186,9 +186,9 @@
         },
         "nothingPlaying": "Nothing is playing",
         "browse": "Browse anime",
-        "connecting": "Connecting to peers and fetching torrent metadata…",
+        "connecting": "Finding peers and getting the torrent ready…",
         "bufferingStats": "{speed} · {peers} peers",
-        "stalled": "The download has stalled, peers may be missing part of this release.",
+        "stalled": "The download stalled. Peers might not have the rest of this release.",
         "skip": "Skip {chapter}",
         "stats": {
             "download": "Download speed",
@@ -244,24 +244,24 @@
         "label": "Trailer"
     },
     "extensions": {
-        "fetchFailed": "Failed to fetch repository",
+        "fetchFailed": "Couldn't load that repository",
         "installed": "{name} installed",
-        "installFailed": "Install failed",
+        "installFailed": "Couldn't install the extension",
         "removed": "{name} removed",
-        "removeFailed": "Failed to remove extension",
-        "toggleFailed": "Failed to toggle extension",
+        "removeFailed": "Couldn't remove {name}",
+        "toggleFailed": "Couldn't turn the extension on or off",
         "updatesAvailable": "{n} update available | {n} updates available",
-        "upToDate": "All extensions up to date",
-        "updateCheckFailed": "Failed to check for updates",
+        "upToDate": "Your extensions are up to date",
+        "updateCheckFailed": "Couldn't check for updates",
         "updated": "Extension updated",
-        "updateFailed": "Update failed",
+        "updateFailed": "Couldn't update the extension",
         "checkUpdates": "Check for updates",
         "version": "v{version}",
         "versionAvailable": "v{version} available",
         "update": "Update",
         "enable": "Enable {name}",
         "remove": "Remove {name}",
-        "none": "No extensions installed",
+        "none": "No extensions yet",
         "browseTitle": "Browse repository",
         "fetching": "Fetching…",
         "browse": "Browse",
@@ -280,7 +280,7 @@
         "resolution": "{r}p",
         "counts": "{results} results · {sources} sources",
         "searchAgain": "Search again",
-        "noExtensions": "No extensions are enabled.",
+        "noExtensions": "You don't have any extensions turned on.",
         "manageExtensions": "Manage extensions",
         "topPick": "Top pick",
         "startsIn": "· starts in {n}s",
@@ -291,7 +291,7 @@
         "bestRelease": "Best release",
         "batch": "Batch",
         "playingNow": "Playing now",
-        "unsupportedAudioHint": "DTS/TrueHD audio can't be played. If this release has no other audio track, it will be silent.",
+        "unsupportedAudioHint": "akko can't play DTS or TrueHD audio, so this release will be silent unless it has another audio track.",
         "unsupportedAudio": "Audio may not play",
         "seedersTitle": "Seeders"
     },
@@ -309,7 +309,7 @@
             "TITLE_ROMAJI": "A-Z"
         },
         "tvShow": "TV Show",
-        "failed": "Search failed",
+        "failed": "Couldn't search right now",
         "filters": {
             "sort": "Sort",
             "season": "Season",
@@ -320,7 +320,7 @@
             "tags": "Tags"
         },
         "tryAgain": "Try again",
-        "end": "End of results"
+        "end": "That's everything"
     },
     "mediaInfo": {
         "notAvailable": "Not available yet",
@@ -330,7 +330,7 @@
         "airsOn": "Episode {episode} airs {date}",
         "airsSoon": "Episode {episode} airs soon",
         "pageRange": "{from} to {to}",
-        "loadFailed": "Failed to load media",
+        "loadFailed": "Couldn't load this anime",
         "reconnectToEdit": "Reconnect AniList in Settings to edit your list",
         "editEntry": "Edit list entry",
         "addToList": "Add to list",
@@ -456,7 +456,7 @@
             "devToolsDev": "Always available in development builds. Open with F12 or Ctrl+Shift+I.",
             "devToolsDescription": "Lets F12 and Ctrl+Shift+I open the developer tools.",
             "cache": "Metadata cache",
-            "cacheDescription": "Show info and episode lists are kept offline and refreshed in the background.",
+            "cacheDescription": "Show details and episode lists are saved for offline use and refreshed in the background.",
             "cacheEntries": "{n} entry | {n} entries"
         },
         "about": {
@@ -488,7 +488,7 @@
             "inMemoryDetail": "It's a tmpfs with {free} free, so downloads use RAM and are lost on restart. Choose a folder on disk.",
             "lowSpace": "Only {free} free on this drive",
             "lowSpaceDetail": "An episode is usually 0.3–1.5 GB, so kept episodes will fill it quickly.",
-            "ready": "Folder is ready",
+            "ready": "This folder works",
             "readyDetail": "{free} free on this drive."
         },
         "network": {
@@ -528,8 +528,8 @@
     },
     "accounts": {
         "reconnect": "Reconnect",
-        "expired": "Your AniList login expired. Reconnect it to keep syncing.",
-        "expiring": "Your AniList login expires {when}. Reconnect it to renew it.",
+        "expired": "Your AniList login expired. Reconnect to keep syncing.",
+        "expiring": "Your AniList login expires {when}. Reconnect now to stay signed in.",
         "connected": "Connected to AniList as {name}",
         "connectFailed": "Couldn't connect AniList: {error}"
     },
@@ -554,7 +554,7 @@
     "updater": {
         "checking": "Checking for updates",
         "downloading": "Downloading update {version}",
-        "restarting": "Restarting"
+        "restarting": "Restarting to update"
     },
     "tracks": {
         "fallback": "Track {n}"
