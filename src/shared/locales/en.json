@@ -117,7 +117,9 @@
         }
     },
     "hero": {
-        "trending": "Trending #{rank}"
+        "trending": "Trending #{rank}",
+        "seenBy": "Seen by {name}",
+        "seenByMore": "Seen by {name} and {n} more"
     },
     "library": {
         "search": "Search your list",

@@ -6,11 +6,14 @@ import { useMediaStore } from '../stores/media';
 import { useAccountsStore } from '../stores/accounts';
 import Badge from './ui/Badge.vue';
 import HolidaySnow from './HolidaySnow.vue';
-import { accentStyle } from '../lib/accent';
+import { accentStyle, profileColor } from '../lib/accent';
+import { useFollowingEntries } from '../lib/following';
 import { genreLabel, mediaMeta, stripHtml } from '../lib/media-labels';
 import { useHoliday } from '../lib/holidays';
+import { t } from '../i18n';
 
 const SLIDE_MS = 7000;
+const SEEN_AVATARS = 3;
 
 const props = defineProps<{ items: Media[] }>();
 const mediaStore = useMediaStore();
@@ -30,6 +33,18 @@ const logo = computed(() => {
 const backdrop = computed(
     () => current.value?.bannerImage ?? mediaStore.artFor(current.value?.id ?? 0).backdrop
 );
+
+// Only the slide on screen asks who has seen it, which keeps the dashboard to one request at a time
+const following = useFollowingEntries(computed(() => current.value?.id));
+const seen = computed(() => following.value.filter((e) => e.status !== 'PLANNING'));
+const seenLabel = computed(() => {
+    const [first, ...rest] = seen.value;
+    if (!first) return '';
+    const name = first.user!.name;
+    return rest.length
+        ? t('hero.seenByMore', { name, n: rest.length })
+        : t('hero.seenBy', { name });
+});
 
 // Load every slide's art up front, so logos and backdrops don't pop in mid-slide
 watch(
@@ -116,6 +131,26 @@ function go(index: number) {
                         <span>{{ part }}</span>
                     </template>
                 </div>
+
+                <button
+                    v-if="seen.length"
+                    class="-mt-1 flex w-fit cursor-pointer items-center gap-2.5 text-sm text-white/70 transition-colors hover:text-white"
+                    :title="seen.map((e) => e.user!.name).join(', ')"
+                    @click="mediaStore.viewMedia(current)"
+                >
+                    <span class="flex -space-x-2">
+                        <img
+                            v-for="entry in seen.slice(0, SEEN_AVATARS)"
+                            :key="entry.id"
+                            :src="entry.user!.avatar?.medium ?? undefined"
+                            class="size-6 rounded-full bg-raised object-cover ring-2 ring-surface"
+                            :style="{
+                                '--tw-ring-color': profileColor(entry.user!.options?.profileColor),
+                            }"
+                        />
+                    </span>
+                    {{ seenLabel }}
+                </button>
 
                 <p class="line-clamp-3 max-w-xl text-sm leading-relaxed text-white/60">
                     {{ stripHtml(current.description) }}
