@@ -332,3 +332,31 @@ export const UserProfileQuery = graphql(
 );
 
 export type UserProfile = ResultOf<typeof UserProfileQuery>;
+
+export const FollowingEntriesQuery = graphql(`
+    query FollowingEntries($mediaId: Int, $scoreFormat: ScoreFormat) {
+        Page(perPage: 50) {
+            mediaList(mediaId: $mediaId, isFollowing: true, sort: UPDATED_TIME_DESC) {
+                id
+                status
+                progress
+                score(format: $scoreFormat)
+                user {
+                    id
+                    name
+                    isFollower
+                    avatar {
+                        medium
+                    }
+                    options {
+                        profileColor
+                    }
+                }
+            }
+        }
+    }
+`);
+
+export type FollowingEntry = NonNullable<
+    NonNullable<NonNullable<ResultOf<typeof FollowingEntriesQuery>['Page']>['mediaList']>[number]
+>;

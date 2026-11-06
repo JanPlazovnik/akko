@@ -368,7 +368,11 @@
         "pageTitle": "Episodes {range}",
         "goToEpisode": "Go to episode",
         "related": "Related",
-        "moreLikeThis": "More like this"
+        "moreLikeThis": "More like this",
+        "following": "People you follow",
+        "mutual": "Follows you back",
+        "scoreOutOf": "{score} out of {max}",
+        "moreFollowing": "+{n} more"
     },
     "dashboard": {
         "continue": "Continue watching",

@@ -18,6 +18,7 @@ import TorrentPickerDialog from '../components/TorrentPickerDialog.vue';
 import TrailerDialog from '../components/TrailerDialog.vue';
 import BrandIcon from '../components/ui/BrandIcon.vue';
 import ListEntryDialog from '../components/ListEntryDialog.vue';
+import FollowingEntries from '../components/FollowingEntries.vue';
 import { genreLabel, mediaMeta, relationLabel, statusLabel, stripHtml } from '../lib/media-labels';
 import { accentStyle } from '../lib/accent';
 import { toast } from '../lib/toast';
@@ -533,6 +534,8 @@ const formatAirDate = (date: string) =>
                                 }}
                             </button>
                         </div>
+
+                        <FollowingEntries :media-id="media.id" />
                     </div>
                 </div>
 
