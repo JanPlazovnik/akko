@@ -19,14 +19,6 @@ import { useAccountsStore } from '../stores/accounts';
 import { useMediaStore } from '../stores/media';
 import { ignoreWindowControls } from '../lib/dialog';
 
-const SCORE_FORMATS: Record<string, { max: number; step: number }> = {
-    POINT_100: { max: 100, step: 1 },
-    POINT_10_DECIMAL: { max: 10, step: 0.1 },
-    POINT_10: { max: 10, step: 1 },
-    POINT_5: { max: 5, step: 1 },
-    POINT_3: { max: 3, step: 1 },
-};
-
 const BUTTON =
     'inline-flex h-9 cursor-pointer items-center rounded-lg px-3 text-sm font-medium transition-colors disabled:cursor-default disabled:opacity-40';
 
@@ -39,9 +31,7 @@ const mediaStore = useMediaStore();
 
 const media = computed(() => mediaStore.mediaFor(props.mediaId));
 const entry = computed(() => list.entryFor(props.mediaId));
-const score = computed(
-    () => SCORE_FORMATS[accounts.anilist?.scoreFormat ?? ''] ?? SCORE_FORMATS.POINT_10
-);
+const score = computed(() => accounts.scoreScale());
 const statusOptions = LIST_STATUSES.map((value) => ({ value, label: listStatusLabel(value) }));
 
 const draft = reactive({ status: 'PLANNING' as ListStatus, progress: 0, score: 0, repeat: 0 });

@@ -10,6 +10,14 @@ import { useSettingsStore } from './settings';
 
 const EXPIRY_WARNING_MS = 14 * 24 * 60 * 60 * 1000;
 
+const SCORE_SCALES: Record<string, { max: number; step: number }> = {
+    POINT_100: { max: 100, step: 1 },
+    POINT_10_DECIMAL: { max: 10, step: 0.1 },
+    POINT_10: { max: 10, step: 1 },
+    POINT_5: { max: 5, step: 1 },
+    POINT_3: { max: 3, step: 1 },
+};
+
 export type Expiry = { expired: boolean; soon: boolean; date: Date; relative: string | null };
 
 function expiryOf(account: AnilistAccount): Expiry {
@@ -46,6 +54,9 @@ export const useAccountsStore = defineStore('accounts', () => {
         const chosen = settings.settings?.titleLanguage ?? 'ANILIST';
         return chosen === 'ANILIST' ? anilist.value?.titleLanguage : chosen;
     };
+
+    const scoreScale = () =>
+        SCORE_SCALES[anilist.value?.scoreFormat ?? ''] ?? SCORE_SCALES.POINT_10;
 
     const titleOf = (media: Parameters<typeof mediaTitle>[0]) => mediaTitle(media, titleLanguage());
 
@@ -94,6 +105,7 @@ export const useAccountsStore = defineStore('accounts', () => {
         load,
         anilistExpiry,
         titleOf,
+        scoreScale,
         warnIfExpiring,
         connectAnilist,
         disconnectAnilist,
