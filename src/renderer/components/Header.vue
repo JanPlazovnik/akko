@@ -6,10 +6,12 @@ import WindowControls from './WindowControls.vue';
 import LogoMark from './LogoMark.vue';
 import { dateOverride, useAmbientEffects, useHoliday } from '../lib/holidays';
 import { celebrate, newYearShow, releaseBat } from '../lib/holiday-effects';
+import { useAccountsStore } from '../stores/accounts';
 
 const route = useRoute();
 const router = useRouter();
 const isDev = import.meta.env.DEV;
+const accounts = useAccountsStore();
 
 const ICON_BUTTON =
     'grid size-9 shrink-0 cursor-pointer place-items-center rounded-full transition-colors hover:bg-white/10 hover:text-white';
@@ -174,6 +176,38 @@ onUnmounted(() => clearTimeout(batTimer));
                 >
                     <Settings :size="17" />
                 </button>
+                <RouterLink
+                    v-if="accounts.anilist"
+                    to="/profile"
+                    :title="
+                        accounts.anilistExpiry()?.expired
+                            ? $t('header.profileExpired')
+                            : $t('header.profile', { name: accounts.anilist.name })
+                    "
+                    :class="[
+                        'relative ml-1 grid size-9 shrink-0 place-items-center rounded-full ring-2 transition',
+                        route.path === '/profile'
+                            ? 'ring-white/70'
+                            : 'ring-transparent hover:ring-white/25',
+                    ]"
+                >
+                    <img
+                        v-if="accounts.anilist.avatar"
+                        :src="accounts.anilist.avatar"
+                        :alt="accounts.anilist.name"
+                        class="size-8 rounded-full bg-raised object-cover"
+                    />
+                    <span
+                        v-else
+                        class="grid size-8 place-items-center rounded-full bg-raised font-display text-sm font-semibold text-white"
+                    >
+                        {{ accounts.anilist.name.slice(0, 1).toUpperCase() }}
+                    </span>
+                    <span
+                        v-if="accounts.anilistExpiry()?.expired"
+                        class="absolute right-0 bottom-0 size-2.5 rounded-full bg-amber-400 ring-2 ring-canvas"
+                    />
+                </RouterLink>
             </div>
             <WindowControls />
         </div>

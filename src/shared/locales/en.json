@@ -30,7 +30,9 @@
     },
     "header": {
         "search": "Search anime",
-        "searchShortcut": "Ctrl K"
+        "searchShortcut": "Ctrl K",
+        "profile": "{name} on AniList",
+        "profileExpired": "Your AniList login expired"
     },
     "window": {
         "minimize": "Minimize",
@@ -125,6 +127,21 @@
         "loadFailed": "Couldn't load your list:",
         "noMatches": "Nothing in {status} matches “{query}”.",
         "empty": "Nothing in {status} yet."
+    },
+    "profile": {
+        "anime": "Anime",
+        "episodes": "Episodes",
+        "days": "Days watched",
+        "meanScore": "Mean score",
+        "topGenres": "Top genres",
+        "joined": "Joined {date}",
+        "openOnAnilist": "AniList profile",
+        "loadFailed": "Couldn't load this profile:",
+        "recent": "Recently updated",
+        "favourites": "Favourites",
+        "followsYou": "Follows you",
+        "mutuals": "Mutuals",
+        "following": "Following"
     },
     "listEntry": {
         "fallbackTitle": "List entry",

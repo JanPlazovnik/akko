@@ -278,3 +278,57 @@ export const TagCollectionQuery = graphql(`
         }
     }
 `);
+
+export const UserProfileQuery = graphql(
+    `
+        query UserProfile($id: Int!, $recent: Int) {
+            User(id: $id) {
+                id
+                name
+                siteUrl
+                createdAt
+                bannerImage
+                isFollower
+                isFollowing
+                options {
+                    profileColor
+                }
+                avatar {
+                    large
+                }
+                statistics {
+                    anime {
+                        count
+                        meanScore
+                        minutesWatched
+                        episodesWatched
+                        genres(limit: 7, sort: COUNT_DESC) {
+                            genre
+                            count
+                        }
+                    }
+                }
+                favourites {
+                    anime(perPage: 25) {
+                        nodes {
+                            ...ListMediaFragment
+                        }
+                    }
+                }
+            }
+            Page(perPage: $recent) {
+                mediaList(userId: $id, type: ANIME, sort: UPDATED_TIME_DESC) {
+                    mediaId
+                    status
+                    progress
+                    media {
+                        ...ListMediaFragment
+                    }
+                }
+            }
+        }
+    `,
+    [ListMediaFragment]
+);
+
+export type UserProfile = ResultOf<typeof UserProfileQuery>;

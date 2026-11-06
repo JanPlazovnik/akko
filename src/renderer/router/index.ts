@@ -10,6 +10,7 @@ const router = createRouter({
         { path: '/', component: Dashboard },
         { path: '/search', component: () => import('../pages/Search.vue') },
         { path: '/library', component: () => import('../pages/Library.vue') },
+        { path: '/profile/:id?', component: () => import('../pages/Profile.vue') },
         { path: '/media/:id', component: MediaInfo },
         { path: '/player', component: Player },
         { path: '/settings', component: SettingsPage },
