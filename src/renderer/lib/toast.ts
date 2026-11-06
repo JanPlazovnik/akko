@@ -3,6 +3,8 @@ import { shallowReactive } from 'vue';
 export type ToastKind = 'success' | 'error' | 'info' | 'warn';
 
 export type ToastOptions = {
+    // A quieter second line, cut to one line when long
+    detail?: string;
     action?: { label: string; onClick: () => void };
     // false keeps it open until dismissed
     duration?: number | false;

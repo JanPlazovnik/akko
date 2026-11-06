@@ -37,11 +37,12 @@ export const useTrackingStore = defineStore('tracking', () => {
         return null;
     }
 
-    async function apply(mediaId: number, patch: EntryPatch, message: string) {
+    async function apply(mediaId: number, patch: EntryPatch, message: string, title: string) {
         const before = list.entryFor(mediaId);
         if (!(await list.save(mediaId, patch))) return;
-        log.info(message);
+        log.info(`${title}: ${message}`);
         toast.success(message, {
+            detail: title,
             action: { label: t('common.undo'), onClick: () => void undo(mediaId, before) },
         });
     }
@@ -62,12 +63,13 @@ export const useTrackingStore = defineStore('tracking', () => {
         const single = media?.format === 'MOVIE' || media?.episodes === 1;
 
         if (!entry || entry.status === 'PLANNING' || entry.status === 'PAUSED') {
-            await apply(anilistId, { status: 'CURRENT' }, t('tracking.watching', { title }));
+            await apply(anilistId, { status: 'CURRENT' }, t('tracking.watching'), title);
         } else if (entry.status === 'COMPLETED' && selection.episode.number === 1 && !single) {
             await apply(
                 anilistId,
                 { status: 'REPEATING', progress: 0 },
-                t('tracking.rewatching', { title })
+                t('tracking.rewatching'),
+                title
             );
         }
     }
@@ -87,11 +89,9 @@ export const useTrackingStore = defineStore('tracking', () => {
             return log.warn(`Episode ${number} is beyond ${title}'s ${episodes} episodes`);
         }
 
-        const single = episodes === 1;
-        const message = single
-            ? t('tracking.watched', { title })
-            : t('tracking.episodeWatched', { episode: number, title });
-        await apply(anilistId, { progress: number }, message);
+        const detail =
+            episodes === 1 ? title : t('tracking.episodeDetail', { episode: number, title });
+        await apply(anilistId, { progress: number }, t('tracking.watched'), detail);
     }
 
     watch(

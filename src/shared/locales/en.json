@@ -561,10 +561,10 @@
         "removeFailed": "Couldn't remove it from your list: {error}"
     },
     "tracking": {
-        "watching": "Marked {title} as watching",
-        "rewatching": "Marked {title} as rewatching",
-        "watched": "Marked {title} as watched",
-        "episodeWatched": "Marked episode {episode} of {title} as watched"
+        "watching": "Marked as watching",
+        "rewatching": "Marked as rewatching",
+        "watched": "Marked as watched",
+        "episodeDetail": "Episode {episode} · {title}"
     },
     "discord": {
         "watching": "Watching anime",

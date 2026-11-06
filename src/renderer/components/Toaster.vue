@@ -139,7 +139,16 @@ function onAction(t: Toast) {
                         :size="18"
                         :class="['shrink-0', TINTS[t.kind]]"
                     />
-                    <p class="min-w-0 flex-1 leading-snug">{{ t.message }}</p>
+                    <div class="min-w-0 flex-1 leading-snug">
+                        <p>{{ t.message }}</p>
+                        <p
+                            v-if="t.detail"
+                            class="truncate text-[13px] text-white/50"
+                            :title="t.detail"
+                        >
+                            {{ t.detail }}
+                        </p>
+                    </div>
                     <button
                         v-if="t.action"
                         class="h-8 shrink-0 cursor-pointer rounded-lg bg-white/10 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-white/20"

@@ -177,14 +177,15 @@ function showStatus(state: 'loading' | 'error' | null) {
 
 // ─── toasts and loading ───────────────────────────────────────────────────────
 const SAMPLE_TOASTS = [
-    () => toast.success('Marked Frieren as watching'),
-    () => toast.info('All extensions up to date'),
-    () => toast.warn('Your AniList login expires in 3 days. Reconnect it to renew it.'),
+    () => toast.success('Marked as watching', { detail: 'Frieren: Beyond Journey’s End' }),
+    () => toast.info('Your extensions are up to date'),
+    () => toast.warn('Your AniList login expires in 3 days. Reconnect now to stay signed in.'),
     () => toast.error("Couldn't update your list: Network request failed"),
 ];
 
 function toastWithAction() {
-    toast.success('Updated progress to episode 7', {
+    toast.success('Marked as watched', {
+        detail: "Episode 5 · A Returner's Magic Should be Special Season 2",
         action: { label: 'Undo', onClick: () => toast.info('Undone') },
     });
 }
@@ -426,7 +427,7 @@ async function restartOnboarding() {
                             :class="BUTTON"
                             @click="
                                 toast.error(
-                                    'Your AniList login expired. Reconnect it to keep syncing.',
+                                    'Your AniList login expired. Reconnect to keep syncing.',
                                     {
                                         duration: false,
                                     }
